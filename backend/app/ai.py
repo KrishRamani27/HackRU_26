@@ -87,6 +87,55 @@ Rules:
 """
 
 
+EDIT_GUIDE = """Each action is {"op": "set", "path": <path>, "value": <value>}.
+Use only the paths below, and only the values listed for that path.
+
+- neckline.type: "crew" (round, close to the neck), "v" (two straight lines meeting in
+  a point), "scoop" (wide, low, rounded U) or "square" (straight bottom edge with corners).
+- neckline.depth: number from 0 to 1. 0 = at the base of the neck, 0.5 = about
+  mid-chest, 1 = almost to the waist.
+- sleeves.type: "none" (sleeveless or straps), "cap" (tiny, covers only the shoulder
+  point), "puff" (gathered fullness) or "fitted" (plain, follows the arm).
+- sleeves.length: "short" (above the elbow), "elbow" or "long" (to the wrist).
+- waist.seam: true or false.
+- skirt.silhouette: "straight" (sides drop almost vertically), "a_line" (widens
+  steadily in straight lines) or "flared" (much wider at the hem, with gathers, pleats
+  or folds).
+- skirt.length: "mini" (mid-thigh or above), "knee", "midi" (mid-calf) or "floor"
+  (ankle or floor).
+- details.pockets: "none", "patch" or "side_seam".
+- details.buttons: whole number from 0 to 8.
+- proportions.shoulder_width: number from 0 to 1. 0 = very narrow, 0.5 = natural
+  shoulder line, 1 = very wide.
+- proportions.waist_y: number from 0 to 1. 0 = empire line just under the bust,
+  0.5 = natural waist, 1 = dropped waist at the hip.
+- style.<part>.fill: 6-digit hex color such as "#1f2a44".
+- style.<part>.pattern: "solid", "denim", "plaid" or "floral".
+  <part> is one of: collar_neckline, bodice, left_sleeve, right_sleeve, waist_seam,
+  skirt, pockets, buttons. To recolor the whole dress, set every part.
+- notes: free text.
+
+Rules:
+- Never invent a value. If the request or the sketch suggests something that is not
+  listed (for example "maxi" or "bishop sleeve"), use the closest listed value.
+- Give value the right type: a number for numbers, true or false for waist.seam,
+  text in quotes for everything else.
+- Only include actions that change the current spec. Return an empty list if nothing
+  should change.
+- Never set garment_type.
+"""
+
+VERIFY_RULES = """Rules for comparing the sketch with the flat:
+- The flat is a simplified technical drawing built from the current spec. Ignore
+  differences in drawing style, shading, pose, the figure and small proportions.
+- Correct a field only when the sketch clearly shows a different listed option from
+  the one in the current spec. If the flat already matches, return an empty list.
+- Judge the garment's construction, not the figure's pose.
+- If the sketch shows layers, compare the outermost dress. Ignore a high-neck layer
+  of a different color underneath when judging neckline.type.
+"""
+
+
 def shrink(image):
     """Downscale large images so Gemini answers faster. Small images pass through."""
     data, mime = image
@@ -177,16 +226,17 @@ class AIService:
     def edits(self, spec, text, images=()):
         if self.settings.ai_mode == "mock":
             return []
-        result = self.call(f"{text}\nCurrent spec: {spec.model_dump_json()}",
-                          GeminiEditResult, AIEditResult, images)
+        rules = EDIT_GUIDE + (VERIFY_RULES if images else "")
+        result = self.call(f"{text}\nCurrent spec: {spec.model_dump_json()}\n\n{rules}",
+                           GeminiEditResult, AIEditResult, images)
         apply_actions(spec, result.actions)
         return result.actions
 
     def suggestions(self, spec, goal):
         if self.settings.ai_mode == "mock":
             return Suggestions(suggestions=[], end_goal="MOCK: a clean front-view dress flat.")
-        result = self.call(f"Suggest improvements. Goal: {goal}\nSpec: {spec.model_dump_json()}",
-                          GeminiSuggestions, Suggestions)
+        result = self.call(f"Suggest improvements. Goal: {goal}\nSpec: {spec.model_dump_json()}"
+                           f"\n\n{EDIT_GUIDE}", GeminiSuggestions, Suggestions)
         for suggestion in result.suggestions:
             apply_actions(spec, suggestion.actions)
         return result

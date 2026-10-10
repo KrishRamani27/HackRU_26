@@ -105,3 +105,37 @@ whether v1 or v2 produced them. _Confirm which one and move this line under it._
   waist) would be drawn as a raised waist.
 - **Results:** not tested yet (quota). `waist_y` is not one of the 8 scored fields, so
   check it by eye on the built flat.
+
+# Edit prompts (/verify, /command, /suggestions)
+
+These routes return edit actions (`set` a path to a value) instead of a full spec.
+
+## Starter edit prompts
+
+- **Prompt:** the system prompt plus one task line and the current spec as JSON.
+  - `/verify`: "Compare original sketch (first image) with flat (second image).
+    Return only corrections that better match the sketch."
+  - `/command`: "Apply this student command: <text>"
+  - `/suggestions`: "Suggest improvements. Goal: <goal>"
+- **Results (one live call each, `gemini-3.8-flash`, October 10):**
+  - `/command` ("make puff sleeves, floor length, and add 4 buttons"): 3 correct actions.
+  - `/suggestions`: 3 valid suggestions.
+  - `/verify`: failed. Gemini returned `sleeves.type = "bishop"`,
+    `skirt.silhouette = "gathered"` and `skirt.length = "maxi"`, which the strict
+    contract rejected (502). The test used a blank white image as the flat, which
+    pushed Gemini to correct everything.
+
+## Edit prompts + EDIT_GUIDE and VERIFY_RULES
+
+- **Where:** `EDIT_GUIDE` and `VERIFY_RULES` in `backend/app/ai.py` (current version).
+- **What changed:**
+  - `EDIT_GUIDE` is added to all three prompts. It lists every editable path with its
+    allowed values and a short meaning, and says: never invent a value, use the closest
+    listed one, give the right type, return an empty list when nothing should change.
+  - `VERIFY_RULES` is added to `/verify` only. It says the flat is a simplified
+    drawing, so ignore style and pose, and correct a field only when the sketch clearly
+    shows a different listed option.
+- **Why:** an edit action's value can be any text, so the response schema cannot tell
+  Gemini which values belong to which path. Nothing in the old prompt listed them.
+- **Results:** not tested yet. The quota was still exhausted at 6:47 PM on October 10.
+- **To test `/verify` fairly:** use a real flat from the builder, not a blank image.

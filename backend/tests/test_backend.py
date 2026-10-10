@@ -315,6 +315,65 @@ def test_gemini_command_actions_are_validated(client, monkeypatch):
     assert client.post("/command", json=body).status_code == 502
 
 
+def test_edit_guide_covers_the_contract():
+    from typing import get_args
+
+    from app.ai import EDIT_GUIDE
+    from app.schemas import editable_paths
+
+    for path in editable_paths():
+        section, *rest = path.split(".")
+        if section == "style":
+            assert rest[0] in EDIT_GUIDE and f"style.<part>.{rest[1]}" in EDIT_GUIDE, path
+        else:
+            assert f"- {path}:" in EDIT_GUIDE, path
+
+    def allowed_values(model):
+        for field in model.model_fields.values():
+            if isinstance(field.annotation, type) and issubclass(field.annotation, BaseModel):
+                yield from allowed_values(field.annotation)
+            else:
+                yield from (value for value in get_args(field.annotation) if isinstance(value, str))
+
+    values = set(allowed_values(DesignSpec)) - {"dress"}
+    assert len(values) > 20
+    for value in values:
+        assert f'"{value}"' in EDIT_GUIDE, value
+
+
+def test_edit_prompts_carry_the_guide(client, monkeypatch):
+    from google import genai
+
+    from app.ai import EDIT_GUIDE, VERIFY_RULES
+
+    prompts = []
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            self.models = self
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def generate_content(self, **kwargs):
+            prompts.append(kwargs["contents"][0])
+            return SimpleNamespace(text='{"actions": []}')
+
+    monkeypatch.setattr(genai, "Client", FakeClient)
+    client.app.state.ai.settings.ai_mode = "gemini"
+    client.app.state.ai.settings.gemini_api_key = "fake-test-key"
+    spec = DesignSpec()
+    assert client.post("/command", json={"text": "maxi length", "spec": spec.model_dump()}).json() == []
+    verify = client.post("/verify", data={"spec": spec.model_dump_json()},
+                         files={"sketch": ("a.png", png()), "flat": ("b.png", png())})
+    assert verify.json() == []
+    assert EDIT_GUIDE in prompts[0] and VERIFY_RULES not in prompts[0]
+    assert EDIT_GUIDE in prompts[1] and VERIFY_RULES in prompts[1]
+
+
 @pytest.mark.parametrize("model", [GeminiDesignSpec, GeminiEditResult, GeminiSuggestions])
 def test_gemini_schemas_avoid_unsupported_fields(model):
     schema = json.dumps(model.model_json_schema())

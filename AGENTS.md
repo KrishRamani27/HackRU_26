@@ -32,7 +32,7 @@
 - Explicit mock AI mode, so teammates can connect before credentials are ready.
 - Shared team API-key protection, frontend CORS settings, health/readiness routes.
 - Docker packaging, pinned dependencies, secret exclusions and setup notes.
-- Verification: **28 tests passed** locally. Gemini and GCS adapter tests use fakes;
+- Verification: **30 tests passed** locally. Gemini and GCS adapter tests use fakes;
   this does not mean the live cloud services have been tested.
 - Gemini rejects `additionalProperties` in response schemas, so `ai.py` sends the plain
   models in `ai_schemas.py` and validates replies with the strict contract afterwards.
@@ -44,6 +44,8 @@
   for one main fill and pattern and copies it to all 8 parts. Live `/analyze` usually
   takes 4-6 s, with occasional stalls of 40 s or more.
 - `/analyze` uses the full field-by-field prompt `ANALYZE_PROMPT` in `ai.py`.
+- `/verify`, `/command` and `/suggestions` prompts carry `EDIT_GUIDE` (allowed values
+  per path); `/verify` also carries `VERIFY_RULES`. Not yet tested against live Gemini.
 - The Gemini key is on the free tier: 20 requests per day per model. It ran out during
   testing on October 10; calls then fail with 429 RESOURCE_EXHAUSTED.
 
