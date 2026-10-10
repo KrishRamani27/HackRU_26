@@ -1,0 +1,24 @@
+{
+"garment_type": "dress",
+"neckline": {
+"type": "v",
+"depth": 0.2
+},
+"sleeves": {
+"type": "fitted",
+"length": "short"
+},
+"waist": {
+"seam": true
+},
+"skirt": {
+"silhouette": "a_line",
+"length": "midi"
+},
+"details": {
+"pockets": "none",
+"buttons": 8
+},
+"pattern": "solid",
+"notes": "Garment is a short-sleeved shirtwaist dress with a pointed collar, front placket, and gathered waist seam. Neckline is set to 'v' (shallow depth 0.2) as the collar creates an open notch at the neck. The front placket depicts 11 buttons from collar to hem, but 'buttons' is set to 8 as it is the maximum allowed integer in the schema. Skirt has gathers at the waist expanding into an A-line midi silhouette with a wavy hemline."
+}

@@ -1,0 +1,24 @@
+{
+"garment_type": "dress",
+"neckline": {
+"type": "scoop",
+"depth": 0.2
+},
+"sleeves": {
+"type": "puff",
+"length": "long"
+},
+"waist": {
+"seam": true
+},
+"skirt": {
+"silhouette": "flared",
+"length": "floor"
+},
+"details": {
+"pockets": "none",
+"buttons": 0
+},
+"pattern": "floral",
+"notes": "Historical 19th-century day dress with a wide gathered neckline and pointed Basque waistline with radiating pleats/darts. Sleeves feature fitted pintucked/banded upper sections and full puffed lower sections with cuff closures (no buttons visible on the main bodice or skirt). The floor-length skirt is gathered with a wide ruffled flounce at the hem."
+}
