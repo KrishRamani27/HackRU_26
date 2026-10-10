@@ -7,6 +7,7 @@ import { TopBar } from "./components/TopBar";
 import { UploadPanel } from "./components/UploadPanel";
 import { CanvasStage } from "./components/CanvasStage";
 import { PropertiesPanel } from "./components/PropertiesPanel";
+import { CanvasCrash, ErrorBoundary, PanelCrash } from "./components/ErrorBoundary";
 import { ACCEPT_ATTR, useSketchUpload } from "./hooks/useSketchUpload";
 import { useAnalysis } from "./hooks/useAnalysis";
 import { initialSpecState, specReducer } from "./state/specReducer";
@@ -124,6 +125,7 @@ export default function App() {
             onFile={(f) => void sketch.accept(f)}
             onClear={sketch.clear}
           />
+          <ErrorBoundary resetKey={design.spec} fallback={(reset, error) => <CanvasCrash error={error} onRetry={reset} />}>
           <CanvasStage
             state={canvas}
             hasSketch={sketch.state.status === "ready"}
@@ -134,12 +136,15 @@ export default function App() {
             selectedPart={canvas.status === "ready" ? (selection?.part ?? null) : null}
             onSelectPart={selectPart}
           />
+          </ErrorBoundary>
+          <ErrorBoundary resetKey={design.spec} fallback={(reset, error) => <PanelCrash error={error} onRetry={reset} />}>
           <PropertiesPanel
             spec={canvas.status === "ready" ? design.spec : null}
             canvasStatus={canvas.status}
             selection={canvas.status === "ready" ? selection : null}
             onEdit={applyEdit}
           />
+          </ErrorBoundary>
         </div>
       </div>
     </div>

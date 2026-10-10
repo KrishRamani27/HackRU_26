@@ -3,6 +3,7 @@
 // The type-only definitions live in Builder/types.ts and are reused, not copied.
 
 import type {
+  DesignSpec,
   NecklineType,
   Pattern,
   PartName,
@@ -109,4 +110,32 @@ export function isValidEdit(action: EditAction): boolean {
     case "text":
       return typeof value === "string" && value.length <= rule.max;
   }
+}
+
+/**
+ * Parts whose style Builder/buildFlat.ts actually reads (it calls fillFor for exactly
+ * these). The collar, waist seam and buttons are drawn without a fill, so a color or
+ * pattern set on them cannot change the drawing.
+ */
+export const FILLED_PARTS: readonly PartName[] = ["bodice", "left_sleeve", "right_sleeve", "skirt", "pockets"];
+
+/**
+ * Makes every part's style complete and safe before it reaches buildFlat:
+ * - every part gets both a fill and a pattern (a missing key makes fillFor emit a
+ *   reference to a pattern that doesn't exist, which draws nothing);
+ * - a fill that isn't #rrggbb, or a pattern that isn't allowed, falls back to the
+ *   default, because buildFlat copies fills into SVG attributes without escaping.
+ * Runs on every loaded spec and after every edit.
+ */
+export function normalizeStyles(spec: DesignSpec): DesignSpec {
+  const source = (spec.style ?? {}) as Record<string, { fill?: unknown; pattern?: unknown } | undefined>;
+  const style: DesignSpec["style"] = {};
+  for (const part of PART_NAMES) {
+    const entry = source[part] && typeof source[part] === "object" ? source[part] : {};
+    style[part] = {
+      fill: typeof entry.fill === "string" && /^#[0-9a-fA-F]{6}$/.test(entry.fill) ? entry.fill : DEFAULT_STYLE.fill,
+      pattern: PATTERNS.includes(entry.pattern as Pattern) ? (entry.pattern as Pattern) : DEFAULT_STYLE.pattern,
+    };
+  }
+  return { ...spec, style };
 }

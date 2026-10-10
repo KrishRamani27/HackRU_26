@@ -91,7 +91,7 @@ export function InlineFlat({ markup, label, selected, onSelect }: Props) {
     const svg = sanitizeSvg(markup);
     if (!svg) {
       host.replaceChildren();
-      return;
+      throw new Error("The drawing couldn’t be displayed because the builder’s SVG wasn’t usable.");
     }
     makeInteractive(svg, label);
     const { selected: current, onSelect: select } = latest.current;

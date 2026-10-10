@@ -3,6 +3,7 @@ import type { DesignSpec, PartName } from "../../../Builder/types";
 import type { CanvasState } from "../types";
 import {
   DEFAULT_STYLE,
+  FILLED_PARTS,
   MAX_NOTES_LENGTH,
   NECKLINE_TYPES,
   PART_NAMES,
@@ -208,7 +209,8 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit }: Props
             <Section name="fabric" title="Fabric & color">
               <div className="parts">
                 {PART_NAMES.map((part) => {
-                  const style = spec.style[part] ?? DEFAULT_STYLE;
+                  const style = { ...DEFAULT_STYLE, ...spec.style[part] };
+                  const filled = FILLED_PARTS.includes(part);
                   return (
                     <div className="part" key={part} data-part-row={part}>
                       <div className="field__row">
@@ -217,7 +219,8 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit }: Props
                           id={`fill-${part}`}
                           className="swatch"
                           type="color"
-                          value={style.fill.toLowerCase()}
+                          value={String(style.fill).toLowerCase()}
+                          disabled={!filled}
                           aria-label={`${PART_LABELS[part]} color`}
                           onChange={(e) => set(stylePath(part, "fill"), e.target.value)}
                         />
@@ -227,8 +230,10 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit }: Props
                         label={`${PART_LABELS[part]} pattern`}
                         options={toOptions(PATTERNS, PATTERN_LABELS)}
                         value={style.pattern}
+                        disabled={!filled}
                         onChange={(v) => set(stylePath(part, "pattern"), v)}
                       />
+                      {!filled && <p className="field__hint">The builder doesn’t fill this part yet.</p>}
                     </div>
                   );
                 })}

@@ -1,6 +1,6 @@
 import type { DesignSpec } from "../../../Builder/types";
 import type { AiMode } from "../types";
-import { isValidEdit, type EditAction } from "./specSchema";
+import { isValidEdit, normalizeStyles, type EditAction } from "./specSchema";
 
 /** Where the current spec came from. Drives the labels on the canvas. */
 export type SpecSource = { source: "analysis"; aiMode: AiMode } | { source: "sample" };
@@ -38,11 +38,12 @@ function applyOne(spec: DesignSpec, action: EditAction): DesignSpec {
 export function specReducer(state: SpecState, action: SpecAction): SpecState {
   switch (action.type) {
     case "load":
-      return { spec: action.spec, meta: action.meta };
+      return { spec: normalizeStyles(action.spec), meta: action.meta };
     case "apply": {
       if (!state.spec) return state;
-      const next = action.actions.reduce(applyOne, state.spec);
-      return next === state.spec ? state : { ...state, spec: next };
+      const edited = action.actions.reduce(applyOne, state.spec);
+      // An edit like style.bodice.pattern must not leave that part without a fill (or vice versa).
+      return edited === state.spec ? state : { ...state, spec: normalizeStyles(edited) };
     }
     case "clear":
       if (action.source && state.meta?.source !== action.source) return state;
