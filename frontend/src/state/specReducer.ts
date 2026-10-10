@@ -50,6 +50,8 @@ export type SpecAction =
   | { type: "commit" }
   | { type: "undo" }
   | { type: "redo" }
+  /** Makes a collar or waistband that has its own style follow the bodice again. One undo step. */
+  | { type: "follow"; part: PartName }
   /** Drop the spec and its history. With `source`, only if it came from that source. */
   | { type: "clear"; source?: SpecSource["source"] };
 
@@ -155,6 +157,21 @@ export function specReducer(state: SpecState, action: SpecAction): SpecState {
         detached: following.detached,
         past: [...state.past, { spec: state.spec, detached: state.detached }].slice(-MAX_HISTORY),
         future: rest,
+        openKey: null,
+      };
+    }
+
+    case "follow": {
+      // Only a follower that currently has its own style can be handed back to the bodice.
+      if (!state.spec || !state.detached.includes(action.part)) return state;
+      const detached = state.detached.filter((p) => p !== action.part);
+      return {
+        ...state,
+        spec: followBodice(state.spec, detached), // copies the bodice's color and pattern onto it
+        detached,
+        // Counts as a step even if the look doesn't change, because what happens on the next bodice edit does.
+        past: [...state.past, { spec: state.spec, detached: state.detached }].slice(-MAX_HISTORY),
+        future: [],
         openKey: null,
       };
     }

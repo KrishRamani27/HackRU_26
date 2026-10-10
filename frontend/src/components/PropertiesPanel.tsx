@@ -4,6 +4,7 @@ import type { CanvasState } from "../types";
 import {
   DEFAULT_STYLE,
   FILLED_PARTS,
+  FOLLOWER_PARTS,
   MAX_NOTES_LENGTH,
   NECKLINE_TYPES,
   PART_NAMES,
@@ -36,6 +37,8 @@ interface Props {
   onOpenLibrary: () => void;
   /** Trim parts (collar, waistband) that currently copy the bodice's color and pattern. */
   following: readonly PartName[];
+  /** Hands a collar or waistband with its own style back to the bodice's color and pattern. */
+  onMatchBodice: (part: PartName) => void;
 }
 
 // Which section holds the controls for each canvas part. The bodice has no
@@ -81,7 +84,7 @@ const unitDisplay = (v: number) => v.toFixed(2);
 // Avoid float noise like 0.30000000000000004 reaching the spec.
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
-export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommit, onSavePart, onOpenLibrary, following }: Props) {
+export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommit, onSavePart, onOpenLibrary, following, onMatchBodice }: Props) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const flashTimer = useRef<number>(0);
 
@@ -251,6 +254,16 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
                         onChange={(v) => set(stylePath(part, "pattern"), v)}
                       />
                       {!filled && <p className="field__hint">The builder doesn’t fill this part yet.</p>}
+                      {FOLLOWER_PARTS.includes(part) && !following.includes(part) && (
+                        <button
+                          type="button"
+                          className="btn btn--ghost btn--sm match-btn"
+                          aria-label={`Make ${PART_LABELS[part]} follow the bodice again`}
+                          onClick={() => onMatchBodice(part)}
+                        >
+                          Match bodice
+                        </button>
+                      )}
                       {following.includes(part) && (
                         <p className="field__hint">Follows the bodice until you set a color or pattern here.</p>
                       )}

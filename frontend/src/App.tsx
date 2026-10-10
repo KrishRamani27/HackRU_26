@@ -140,6 +140,7 @@ export default function App() {
     [library.remove],
   );
 
+  const matchBodice = useCallback((part: PartName) => dispatch({ type: "follow", part }), []);
   const commitEdit = useCallback(() => dispatch({ type: "commit" }), []);
 
   // Undo and redo step through the spec history kept by the reducer.
@@ -233,6 +234,7 @@ export default function App() {
             onSavePart={savePart}
             following={design.spec ? FOLLOWER_PARTS.filter((p) => !design.detached.includes(p)) : []}
             onOpenLibrary={() => setLeftTab("library")}
+            onMatchBodice={matchBodice}
           />
           </ErrorBoundary>
         </div>

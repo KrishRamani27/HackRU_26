@@ -997,3 +997,5 @@ img { display: block; max-width: 100%; }
   font-size: 13.5px;
 }
 .input::placeholder { color: var(--ink-3); }
+
+.match-btn { align-self: flex-start; }
