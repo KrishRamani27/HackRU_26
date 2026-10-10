@@ -16,6 +16,12 @@ const base = {
 export const UploadIcon = (p: P) => (
   <svg {...base} {...p}><path d="M12 15V4M7 9l5-5 5 5M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" /></svg>
 );
+export const UndoIcon = (p: P) => (
+  <svg {...base} {...p}><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>
+);
+export const RedoIcon = (p: P) => (
+  <svg {...base} {...p}><path d="m15 14 5-5-5-5" /><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" /></svg>
+);
 export const ChevronDownIcon = (p: P) => (
   <svg {...base} {...p}><path d="m6 9 6 6 6-6" /></svg>
 );

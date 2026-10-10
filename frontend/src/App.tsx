@@ -11,6 +11,7 @@ import { PropertiesPanel } from "./components/PropertiesPanel";
 import { CanvasCrash, ErrorBoundary, PanelCrash } from "./components/ErrorBoundary";
 import { ACCEPT_ATTR, useSketchUpload } from "./hooks/useSketchUpload";
 import { useAnalysis } from "./hooks/useAnalysis";
+import { useUndoShortcuts } from "./hooks/useUndoShortcuts";
 import { initialSpecState, specReducer } from "./state/specReducer";
 import type { EditAction } from "./state/specSchema";
 import type { AiMode, AnalysisStatus, CanvasState } from "./types";
@@ -97,7 +98,17 @@ export default function App() {
     [design.spec],
   );
 
-  const applyEdit = useCallback((action: EditAction) => dispatch({ type: "apply", actions: [action] }), []);
+  const applyEdit = useCallback(
+    (action: EditAction, coalesce?: string) => dispatch({ type: "apply", actions: [action], coalesce }),
+    [],
+  );
+  const commitEdit = useCallback(() => dispatch({ type: "commit" }), []);
+
+  // Undo and redo step through the spec history kept by the reducer.
+  const historyOn = canvas.status === "ready";
+  const undo = useCallback(() => dispatch({ type: "undo" }), []);
+  const redo = useCallback(() => dispatch({ type: "redo" }), []);
+  useUndoShortcuts({ enabled: historyOn, onUndo: undo, onRedo: redo });
   const showSample = useCallback(
     () => dispatch({ type: "load", spec: mockSpec, meta: { source: "sample" } }),
     [],
@@ -130,6 +141,10 @@ export default function App() {
           onUpload={browse}
           exportEnabled={canvas.status === "ready"}
           onExport={exportCurrent}
+          canUndo={historyOn && design.past.length > 0}
+          canRedo={historyOn && design.future.length > 0}
+          onUndo={undo}
+          onRedo={redo}
           status={canvas.status === "ready" && canvas.source === "analysis" ? aiStatus(canvas.aiMode) : null}
         />
         <div className="workspace">
@@ -157,6 +172,7 @@ export default function App() {
             canvasStatus={canvas.status}
             selection={canvas.status === "ready" ? selection : null}
             onEdit={applyEdit}
+            onCommit={commitEdit}
           />
           </ErrorBoundary>
         </div>

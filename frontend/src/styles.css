@@ -830,3 +830,14 @@ img { display: block; max-width: 100%; }
   box-shadow: var(--shadow-sheet);
 }
 .export__message--error { background: var(--danger); }
+
+/* ---------- Undo / redo ---------- */
+.history {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+}

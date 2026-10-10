@@ -10,11 +10,12 @@ This is the part of FlatSketch you see in the browser. You give it a photo of a 
 4. **It analyzes automatically.** As soon as a good file is picked, the picture goes to the backend. The middle sheet says "Analyzing your sketch" while it waits.
 5. **The flat appears.** The backend sends back a short list of settings (neckline type, sleeve type, skirt length and so on). Our drawing code turns those settings into a clean, symmetrical flat on the paper sheet. A tag tells you whether this is a demo result or a real AI result (see section 3).
 6. **Edit it.** Every control in the right panel changes one setting, and the drawing redraws right away.
-7. **Click a part of the dress.** Click the bodice, a sleeve, the skirt and so on. The part glows, its name shows at the bottom of the sheet ("Selected: Bodice"), and the right panel scrolls to the matching controls and flashes them briefly. Click empty space or press Escape to let go. You can also Tab to a part and press Enter.
-8. **Zoom.** Zoom buttons at the top of the sheet go from 50% to 300%, and there is a "fit" button.
-9. **View sample.** On the empty sheet there is a "View sample" button. It loads a ready made dress from the builder so you can try the controls without uploading anything or running the backend. It is labeled as a sample that was not generated from a sketch, and "Hide sample" takes you back to the empty sheet. The sample is fully editable too.
-10. **Export.** Once something is on the sheet, the Export button at the top turns on. Click it and pick SVG or PNG from the small menu. The file downloads with a name taken from the title, like `untitled-garment.svg`, and a short "Exported" message appears.
-11. **Starting over.** Uploading a new sketch, opening the sample, or removing your sketch replaces the current design, and any edits you made are gone. Nothing is saved anywhere yet.
+7. **Undo and redo.** Made a mistake? Press Ctrl+Z, or click the undo arrow at the top. Ctrl+Shift+Z or Ctrl+Y (or the redo arrow) brings the change back. It remembers the last 50 changes. Dragging a slider counts as one change, not one per pixel, so a single undo puts the slider back where the drag started.
+8. **Click a part of the dress.** Click the bodice, a sleeve, the skirt and so on. The part glows, its name shows at the bottom of the sheet ("Selected: Bodice"), and the right panel scrolls to the matching controls and flashes them briefly. Click empty space or press Escape to let go. You can also Tab to a part and press Enter.
+9. **Zoom.** Zoom buttons at the top of the sheet go from 50% to 300%, and there is a "fit" button.
+10. **View sample.** On the empty sheet there is a "View sample" button. It loads a ready made dress from the builder so you can try the controls without uploading anything or running the backend. It is labeled as a sample that was not generated from a sketch, and "Hide sample" takes you back to the empty sheet. The sample is fully editable too.
+11. **Export.** Once something is on the sheet, the Export button at the top turns on. Click it and pick SVG or PNG from the small menu. The file downloads with a name taken from the title, like `untitled-garment.svg`, and a short "Exported" message appears.
+12. **Starting over.** Uploading a new sketch, opening the sample, or removing your sketch replaces the current design, and any edits and undo history are gone. Nothing is saved anywhere yet.
 
 ## 2. The layout
 
@@ -28,6 +29,7 @@ The screen has a thin dark strip on the left, a top bar, and three panels.
 **Top bar**
 * A small "Atelier / Workbench" line, then the project name "Untitled garment" in big letters with a "Draft" tag. The name is fixed for now, you cannot rename it.
 * A status note that only appears after an analysis: "Mock AI mode", "Gemini", or "AI mode unknown".
+* Undo and redo arrow buttons. They are greyed out when there is nothing to undo or redo.
 * The "Upload sketch" button.
 * The "Export" button with a small menu: SVG or PNG. It is greyed out until a sketch result or the sample is on the sheet.
 
@@ -62,6 +64,8 @@ The "design spec" is the list of settings for the dress: neckline, sleeves, wais
 Every change goes through that one place, as a small instruction called an edit action. An edit action looks like: set `sleeves.type` to `puff`. It is the same shape the whole team agreed on in the project guide, and the backend uses the same shape, so clicks today and voice or AI edits later can all use it.
 
 Before applying an edit, the reducer checks it with the same rules as the backend: the setting has to exist, the value has to be allowed, and numbers have to be in range. Bad edits are ignored. After every change it also tidies the colors and patterns so every part always has both a color and a pattern, and any color that is not a normal six digit hex color is swapped for white (this matters for safety, see the sanitizer below).
+
+The reducer also keeps the history that powers undo and redo: a list of earlier versions of the settings (up to 50) and a list of undone ones. A new edit after an undo throws away the undone ones, like in any editor. To make a slider drag count as one step, edits that come from the same slider back to back are merged into one history entry until you let go. The same trick covers dragging in the color picker and typing in the notes box. Loading a new sketch or opening the sample starts a fresh, empty history.
 
 The reducer starts empty. It gets filled by an analysis result or by the sample, and either one replaces whatever was there.
 
@@ -157,6 +161,7 @@ Everything is in `frontend/`. The drawing code is not ours: it lives in `Builder
 
 **`src/hooks/`**
 * `useSketchUpload.ts`: checks the file (type and 5 MB), makes the preview, reads the picture size.
+* `useUndoShortcuts.ts`: listens for Ctrl+Z, Ctrl+Shift+Z and Ctrl+Y. It ignores them while you are typing in a text box, so the notes box keeps its own normal undo.
 * `useAnalysis.ts`: sends each good sketch once, cancels old requests, and loads the answer into the reducer.
 
 **`src/state/`**
@@ -214,7 +219,6 @@ You can try the sample with only the frontend running. Uploading a sketch needs 
 
 **Not built yet**
 * **Opening an export in Illustrator itself.** The SVG was checked as valid XML and rendered in a browser, and it has the named layers, fills and patterns. Nobody has opened it in Illustrator yet, so test one before promising it.
-* **Undo and redo.** There is no way to step back an edit.
 * **Saving.** Nothing is saved. A refresh loses everything. The backend can save designs and parts, but the frontend does not use that yet.
 * **Library.** The nav item is greyed out, and saved parts are not built.
 * **Layers panel.** The project guide mentions one. We have click to select instead.
@@ -232,7 +236,7 @@ You can try the sample with only the frontend running. Uploading a sketch needs 
 * **Dress only, front view only.** That is the scope for this event.
 * **No automated tests.** The checks were done by hand with scripted browser runs. There is no test suite in the repo.
 * **Built desktop first.** It adapts to small screens by stacking the panels, but it is not tuned for phones.
-* **Edits are lost** when you load a new sketch or the sample.
+* **Edits and undo history are lost** when you load a new sketch or the sample.
 
 ## 9. How to explain this to judges
 
