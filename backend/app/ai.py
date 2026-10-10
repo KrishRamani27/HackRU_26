@@ -62,10 +62,10 @@ Fields:
 - proportions.shoulder_width: how wide the dress is at the shoulders, from 0 to 1.
   0 = very narrow, such as a halter or thin straps set close to the neck.
   0.5 = the natural shoulder line. 1 = very wide or extended past the shoulders.
-- proportions.waist_y: where the waistline sits along the dress, from 0 to 1.
-  0 = at the neckline, 1 = at the hem. Measure it against the full dress length:
-  a natural waist is about 0.4 on a knee-length dress and about 0.3 on a floor-length
-  dress. An empire waist is lower in number; a dropped waist is higher.
+- proportions.waist_y: how high or low the waistline sits, from 0 to 1. It does not
+  depend on the skirt length. 0 = empire line just under the bust.
+  0.5 = natural waist. 1 = dropped waist at the hip. Use 0.5 unless the waistline is
+  clearly raised or lowered.
 - main_style.fill: the main fabric color of the dress as a 6-digit hex code.
   Use "#ffffff" for an uncolored line drawing.
 - main_style.pattern: "solid", "denim", "plaid" or "floral". Use "solid" unless the

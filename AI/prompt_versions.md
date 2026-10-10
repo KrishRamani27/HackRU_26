@@ -93,3 +93,15 @@ whether v1 or v2 produced them. _Confirm which one and move this line under it._
   on October 10 before this version could run.
 - **To test:** run `/analyze` on the three sketches. The backend now saves each live
   result to `AI/results/<image>__<time>.json`. Then run `python AI/evaluate.py`.
+
+## Backend full prompt + new waist_y scale
+
+- **Where:** `ANALYZE_PROMPT` in `backend/app/ai.py` (current version).
+- **What changed:** the `proportions.waist_y` explanation. Old: 0 = neckline, 1 = hem,
+  measured against the dress length. New: 0 = empire line just under the bust,
+  0.5 = natural waist, 1 = dropped waist at the hip, independent of skirt length.
+- **Why:** the builder changed the contract in `CHATGPT.md` and `Builder/buildFlat.ts`
+  on October 10. With the old wording, Gemini's values (about 0.3 to 0.4 for a natural
+  waist) would be drawn as a raised waist.
+- **Results:** not tested yet (quota). `waist_y` is not one of the 8 scored fields, so
+  check it by eye on the built flat.
