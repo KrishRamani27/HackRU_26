@@ -26,7 +26,7 @@ The screen has a thin dark strip on the left, a top bar, and three panels.
 **Dark strip on the left (navigation rail)**
 * A hanger logo.
 * "Workbench", which is the page you are on.
-* "Library", still greyed out. The library lives in a tab inside the left panel instead.
+* "Workbench" and "Library". Each one switches the left panel (Workbench shows the Sketch tab, Library shows the Library tab), and the one for the open tab is lit. They stay in step with the tabs inside the left panel.
 
 **Top bar**
 * A small "Atelier / Workbench" line, then the project name "Untitled garment" in big letters with a "Draft" tag. The name is fixed for now, you cannot rename it.
@@ -239,7 +239,7 @@ You can try the sample with only the frontend running. Uploading a sketch needs 
 **Not built yet**
 * **Opening an export in Illustrator itself.** The SVG was checked as valid XML and rendered in a browser, and it has the named layers, fills and patterns. Nobody has opened it in Illustrator yet, so test one before promising it.
 * **Saving designs.** Whole designs are not saved. A refresh loses the current design. Only library parts are saved, because the frontend does not use the backend's design routes yet.
-* **Library limits.** Everyone who uses the same backend shares one library, because there are no user accounts. It shows the 100 newest parts. You cannot rename a saved part. The "Library" item in the dark strip is still greyed out.
+* **Library limits.** Everyone who uses the same backend shares one library, because there are no user accounts. It shows the 100 newest parts. You cannot rename a saved part.
 * **Library and the builder.** A color or pattern saved on the collar or the waist seam is stored and applied, but the builder does not draw those, so you will not see it. The card previews use a plain white dress as the base.
 * **Layers panel.** The project guide mentions one. We have click to select instead.
 * **AI suggestions, voice, and the verify loop.** The backend has routes for them. The frontend does not use them.

@@ -174,7 +174,6 @@ img { display: block; max-width: 100%; }
   border-radius: 0 3px 3px 0;
   background: var(--accent-line);
 }
-.rail__item:disabled { color: #8a8076; cursor: not-allowed; }
 .rail__item:focus-visible { box-shadow: 0 0 0 2px var(--accent-line); }
 .rail__label { font-size: 10.5px; font-weight: 550; letter-spacing: 0.02em; }
 

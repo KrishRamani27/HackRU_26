@@ -175,7 +175,7 @@ export default function App() {
         aria-hidden="true"
         onChange={onInputChange}
       />
-      <NavRail />
+      <NavRail tab={leftTab} onTabChange={setLeftTab} />
       <div className="shell">
         <TopBar
           projectName={PROJECT_NAME}
