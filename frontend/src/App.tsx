@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type Cha
 import type { PartName } from "../../Builder/types";
 import { buildFlat } from "../../Builder/buildFlat";
 import { mockSpec } from "../../Builder/mockSpec";
+import { exportFlat, type ExportFormat } from "./export/exportFlat";
 import { NavRail } from "./components/NavRail";
 import { TopBar } from "./components/TopBar";
 import { UploadPanel } from "./components/UploadPanel";
@@ -34,6 +35,8 @@ function aiStatus(mode: AiMode) {
   if (mode === "gemini") return "Gemini";
   return "AI mode unknown";
 }
+
+const PROJECT_NAME = "Untitled garment";
 
 export default function App() {
   const sketch = useSketchUpload();
@@ -84,6 +87,16 @@ export default function App() {
   // A different design (new analysis, sample opened or closed) starts with nothing selected.
   useEffect(() => setSelection(null), [design.meta]);
 
+  // Export uses a fresh buildFlat string for the current spec, never the on-screen SVG,
+  // so selection and hover styling cannot get into the file.
+  const exportCurrent = useCallback(
+    async (format: ExportFormat) => {
+      if (!design.spec) throw new Error("There is nothing to export yet.");
+      return exportFlat(buildFlat(design.spec), PROJECT_NAME, format);
+    },
+    [design.spec],
+  );
+
   const applyEdit = useCallback((action: EditAction) => dispatch({ type: "apply", actions: [action] }), []);
   const showSample = useCallback(
     () => dispatch({ type: "load", spec: mockSpec, meta: { source: "sample" } }),
@@ -113,9 +126,10 @@ export default function App() {
       <NavRail />
       <div className="shell">
         <TopBar
-          projectName="Untitled garment"
+          projectName={PROJECT_NAME}
           onUpload={browse}
-          exportEnabled={false}
+          exportEnabled={canvas.status === "ready"}
+          onExport={exportCurrent}
           status={canvas.status === "ready" && canvas.source === "analysis" ? aiStatus(canvas.aiMode) : null}
         />
         <div className="workspace">

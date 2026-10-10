@@ -1,14 +1,17 @@
-import { ExportIcon, UploadIcon } from "./Icons";
+import type { ExportFormat } from "../export/exportFlat";
+import { ExportMenu } from "./ExportMenu";
+import { UploadIcon } from "./Icons";
 
 interface Props {
   projectName: string;
   onUpload: () => void;
   exportEnabled: boolean;
+  onExport: (format: ExportFormat) => Promise<string>;
   /** Short backend status, shown once an analysis has returned. */
   status: string | null;
 }
 
-export function TopBar({ projectName, onUpload, exportEnabled, status }: Props) {
+export function TopBar({ projectName, onUpload, exportEnabled, onExport, status }: Props) {
   return (
     <header className="topbar">
       <div className="topbar__titles">
@@ -30,21 +33,7 @@ export function TopBar({ projectName, onUpload, exportEnabled, status }: Props) 
           <UploadIcon />
           <span>Upload sketch</span>
         </button>
-        <button
-          type="button"
-          className="btn btn--primary"
-          disabled={!exportEnabled}
-          aria-describedby={exportEnabled ? undefined : "export-hint"}
-          title={exportEnabled ? undefined : "Export isn’t available yet"}
-        >
-          <ExportIcon />
-          <span>Export</span>
-        </button>
-        {!exportEnabled && (
-          <span id="export-hint" className="visually-hidden">
-            Export isn’t available yet.
-          </span>
-        )}
+        <ExportMenu enabled={exportEnabled} onExport={onExport} />
       </div>
     </header>
   );

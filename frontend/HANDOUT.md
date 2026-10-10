@@ -13,7 +13,8 @@ This is the part of FlatSketch you see in the browser. You give it a photo of a 
 7. **Click a part of the dress.** Click the bodice, a sleeve, the skirt and so on. The part glows, its name shows at the bottom of the sheet ("Selected: Bodice"), and the right panel scrolls to the matching controls and flashes them briefly. Click empty space or press Escape to let go. You can also Tab to a part and press Enter.
 8. **Zoom.** Zoom buttons at the top of the sheet go from 50% to 300%, and there is a "fit" button.
 9. **View sample.** On the empty sheet there is a "View sample" button. It loads a ready made dress from the builder so you can try the controls without uploading anything or running the backend. It is labeled as a sample that was not generated from a sketch, and "Hide sample" takes you back to the empty sheet. The sample is fully editable too.
-10. **Starting over.** Uploading a new sketch, opening the sample, or removing your sketch replaces the current design, and any edits you made are gone. Nothing is saved anywhere yet.
+10. **Export.** Once something is on the sheet, the Export button at the top turns on. Click it and pick SVG or PNG from the small menu. The file downloads with a name taken from the title, like `untitled-garment.svg`, and a short "Exported" message appears.
+11. **Starting over.** Uploading a new sketch, opening the sample, or removing your sketch replaces the current design, and any edits you made are gone. Nothing is saved anywhere yet.
 
 ## 2. The layout
 
@@ -28,7 +29,7 @@ The screen has a thin dark strip on the left, a top bar, and three panels.
 * A small "Atelier / Workbench" line, then the project name "Untitled garment" in big letters with a "Draft" tag. The name is fixed for now, you cannot rename it.
 * A status note that only appears after an analysis: "Mock AI mode", "Gemini", or "AI mode unknown".
 * The "Upload sketch" button.
-* The "Export" button. It is always greyed out because export is not built.
+* The "Export" button with a small menu: SVG or PNG. It is greyed out until a sketch result or the sample is on the sheet.
 
 **Panel 01, Sketch (left)**
 * The drop zone, or the preview once you have a file.
@@ -72,6 +73,9 @@ To make parts clickable, the drawing has to be placed directly into the page ins
 
 ### Click to select
 Once the drawing is in the page, the code works out which named group you clicked. Thin parts (the collar line, the waist seam, button dots, side seam pockets) are hard to hit, so each gets an invisible wider copy that catches clicks. The glow, the Tab focus, and the selected highlight exist only on the live page. They are never written into the drawing text. That matters later: when export is built, it must save the builder's text, not what is on screen, so no highlight ends up in an exported file.
+
+### Export
+The Export button does not copy what is on the screen. It asks `buildFlat` for a fresh drawing of the current settings and saves that text. That is why the selection glow, hover outline and focus rings can never end up in a file. The SVG gets an XML line at the top and keeps `xmlns`, `width` and `height` on the first tag, which Illustrator needs. The eight named groups, the fills and the fabric patterns are kept exactly as the builder wrote them. Before saving, a safety check refuses to write the file if it finds any code, any style leftovers, or any on screen only marker. The PNG is the same drawing at 2x size (800 by 1200) on a white background, made by the builder's own `svgToPng` helper.
 
 ### How colors and patterns travel from the panel to the drawing
 1. You pick a color or a pattern chip in "Fabric & color".
@@ -159,11 +163,15 @@ Everything is in `frontend/`. The drawing code is not ours: it lives in `Builder
 * `specSchema.ts`: the allowed values for every setting, the edit action shape, the check for a valid edit, the part names, which parts the builder fills, and the style tidy up.
 * `specReducer.ts`: the one place that holds the design and applies edits.
 
+**`src/export/`**
+* `exportFlat.ts`: makes the download. Builds the SVG file or the 2x PNG from the builder's drawing text and names the file from the title.
+
 **`src/flat/`**
 * `sanitizeSvg.ts`: the safety filter for the drawing.
 
 **`src/components/`**
-* `TopBar.tsx`: the header with the title, status, Upload and Export buttons.
+* `TopBar.tsx`: the header with the title, status, Upload button and the Export menu.
+* `ExportMenu.tsx`: the Export button, its SVG or PNG dropdown, and the short "Exported" message.
 * `NavRail.tsx`: the dark strip on the left.
 * `UploadPanel.tsx`: the Sketch panel.
 * `CanvasStage.tsx`: the Canvas panel, with zoom, tags, empty, loading and error screens, and the selected label.
@@ -205,7 +213,7 @@ You can try the sample with only the frontend running. Uploading a sketch needs 
 ## 8. Known limits and what is not done
 
 **Not built yet**
-* **Export.** The Export button is always disabled. Nothing can be downloaded yet. When it is built, it must save the builder's drawing text, not the on screen drawing.
+* **Opening an export in Illustrator itself.** The SVG was checked as valid XML and rendered in a browser, and it has the named layers, fills and patterns. Nobody has opened it in Illustrator yet, so test one before promising it.
 * **Undo and redo.** There is no way to step back an edit.
 * **Saving.** Nothing is saved. A refresh loses everything. The backend can save designs and parts, but the frontend does not use that yet.
 * **Library.** The nav item is greyed out, and saved parts are not built.
@@ -233,6 +241,6 @@ Say it in your own voice, but this is the idea:
 1. "You take a photo of a hand drawn dress and drop it in. The AI reads it and fills out a short settings sheet: what neckline, what sleeves, how long the skirt is."
 2. "Then our own code, not the AI, draws a clean, symmetrical technical drawing from that settings sheet. That is why the lines are always neat: the AI decides what the dress is, and our code decides how to draw it."
 3. "Every control on the right edits that one settings sheet, so the drawing changes instantly. You can also click any part of the dress and it takes you straight to that part's controls."
-4. "You can change colors and fabrics like denim, plaid and floral on the parts of the dress, and it is all drawn as clean vector lines. Export for Illustrator is the next step."
+4. "You can change colors and fabrics like denim, plaid and floral on the parts of the dress, and it is all drawn as clean vector lines. You can download it as an SVG made for Illustrator, or as a PNG."
 5. "We built safety in: files are checked before upload, the drawing is cleaned before it goes on the page, and if something breaks, one panel shows a message instead of the whole screen going blank."
 6. "Right now the backend is running in demo mode, so it returns a sample dress and the app says so on screen. Real Gemini reading is the next thing to switch on and test."

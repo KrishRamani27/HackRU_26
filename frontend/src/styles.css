@@ -779,3 +779,54 @@ img { display: block; max-width: 100%; }
 }
 
 .notice__action { margin-top: 10px; }
+
+/* ---------- Export menu ---------- */
+.export { position: relative; }
+.export .btn svg:last-child { margin-right: -4px; opacity: 0.85; }
+
+.export__menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 30;
+  min-width: 240px;
+  padding: 6px;
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sheet);
+}
+
+.export__item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.export__item:hover,
+.export__item:focus-visible { background: var(--accent-soft); }
+.export__item-label { font-size: 14px; font-weight: 650; color: var(--ink); }
+.export__item-detail { font-size: 12.5px; color: var(--ink-3); }
+
+/* The slot stays in place (for screen readers); only the pill appears and disappears. */
+.export__message-slot { position: absolute; right: 0; top: calc(100% + 8px); z-index: 20; pointer-events: none; }
+.export__message {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sheet);
+}
+.export__message--error { background: var(--danger); }

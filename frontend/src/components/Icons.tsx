@@ -16,6 +16,9 @@ const base = {
 export const UploadIcon = (p: P) => (
   <svg {...base} {...p}><path d="M12 15V4M7 9l5-5 5 5M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" /></svg>
 );
+export const ChevronDownIcon = (p: P) => (
+  <svg {...base} {...p}><path d="m6 9 6 6 6-6" /></svg>
+);
 export const ExportIcon = (p: P) => (
   <svg {...base} {...p}><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>
 );

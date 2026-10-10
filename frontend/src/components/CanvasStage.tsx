@@ -35,7 +35,8 @@ export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUp
   useEffect(() => {
     if (!selectedPart) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || e.target instanceof HTMLTextAreaElement) return;
+      // defaultPrevented: another control (e.g. the Export menu) already used this Escape.
+      if (e.key !== "Escape" || e.defaultPrevented || e.target instanceof HTMLTextAreaElement) return;
       onSelectPart(null);
     };
     document.addEventListener("keydown", onKey);
