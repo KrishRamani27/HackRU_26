@@ -1,0 +1,44 @@
+# Builder notes (Role 2: Atharva)
+
+Handoff from planning chat. Read this together with CLAUDE.md (the contracts there win if they ever disagree).
+
+## What I own
+`Builder/` for now. It moves to `frontend/src/builder/` once the frontend's Vite app exists:
+`git mv Builder frontend/src/builder`
+
+## Files
+- `types.ts`: TypeScript types for the design spec contract in CLAUDE.md. Shared contract: do not change without the group chat.
+- `mockSpec.ts`: hand-made spec (crew neck, no sleeves, straight knee skirt, waist seam).
+- `buildFlat.ts`: `buildFlat(spec): string`. Pure function, spec in, SVG string out. No React, no state.
+- `svgToPng.ts`: browser-only helper, SVG string to PNG Blob, for POST /verify.
+- `preview.ts`: dev-only gallery. `npx tsx Builder/preview.ts` writes `Builder/preview/gallery.html` (34 flats) plus one .svg per flat. `Builder/preview/` is generated; keep it out of git.
+
+## How buildFlat works (judge explanation)
+- Canvas 400 x 600, `viewBox="0 0 400 600"`. y grows down. Center line CX = 200. Neck/shoulder line NECK_Y = 70. Hem y comes from skirt.length (mini 300, knee 380, midi 460, floor 560).
+- `layout(spec)` computes every measurement once: shoulder/bust/waist half-widths from proportions.shoulder_width, waist y from proportions.waist_y, neckline width/depth from neckline type/depth. Tune proportions here.
+- Symmetry: bodice and skirt outlines are built from RIGHT-side points; left side = `mirror(p)` (x -> 2*CX - x). Sleeves and pockets are drawn once for the right side; the left copy is the same paths in a group with `transform="matrix(-1 0 0 1 400 0)"`. Left/right can never drift apart.
+- Fill vs outline: each shape is a closed path for fill (no stroke) plus an open path for the outline. The bodice/skirt boundary line only appears when waist.seam is true (drawn by the waist_seam group).
+- Draw order = stacking order: sleeves, skirt, bodice, waist_seam, collar_neckline, pockets, buttons. Sleeves sit behind the bodice so the armhole seam line shows.
+- Line styles are SVG attributes (not CSS) so Illustrator keeps them: outline 1.6, details 0.9, topstitch 0.7 dashed.
+- Fabric fills are pure-SVG `<pattern>`s (denim/plaid/floral), no images, so PNG export never fails on cross-origin images.
+- Every part is a `<g id="...">` with the exact names from CLAUDE.md; empty parts still get an empty group so layer names stay stable.
+
+## Open questions for the group chat
+1. `style` shape is not pinned down in CLAUDE.md. Builder expects `style: { [partName]: { fill: "#hex", pattern: "solid"|"denim"|"plaid"|"floral" } }`; a missing part = white solid. AI lead + frontend must match.
+2. `waist_y` is relative to neckline-to-hem (per contract), so changing skirt length moves the waist. If it feels wrong, propose measuring against a fixed torso length.
+
+## Known fixes already made
+- Duplicate `fill` attribute on filled+stroked shapes (would break Illustrator import).
+- Long flared skirts clamped to stay on canvas.
+- Patch pockets kept inside the side seam on narrow skirts.
+- Shoulder slope is the same angle at any shoulder/neck width (was a fixed 14px drop).
+- Bodice side seam curves in to the waist (was a straight diagonal).
+- Flared-skirt fold lines end on the curved hem (were poking out below it).
+- Sleeve underarm edge starts at the armpit (short sleeves hooked out from behind the bodice).
+
+## Next steps (in order)
+1. Run the gallery and check every option looks right.
+2. Open a few preview .svg files in Illustrator (or Inkscape/Figma): named groups present? patterns survive?
+3. Line-weight / proportion polish against real dress technical flats.
+4. When frontend/src exists: move the folder, check it compiles in the Vite project.
+5. Stretch: back view.

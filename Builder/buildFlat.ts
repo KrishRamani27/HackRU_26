@@ -47,7 +47,13 @@ const MIRROR_TRANSFORM = `transform="matrix(-1 0 0 1 ${W} 0)"`;
 // ---------- 1. Layout: every key measurement, computed once from the spec ----------
 
 function layout(spec: DesignSpec) {
+  const nType = spec.neckline.type;
+  const depth = clamp(spec.neckline.depth, 0, 1);
+  const neckHalf = { crew: 26, v: 28, scoop: 36, square: 30 }[nType];
+  const neckDepth = nType === "crew" ? 8 + 22 * depth : 15 + 75 * depth;
+
   const shoulderHalf = 50 + 40 * clamp(spec.proportions.shoulder_width, 0, 1); // 50..90
+  const shoulderDrop = 0.28 * (shoulderHalf - neckHalf); // same ~16° slope at any shoulder or neck width
   const bustHalf = shoulderHalf - 6;
   const waistHalf = bustHalf - 16;
   const armY = NECK_Y + 80;
@@ -57,11 +63,6 @@ function layout(spec: DesignSpec) {
   const rawWaist = NECK_Y + clamp(spec.proportions.waist_y, 0, 1) * (hemY - NECK_Y);
   const waistY = clamp(rawWaist, armY + 25, hemY - 50);
 
-  const nType = spec.neckline.type;
-  const depth = clamp(spec.neckline.depth, 0, 1);
-  const neckHalf = { crew: 26, v: 28, scoop: 36, square: 30 }[nType];
-  const neckDepth = nType === "crew" ? 8 + 22 * depth : 15 + 75 * depth;
-
   return {
     hemY,
     waistY,
@@ -69,9 +70,10 @@ function layout(spec: DesignSpec) {
     neckHalf,
     waistHalf,
     neckR: pt(CX + neckHalf, NECK_Y),
-    shoulderR: pt(CX + shoulderHalf, NECK_Y + 14),
+    shoulderR: pt(CX + shoulderHalf, NECK_Y + shoulderDrop),
     armR: pt(CX + bustHalf, armY),
     armCtrlR: pt(CX + bustHalf - 6, armY - 38), // pulls the armhole curve inward
+    sideCtrlR: pt(CX + waistHalf + 3, armY + 0.55 * (waistY - armY)), // side seam curves in to the waist
     waistR: pt(CX + waistHalf, waistY),
   };
 }
@@ -95,14 +97,14 @@ function necklinePath(type: DesignSpec["neckline"]["type"], half: number, top: n
 // ---------- 3. Bodice ----------
 
 function bodice(spec: DesignSpec, g: Layout, fill: string) {
-  const { neckR, shoulderR, armR, armCtrlR, waistR } = g;
-  const [neckL, shoulderL, armL, armCtrlL, waistL] = [neckR, shoulderR, armR, armCtrlR, waistR].map(mirror);
+  const { neckR, shoulderR, armR, armCtrlR, sideCtrlR, waistR } = g;
+  const [neckL, shoulderL, armL, armCtrlL, sideCtrlL, waistL] = [neckR, shoulderR, armR, armCtrlR, sideCtrlR, waistR].map(mirror);
   const neck = necklinePath(spec.neckline.type, g.neckHalf, NECK_Y, g.neckDepth);
 
   // waist L -> up left side -> armhole -> shoulder -> neckline -> right shoulder -> armhole -> waist R
   const outline =
-    `M ${s(waistL)} L ${s(armL)} Q ${s(armCtrlL)} ${s(shoulderL)} L ${s(neckL)} ` +
-    `${neck} L ${s(shoulderR)} Q ${s(armCtrlR)} ${s(armR)} L ${s(waistR)}`;
+    `M ${s(waistL)} Q ${s(sideCtrlL)} ${s(armL)} Q ${s(armCtrlL)} ${s(shoulderL)} L ${s(neckL)} ` +
+    `${neck} L ${s(shoulderR)} Q ${s(armCtrlR)} ${s(armR)} Q ${s(sideCtrlR)} ${s(waistR)}`;
 
   return group("bodice", [
     `<path d="${outline} Z" fill="${fill}" stroke="none"/>`,
@@ -154,7 +156,7 @@ function skirt(spec: DesignSpec, g: Layout, fill: string) {
   if (spec.skirt.silhouette === "flared") {
     for (const f of [0.25, 0.6]) {
       const top = pt(CX + g.waistHalf * f, g.waistY + 0.35 * len);
-      const bottom = pt(CX + hemHalf * f, g.hemY + hemDip * (1 - f * f) - 2);
+      const bottom = pt(CX + hemHalf * f, g.hemY + (hemDip * (1 - f * f)) / 2); // lands exactly on the curved hem
       parts.push(`<path d="M ${s(top)} L ${s(bottom)}" ${DETAIL}/>`);
       parts.push(`<path d="M ${s(mirror(top))} L ${s(mirror(bottom))}" ${DETAIL}/>`);
     }
@@ -188,7 +190,10 @@ function rightSleevePaths(spec: DesignSpec, g: Layout, fill: string): string[] {
 
   const end = add(base, u, L);
   const outer = add(end, n, cuffHalf);
-  const inner = add(end, n, -cuffHalf);
+  // Underarm edge never crosses inside the armpit, or it would hook out from behind the bodice.
+  const pitAcross = (pit.x - end.x) * n.x + (pit.y - end.y) * n.y;
+  const inner = add(end, n, Math.max(-cuffHalf, pitAcross));
+  const cuffMid = mid(outer, inner);
   const armhole = `Q ${s(armCtrlR)} ${s(top)}`; // reuses the bodice armhole curve exactly
 
   let outerEdge: string;
@@ -200,7 +205,7 @@ function rightSleevePaths(spec: DesignSpec, g: Layout, fill: string): string[] {
     cuffEdge = `L ${s(inner)}`;
   } else if (type === "cap") {
     outerEdge = `L ${s(outer)}`;
-    cuffEdge = `Q ${s(add(end, u, 6))} ${s(inner)}`; // soft curved hem
+    cuffEdge = `Q ${s(add(cuffMid, u, 6))} ${s(inner)}`; // soft curved hem
   } else {
     outerEdge = `L ${s(outer)}`;
     cuffEdge = `L ${s(inner)}`;
@@ -217,7 +222,7 @@ function rightSleevePaths(spec: DesignSpec, g: Layout, fill: string): string[] {
       `<path d="M ${s(outer)} L ${s(bandOuter)} L ${s(bandInner)} L ${s(inner)} Z" fill="${fill}" ${LINE}/>`,
     );
     for (const t of [-0.5, 0, 0.5]) {
-      const a = add(end, n, cuffHalf * t);
+      const a = add(cuffMid, pt(outer.x - cuffMid.x, outer.y - cuffMid.y), t);
       paths.push(`<path d="M ${s(a)} L ${s(add(a, u, -10))}" ${DETAIL}/>`);
     }
   } else if (type === "fitted" && length !== "short") {
