@@ -32,8 +32,20 @@
 - Explicit mock AI mode, so teammates can connect before credentials are ready.
 - Shared team API-key protection, frontend CORS settings, health/readiness routes.
 - Docker packaging, pinned dependencies, secret exclusions and setup notes.
-- Verification: **19 tests passed** locally. Gemini and GCS adapter tests use fakes;
+- Verification: **28 tests passed** locally. Gemini and GCS adapter tests use fakes;
   this does not mean the live cloud services have been tested.
+- Gemini rejects `additionalProperties` in response schemas, so `ai.py` sends the plain
+  models in `ai_schemas.py` and validates replies with the strict contract afterwards.
+  Checked once against live Gemini with `gemini-3.8-flash`: analyze, command and
+  suggestions returned valid data; verify returned values outside the contract (502).
+- The default model `gemini-2.5-flash` returns 404 for our key; set `GEMINI_MODEL`.
+- Gemini speed-ups in `ai.py`: low thinking level, images downscaled to 1536 px on the
+  longest side, 45 s timeout with one retry on a timeout or 5xx. `/analyze` asks Gemini
+  for one main fill and pattern and copies it to all 8 parts. Live `/analyze` usually
+  takes 4-6 s, with occasional stalls of 40 s or more.
+- `/analyze` uses the full field-by-field prompt `ANALYZE_PROMPT` in `ai.py`.
+- The Gemini key is on the free tier: 20 requests per day per model. It ran out during
+  testing on October 10; calls then fail with 429 RESOURCE_EXHAUSTED.
 
 ## Where to find things
 
@@ -47,6 +59,7 @@ All paths below start at this repository's root.
 | `backend/app/main.py` | FastAPI routes, upload checks and API-key checks |
 | `backend/app/schemas.py` | Dress settings, styles, edit actions and saved-part rules |
 | `backend/app/ai.py` | Gemini calls, starter prompts and mock replies; AI lead's main file |
+| `backend/app/ai_schemas.py` | Gemini-facing reply shapes (all fields required); replies are then checked by `schemas.py` |
 | `backend/app/database.py` | Design, version, saved-part and image-record tables |
 | `backend/app/storage.py` | Local image files and Google Cloud Storage |
 | `backend/app/config.py` | Environment settings |
@@ -55,6 +68,9 @@ All paths below start at this repository's root.
 | `backend/requirements.lock` | Pinned dependencies used for setup and Docker |
 | `backend/Dockerfile` | Backend container packaging |
 | `backend/tests/test_backend.py` | Backend tests |
+| `AI/evaluate.py` | Offline scoring of saved `/analyze` results against `AI/label/` |
+| `AI/prompt_versions.md` | Log of analyze prompt versions, reasons and results |
+| `AI/results/` | Saved specs; the backend adds one file per live `/analyze` call |
 | `frontend/` | Frontend teammate's area |
 | `ml/` | AI teammate's area; backend AI adapter currently lives in `backend/app/ai.py` |
 

@@ -33,7 +33,7 @@ class Details(Contract):
 
 class Proportions(Contract):
     shoulder_width: float = Field(default=0.5, ge=0, le=1)
-    waist_y: float = Field(default=0.4, ge=0, le=1)
+    waist_y: float = Field(default=0.5, ge=0, le=1)
 
 
 class PartStyle(Contract):

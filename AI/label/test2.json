@@ -1,0 +1,8 @@
+{
+    "garment_type": "dress",
+    "neckline": { "type": "v" },
+    "sleeves": { "type": "fitted", "length": "short" },
+    "waist": { "seam": true },
+    "skirt": { "silhouette": ["a_line", "flared"], "length": ["knee", "midi"] },
+    "details": { "pockets": "none", "buttons": 8 }
+}

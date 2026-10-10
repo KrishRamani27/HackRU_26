@@ -1,0 +1,22 @@
+{
+    "garment_type": "dress",
+    "neckline": {
+    "type": "scoop"
+},
+    "sleeves": {
+    "type": "puff",
+    "length": "short"
+},
+    "waist": {
+    "seam": true
+},
+    "skirt": {
+    "silhouette": "a_line",
+    "length": "knee"
+},
+    "details": {
+    "pockets": "none",
+    "buttons": 4
+},
+    "pattern": "solid"
+}

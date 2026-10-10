@@ -105,7 +105,7 @@ def create_app(settings: Settings | None = None):
     @app.post("/analyze", response_model=DesignSpec, dependencies=protected)
     def analyze(response: Response, sketch: UploadFile = File(...)):
         response.headers["X-AI-Mode"] = settings.ai_mode
-        return app.state.ai.analyze(read_image(sketch))
+        return app.state.ai.analyze(read_image(sketch), sketch.filename)
 
     @app.post("/verify", response_model=list[EditAction], dependencies=protected)
     def verify(response: Response, sketch: UploadFile = File(...), flat: UploadFile = File(...),

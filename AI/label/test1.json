@@ -1,0 +1,8 @@
+{
+    "garment_type": "dress",
+    "neckline": { "type": "scoop" },
+    "sleeves": { "type": "puff", "length": "long" },
+    "waist": { "seam": true },
+    "skirt": { "silhouette": "flared", "length": "floor" },
+    "details": { "pockets": "none", "buttons": 0 }
+}

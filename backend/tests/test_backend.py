@@ -1,16 +1,22 @@
 import io
+import json
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
+from pydantic import BaseModel
 
+from app.ai_schemas import GeminiDesignSpec, GeminiEditResult, GeminiSuggestions
 from app.config import Settings
 from app.main import create_app
-from app.schemas import DesignSpec, EditAction, apply_actions
+from app.schemas import DesignSpec, EditAction, PartStyle, apply_actions
 
 
 @pytest.fixture
-def client(tmp_path):
+def client(tmp_path, monkeypatch):
+    # Keep test runs out of the real AI/results folder.
+    monkeypatch.setattr("app.ai.RESULTS_DIR", tmp_path / "results")
     settings = Settings(_env_file=None, database_url=f"sqlite:///{tmp_path / 'test.db'}",
                         local_storage_dir=str(tmp_path / "uploads"), backend_api_key="team-test",
                         ai_mode="mock", storage_mode="local", max_upload_bytes=2048)
@@ -157,7 +163,9 @@ def test_real_gemini_adapter_validates_response(client, monkeypatch):
         def generate_content(self, **kwargs):
             captured.update(kwargs)
             from types import SimpleNamespace
-            return SimpleNamespace(text=DesignSpec().model_dump_json())
+            reply = DesignSpec().model_dump(exclude={"style"})
+            reply["main_style"] = {"fill": "#1f2a44", "pattern": "denim"}
+            return SimpleNamespace(text=json.dumps(reply))
 
     monkeypatch.setattr(genai, "Client", FakeClient)
     client.app.state.ai.settings.ai_mode = "gemini"
@@ -165,8 +173,38 @@ def test_real_gemini_adapter_validates_response(client, monkeypatch):
     result = client.post("/analyze", files={"sketch": ("dress.png", png())})
     assert result.status_code == 200
     assert result.headers["X-AI-Mode"] == "gemini"
-    assert captured["config"].response_schema is DesignSpec
+    assert captured["config"].response_schema is GeminiDesignSpec
     assert captured["contents"][1].inline_data.mime_type == "image/png"
+    assert captured["config"].thinking_config.thinking_level.value == "LOW"
+    styles = result.json()["style"]
+    assert len(styles) == 8
+    assert all(style == {"fill": "#1f2a44", "pattern": "denim"} for style in styles.values())
+
+
+def test_live_analyze_results_are_saved_for_evaluation(client, monkeypatch, tmp_path):
+    reply = DesignSpec().model_dump(exclude={"style"})
+    reply["main_style"] = {"fill": "#ffffff", "pattern": "solid"}
+    results = tmp_path / "results"
+    results.mkdir()
+    client.post("/analyze", files={"sketch": ("mock.png", png())})
+    assert list(results.iterdir()) == []  # mock replies are never saved
+    fake_gemini(client, monkeypatch, json.dumps(reply))
+    response = client.post("/analyze", files={"sketch": ("../my sketch.png", png())})
+    saved = list(results.iterdir())
+    assert len(saved) == 1 and saved[0].name.startswith("my_sketch__")
+    assert json.loads(saved[0].read_text()) == response.json()
+
+
+def test_large_images_are_downscaled_for_gemini():
+    from app.ai import MAX_IMAGE_SIDE, shrink
+
+    output = io.BytesIO()
+    Image.new("RGB", (4000, 2000), "white").save(output, format="JPEG")
+    data, mime = shrink((output.getvalue(), "image/jpeg"))
+    assert mime == "image/jpeg"
+    assert Image.open(io.BytesIO(data)).size == (MAX_IMAGE_SIDE, MAX_IMAGE_SIDE // 2)
+    small = (png(), "image/png")
+    assert shrink(small) is small
 
 
 def test_bad_gemini_response_is_502(client, monkeypatch):
@@ -192,6 +230,116 @@ def test_bad_gemini_response_is_502(client, monkeypatch):
     result = client.post("/analyze", files={"sketch": ("dress.png", png())})
     assert result.status_code == 502
     assert "fake-test-key" not in result.text
+
+
+def fake_gemini(client, monkeypatch, text):
+    from google import genai
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            self.models = self
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def generate_content(self, **kwargs):
+            return SimpleNamespace(text=text)
+
+    monkeypatch.setattr(genai, "Client", FakeClient)
+    client.app.state.ai.settings.ai_mode = "gemini"
+    client.app.state.ai.settings.gemini_api_key = "fake-test-key"
+
+
+def test_gemini_retries_once_on_timeout_or_server_error(client, monkeypatch):
+    import httpx
+    from google import genai
+    from google.genai import errors
+
+    reply = DesignSpec().model_dump(exclude={"style"})
+    reply["main_style"] = {"fill": "#ffffff", "pattern": "solid"}
+    calls = []
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            self.models = self
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def generate_content(self, **kwargs):
+            calls.append(1)
+            if len(calls) in failing:
+                raise failing[len(calls)]
+            return SimpleNamespace(text=json.dumps(reply))
+
+    monkeypatch.setattr(genai, "Client", FakeClient)
+    client.app.state.ai.settings.ai_mode = "gemini"
+    client.app.state.ai.settings.gemini_api_key = "fake-test-key"
+    timeout = httpx.ReadTimeout("The read operation timed out")
+    server_error = errors.ServerError(503, {"error": {"message": "overloaded", "status": "UNAVAILABLE"}})
+
+    failing = {1: timeout}
+    assert client.post("/analyze", files={"sketch": ("dress.png", png())}).status_code == 200
+    assert len(calls) == 2
+
+    calls.clear()
+    failing = {1: server_error, 2: timeout}
+    assert client.post("/analyze", files={"sketch": ("dress.png", png())}).status_code == 502
+    assert len(calls) == 2
+
+    calls.clear()
+    failing = {1: errors.ClientError(400, {"error": {"message": "bad request", "status": "INVALID_ARGUMENT"}})}
+    assert client.post("/analyze", files={"sketch": ("dress.png", png())}).status_code == 502
+    assert len(calls) == 1
+
+
+def test_gemini_reply_with_missing_fields_is_502(client, monkeypatch):
+    fake_gemini(client, monkeypatch, '{"garment_type": "dress"}')
+    result = client.post("/analyze", files={"sketch": ("dress.png", png())})
+    assert result.status_code == 502
+
+
+def test_gemini_command_actions_are_validated(client, monkeypatch):
+    body = {"text": "Make puff sleeves", "spec": DesignSpec().model_dump()}
+    action = {"op": "set", "path": "sleeves.type", "value": "puff"}
+    fake_gemini(client, monkeypatch, json.dumps({"actions": [action]}))
+    result = client.post("/command", json=body)
+    assert result.status_code == 200 and result.json() == [action]
+    fake_gemini(client, monkeypatch, json.dumps({"actions": [{**action, "path": "garment_type"}]}))
+    assert client.post("/command", json=body).status_code == 502
+
+
+@pytest.mark.parametrize("model", [GeminiDesignSpec, GeminiEditResult, GeminiSuggestions])
+def test_gemini_schemas_avoid_unsupported_fields(model):
+    schema = json.dumps(model.model_json_schema())
+    assert "additionalProperties" not in schema
+    assert '"default"' not in schema
+
+
+def test_gemini_spec_matches_strict_contract():
+    def same(loose, strict):
+        # Gemini returns one main_style in place of the per-part style block.
+        names = ["style" if name == "main_style" else name for name in loose.model_fields]
+        assert names == list(strict.model_fields)
+        for name, field in loose.model_fields.items():
+            if name == "main_style":
+                same(field.annotation, PartStyle)
+                continue
+            other = strict.model_fields[name]
+            if isinstance(field.annotation, type) and issubclass(field.annotation, BaseModel):
+                same(field.annotation, other.annotation)
+            else:
+                bounds = lambda f: [m for m in f.metadata if type(m).__name__ in ("Ge", "Le")]
+                assert field.annotation == other.annotation, name
+                assert bounds(field) == bounds(other), name
+
+    same(GeminiDesignSpec, DesignSpec)
 
 
 def test_gcs_adapter_uses_private_bucket(monkeypatch):
