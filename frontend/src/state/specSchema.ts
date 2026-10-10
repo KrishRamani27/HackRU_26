@@ -31,6 +31,18 @@ export const PART_NAMES: readonly PartName[] = [
   "buttons",
 ];
 
+/** Display names for the Builder's group ids. The ids themselves are the selection values. */
+export const PART_LABELS: Record<PartName, string> = {
+  collar_neckline: "Collar & neckline",
+  bodice: "Bodice",
+  left_sleeve: "Left sleeve",
+  right_sleeve: "Right sleeve",
+  waist_seam: "Waist seam",
+  skirt: "Skirt",
+  pockets: "Pockets",
+  buttons: "Buttons",
+};
+
 export const DEFAULT_STYLE = { fill: "#ffffff", pattern: "solid" } as const;
 export const MAX_NOTES_LENGTH = 4000;
 

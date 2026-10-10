@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useReducer, useRef, type ChangeEvent } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ChangeEvent } from "react";
+import type { PartName } from "../../Builder/types";
 import { buildFlat } from "../../Builder/buildFlat";
 import { mockSpec } from "../../Builder/mockSpec";
 import { NavRail } from "./components/NavRail";
@@ -72,6 +73,16 @@ export default function App() {
     canvas = { status: "ready", source: "analysis", svgMarkup: flat.svg, aiMode: design.meta.aiMode };
   }
 
+  // Which part is picked on the canvas. UI-only, so it lives outside the spec reducer.
+  // The nonce changes on every click so re-clicking a part re-highlights its section.
+  const [selection, setSelection] = useState<{ part: PartName; nonce: number } | null>(null);
+  const nonce = useRef(0);
+  const selectPart = useCallback((part: PartName | null) => {
+    setSelection(part ? { part, nonce: ++nonce.current } : null);
+  }, []);
+  // A different design (new analysis, sample opened or closed) starts with nothing selected.
+  useEffect(() => setSelection(null), [design.meta]);
+
   const applyEdit = useCallback((action: EditAction) => dispatch({ type: "apply", actions: [action] }), []);
   const showSample = useCallback(
     () => dispatch({ type: "load", spec: mockSpec, meta: { source: "sample" } }),
@@ -120,10 +131,13 @@ export default function App() {
             onHideSample={hideSample}
             onUpload={browse}
             onRetry={analysis.retry}
+            selectedPart={canvas.status === "ready" ? (selection?.part ?? null) : null}
+            onSelectPart={selectPart}
           />
           <PropertiesPanel
             spec={canvas.status === "ready" ? design.spec : null}
             canvasStatus={canvas.status}
+            selection={canvas.status === "ready" ? selection : null}
             onEdit={applyEdit}
           />
         </div>

@@ -520,6 +520,35 @@ img { display: block; max-width: 100%; }
   /* Percent padding is relative to width, so the margins scale with the sheet. */
   padding: 11% 8% 7%;
 }
+/* Inline, clickable flat. All selection/hover styling lives here in CSS (and
+   data attributes on the live DOM), never in the SVG markup an exporter will use. */
+.flat-inline { width: 100%; height: 100%; min-width: 0; min-height: 0; }
+.flat-inline > svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.flat-inline [data-part] { cursor: pointer; outline: none; }
+.flat-inline [data-part]:hover {
+  filter: drop-shadow(0 0 1.5px rgb(156 65 39 / 0.8)) drop-shadow(0 0 5px rgb(156 65 39 / 0.35));
+}
+.flat-inline [data-part][data-selected],
+.flat-inline [data-part]:focus-visible {
+  filter: drop-shadow(0 0 1.5px var(--accent)) drop-shadow(0 0 1.5px var(--accent)) drop-shadow(0 0 6px rgb(156 65 39 / 0.5));
+}
+
+.sheet__selected {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 48px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--accent-hover);
+  pointer-events: none;
+}
+
 .sheet--art > img,
 .sheet--art > svg {
   width: 100%;
@@ -635,7 +664,14 @@ img { display: block; max-width: 100%; }
 .empty__title { font-family: var(--font-display); font-size: 19px; font-weight: 500; }
 
 /* ---------- Property controls ---------- */
-.prop-section { display: flex; flex-direction: column; gap: 12px; }
+.prop-section { display: flex; flex-direction: column; gap: 12px; scroll-margin-top: 6px; }
+/* Brief highlight when a part is picked on the canvas. Fades out when the class is removed. */
+.prop-section, .part { border-radius: var(--radius-sm); transition: background-color 0.7s ease-out, box-shadow 0.7s ease-out; }
+.prop-section.is-flash, .part.is-flash {
+  background-color: var(--accent-soft);
+  box-shadow: 0 0 0 8px var(--accent-soft);
+  transition-duration: 0.1s;
+}
 .prop-section + .prop-section { padding-top: 18px; border-top: 1px solid var(--line); }
 .prop-section__body { display: flex; flex-direction: column; gap: 16px; }
 

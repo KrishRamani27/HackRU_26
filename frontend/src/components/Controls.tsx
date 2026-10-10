@@ -1,10 +1,13 @@
 import { useId, type ReactNode } from "react";
 
-/** Small uppercase label that groups related controls. */
-export function Section({ title, children }: { title: string; children: ReactNode }) {
+/**
+ * Small uppercase label that groups related controls. `name` is a stable key
+ * the panel uses to scroll to and highlight a section.
+ */
+export function Section({ name, title, children }: { name: string; title: string; children: ReactNode }) {
   const id = useId();
   return (
-    <section className="prop-section" aria-labelledby={id}>
+    <section className="prop-section" data-section={name} aria-labelledby={id}>
       <h3 id={id} className="eyebrow">{title}</h3>
       <div className="prop-section__body">{children}</div>
     </section>

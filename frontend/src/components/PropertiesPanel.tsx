@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { DesignSpec, PartName } from "../../../Builder/types";
 import type { CanvasState } from "../types";
 import {
@@ -5,6 +6,7 @@ import {
   MAX_NOTES_LENGTH,
   NECKLINE_TYPES,
   PART_NAMES,
+  PART_LABELS,
   PATTERNS,
   POCKET_TYPES,
   SILHOUETTES,
@@ -21,8 +23,25 @@ interface Props {
   /** The current spec, or null when nothing is loaded (or it can't be edited right now). */
   spec: DesignSpec | null;
   canvasStatus: CanvasState["status"];
+  /** The part picked on the canvas. A new `nonce` on every click, so re-clicking re-highlights. */
+  selection: { part: PartName; nonce: number } | null;
   onEdit: (action: EditAction) => void;
 }
+
+// Which section holds the controls for each canvas part. The bodice has no
+// settings of its own: its shape comes from the proportions.
+const SECTION_FOR_PART: Record<PartName, string> = {
+  collar_neckline: "neckline",
+  bodice: "proportions",
+  left_sleeve: "sleeves",
+  right_sleeve: "sleeves",
+  waist_seam: "waist",
+  skirt: "skirt",
+  pockets: "details",
+  buttons: "details",
+};
+
+const FLASH_MS = 1400;
 
 const NECKLINE_LABELS: Record<(typeof NECKLINE_TYPES)[number], string> = {
   crew: "Crew", v: "V", scoop: "Scoop", square: "Square",
@@ -45,17 +64,6 @@ const POCKET_LABELS: Record<(typeof POCKET_TYPES)[number], string> = {
 const PATTERN_LABELS: Record<(typeof PATTERNS)[number], string> = {
   solid: "Solid", denim: "Denim", plaid: "Plaid", floral: "Floral",
 };
-const PART_LABELS: Record<PartName, string> = {
-  collar_neckline: "Collar & neckline",
-  bodice: "Bodice",
-  left_sleeve: "Left sleeve",
-  right_sleeve: "Right sleeve",
-  waist_seam: "Waist seam",
-  skirt: "Skirt",
-  pockets: "Pockets",
-  buttons: "Buttons",
-};
-
 const toOptions = <T extends string>(values: readonly T[], labels: Record<T, string>) =>
   values.map((value) => ({ value, label: labels[value] }));
 
@@ -63,7 +71,31 @@ const unitDisplay = (v: number) => v.toFixed(2);
 // Avoid float noise like 0.30000000000000004 reaching the spec.
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
-export function PropertiesPanel({ spec, canvasStatus, onEdit }: Props) {
+export function PropertiesPanel({ spec, canvasStatus, selection, onEdit }: Props) {
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const flashTimer = useRef<number>(0);
+
+  // Selecting a part scrolls to its section and briefly highlights it and its fabric row.
+  useEffect(() => {
+    const body = bodyRef.current;
+    if (!selection || !body) return;
+    const section = body.querySelector<HTMLElement>(`[data-section="${SECTION_FOR_PART[selection.part]}"]`);
+    const row = body.querySelector<HTMLElement>(`[data-part-row="${selection.part}"]`);
+    if (!section) return;
+
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    section.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
+
+    const targets = [section, row].filter((el): el is HTMLElement => !!el);
+    const clear = () => targets.forEach((el) => el.classList.remove("is-flash"));
+    targets.forEach((el) => el.classList.add("is-flash"));
+    flashTimer.current = window.setTimeout(clear, FLASH_MS);
+    return () => {
+      window.clearTimeout(flashTimer.current);
+      clear();
+    };
+  }, [selection]);
+
   const set = (path: string, value: EditAction["value"]) => onEdit({ op: "set", path, value });
 
   return (
@@ -74,10 +106,10 @@ export function PropertiesPanel({ spec, canvasStatus, onEdit }: Props) {
           <h2 id="props-heading" className="panel__title">Properties</h2>
         </div>
       </div>
-      <div className="panel__body">
+      <div className="panel__body" ref={bodyRef}>
         {spec ? (
           <>
-            <Section title="Neckline">
+            <Section name="neckline" title="Neckline">
               <ChipGroup
                 label="Type"
                 options={toOptions(NECKLINE_TYPES, NECKLINE_LABELS)}
@@ -94,7 +126,7 @@ export function PropertiesPanel({ spec, canvasStatus, onEdit }: Props) {
               />
             </Section>
 
-            <Section title="Sleeves">
+            <Section name="sleeves" title="Sleeves">
               <ChipGroup
                 label="Type"
                 options={toOptions(SLEEVE_TYPES, SLEEVE_TYPE_LABELS)}
@@ -113,7 +145,7 @@ export function PropertiesPanel({ spec, canvasStatus, onEdit }: Props) {
               />
             </Section>
 
-            <Section title="Waist">
+            <Section name="waist" title="Waist">
               <ChipGroup
                 label="Waist seam"
                 options={[{ value: true, label: "Seam" }, { value: false, label: "No seam" }]}
@@ -122,7 +154,7 @@ export function PropertiesPanel({ spec, canvasStatus, onEdit }: Props) {
               />
             </Section>
 
-            <Section title="Skirt">
+            <Section name="skirt" title="Skirt">
               <ChipGroup
                 label="Silhouette"
                 options={toOptions(SILHOUETTES, SILHOUETTE_LABELS)}
@@ -139,7 +171,7 @@ export function PropertiesPanel({ spec, canvasStatus, onEdit }: Props) {
               />
             </Section>
 
-            <Section title="Details">
+            <Section name="details" title="Details">
               <ChipGroup
                 label="Pockets"
                 options={toOptions(POCKET_TYPES, POCKET_LABELS)}
@@ -155,7 +187,7 @@ export function PropertiesPanel({ spec, canvasStatus, onEdit }: Props) {
               />
             </Section>
 
-            <Section title="Proportions">
+            <Section name="proportions" title="Proportions">
               <RangeField
                 label="Shoulder width"
                 min={0} max={1} step={0.05}
@@ -173,12 +205,12 @@ export function PropertiesPanel({ spec, canvasStatus, onEdit }: Props) {
               />
             </Section>
 
-            <Section title="Fabric & color">
+            <Section name="fabric" title="Fabric & color">
               <div className="parts">
                 {PART_NAMES.map((part) => {
                   const style = spec.style[part] ?? DEFAULT_STYLE;
                   return (
-                    <div className="part" key={part}>
+                    <div className="part" key={part} data-part-row={part}>
                       <div className="field__row">
                         <label className="field__label" htmlFor={`fill-${part}`}>{PART_LABELS[part]}</label>
                         <input
@@ -203,7 +235,7 @@ export function PropertiesPanel({ spec, canvasStatus, onEdit }: Props) {
               </div>
             </Section>
 
-            <Section title="Notes">
+            <Section name="notes" title="Notes">
               <div className="field">
                 <label className="field__label" htmlFor="spec-notes">Design notes</label>
                 <textarea

@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
+import type { PartName } from "../../../Builder/types";
 import type { CanvasState } from "../types";
+import { PART_LABELS } from "../state/specSchema";
 import { AlertIcon, CheckIcon, EyeIcon, FitIcon, UploadIcon, ZoomInIcon, ZoomOutIcon } from "./Icons";
+import { InlineFlat } from "./InlineFlat";
 import { PlaceholderFlat } from "./PlaceholderFlat";
 
 interface Props {
@@ -10,6 +13,9 @@ interface Props {
   onHideSample: () => void;
   onUpload: () => void;
   onRetry: () => void;
+  /** The part picked on the canvas (a Builder group id), if any. */
+  selectedPart: PartName | null;
+  onSelectPart: (part: PartName | null) => void;
 }
 
 const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
@@ -17,7 +23,7 @@ const FIT_INDEX = 2;
 const SAMPLE_LABEL = "Sample preview—not generated from a sketch";
 const MOCK_LABEL = "Demo result (mock AI)—not real sketch recognition";
 
-export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUpload, onRetry }: Props) {
+export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUpload, onRetry, selectedPart, onSelectPart }: Props) {
   const [zoomIndex, setZoomIndex] = useState(FIT_INDEX);
   const sampling = state.status === "ready" && state.source === "sample";
   const hasArt = state.status === "ready";
@@ -25,12 +31,16 @@ export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUp
 
   useEffect(() => setZoomIndex(FIT_INDEX), [hasArt]);
 
-  // Builder SVG is rendered through an <img> so any scripts inside it cannot run.
-  const svgUrl = useMemo(() => {
-    if (state.status !== "ready") return null;
-    return URL.createObjectURL(new Blob([state.svgMarkup], { type: "image/svg+xml" }));
-  }, [state]);
-  useEffect(() => () => { if (svgUrl) URL.revokeObjectURL(svgUrl); }, [svgUrl]);
+  // Escape deselects. Ignored while typing, so it can't interfere with the notes field.
+  useEffect(() => {
+    if (!selectedPart) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.target instanceof HTMLTextAreaElement) return;
+      onSelectPart(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [selectedPart, onSelectPart]);
 
   const context = state.status === "ready"
     ? state.source === "sample"
@@ -96,6 +106,8 @@ export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUp
       <div
         className={`stage__canvas${zoom > 1 ? " is-zoomed" : ""}`}
         aria-busy={state.status === "loading"}
+        // Parts stop propagation on their own click, so anything reaching here is empty canvas.
+        onClick={() => onSelectPart(null)}
       >
         {hasArt && (
           <div className="sheet sheet--art" style={{ "--zoom": zoom } as CSSProperties}>
@@ -103,17 +115,20 @@ export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUp
             {state.source === "analysis" && state.aiMode === "mock" && (
               <span className="sheet__tag sheet__tag--sample">{MOCK_LABEL}</span>
             )}
-            {svgUrl && (
-              <img
-                src={svgUrl}
-                alt={
-                  state.source === "sample"
-                    ? "Sample technical flat of a dress. Not generated from a sketch."
-                    : state.aiMode === "mock"
-                      ? "Demo technical flat from the backend's mock AI. Not recognized from the sketch."
-                      : "Generated technical flat"
-                }
-              />
+            <InlineFlat
+              markup={state.svgMarkup}
+              label={
+                state.source === "sample"
+                  ? "Sample technical flat of a dress. Not generated from a sketch. Select a part to edit it."
+                  : state.aiMode === "mock"
+                    ? "Demo technical flat from the backend's mock AI. Not recognized from the sketch. Select a part to edit it."
+                    : "Generated technical flat. Select a part to edit it."
+              }
+              selected={selectedPart}
+              onSelect={onSelectPart}
+            />
+            {selectedPart && (
+              <span className="sheet__selected" role="status">Selected · {PART_LABELS[selectedPart]}</span>
             )}
           </div>
         )}
