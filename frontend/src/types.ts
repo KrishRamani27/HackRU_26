@@ -18,5 +18,12 @@ export type AiMode = "mock" | "gemini" | "unknown";
 export type CanvasState =
   | { status: "empty" }
   | { status: "loading" }
-  | { status: "ready"; svgMarkup: string; aiMode: AiMode }
+  | { status: "ready"; source: "analysis"; svgMarkup: string; aiMode: AiMode }
+  | { status: "ready"; source: "sample"; svgMarkup: string }
   | { status: "error"; message: string; title?: string };
+
+/** Progress of the /analyze request. The resulting spec itself lives in the spec reducer. */
+export type AnalysisStatus =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "error"; title: string; message: string };

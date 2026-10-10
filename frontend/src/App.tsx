@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useMemo, useReducer, useRef, type ChangeEvent } from "react";
+import { buildFlat } from "../../Builder/buildFlat";
+import { mockSpec } from "../../Builder/mockSpec";
 import { NavRail } from "./components/NavRail";
 import { TopBar } from "./components/TopBar";
 import { UploadPanel } from "./components/UploadPanel";
@@ -6,13 +8,15 @@ import { CanvasStage } from "./components/CanvasStage";
 import { PropertiesPanel } from "./components/PropertiesPanel";
 import { ACCEPT_ATTR, useSketchUpload } from "./hooks/useSketchUpload";
 import { useAnalysis } from "./hooks/useAnalysis";
-import type { AiMode, CanvasState } from "./types";
+import { initialSpecState, specReducer } from "./state/specReducer";
+import type { EditAction } from "./state/specSchema";
+import type { AiMode, AnalysisStatus, CanvasState } from "./types";
 
 /**
  * Dev-only: preview canvas states with ?canvas=loading or ?canvas=error.
- * Otherwise the canvas starts empty and is driven by the sketch analysis.
+ * Otherwise nothing is in flight until a sketch is uploaded.
  */
-function initialCanvasState(): CanvasState {
+function initialAnalysisStatus(): AnalysisStatus {
   if (import.meta.env.DEV) {
     const preview = new URLSearchParams(window.location.search).get("canvas");
     if (preview === "loading") return { status: "loading" };
@@ -20,7 +24,7 @@ function initialCanvasState(): CanvasState {
       return { status: "error", title: "Preview", message: "Preview of the error state. Nothing actually failed." };
     }
   }
-  return { status: "empty" };
+  return { status: "idle" };
 }
 
 function aiStatus(mode: AiMode) {
@@ -32,16 +36,48 @@ function aiStatus(mode: AiMode) {
 export default function App() {
   const sketch = useSketchUpload();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [showSample, setShowSample] = useState(false);
+
+  // The one current design spec. Every change goes through this reducer.
+  const [design, dispatch] = useReducer(specReducer, initialSpecState);
 
   const sketchFile = sketch.state.status === "ready" ? sketch.state.file : null;
-  const analysis = useAnalysis(sketchFile, initialCanvasState());
-  const canvas = analysis.state;
+  const analysis = useAnalysis(sketchFile, dispatch, initialAnalysisStatus());
 
-  // A new sketch supersedes the sample preview.
-  useEffect(() => {
-    if (sketchFile) setShowSample(false);
-  }, [sketchFile]);
+  // The flat is rebuilt from the spec on every change.
+  const flat = useMemo(() => {
+    if (!design.spec) return null;
+    try {
+      return { svg: buildFlat(design.spec) };
+    } catch {
+      return { svg: null };
+    }
+  }, [design.spec]);
+
+  let canvas: CanvasState;
+  if (analysis.status.status === "loading") {
+    canvas = { status: "loading" };
+  } else if (analysis.status.status === "error") {
+    canvas = { status: "error", title: analysis.status.title, message: analysis.status.message };
+  } else if (!design.spec || !design.meta || !flat) {
+    canvas = { status: "empty" };
+  } else if (flat.svg === null) {
+    canvas = {
+      status: "error",
+      title: "Couldn’t draw the flat",
+      message: "The builder couldn’t draw the current design.",
+    };
+  } else if (design.meta.source === "sample") {
+    canvas = { status: "ready", source: "sample", svgMarkup: flat.svg };
+  } else {
+    canvas = { status: "ready", source: "analysis", svgMarkup: flat.svg, aiMode: design.meta.aiMode };
+  }
+
+  const applyEdit = useCallback((action: EditAction) => dispatch({ type: "apply", actions: [action] }), []);
+  const showSample = useCallback(
+    () => dispatch({ type: "load", spec: mockSpec, meta: { source: "sample" } }),
+    [],
+  );
+  const hideSample = useCallback(() => dispatch({ type: "clear", source: "sample" }), []);
 
   const browse = () => inputRef.current?.click();
   const onInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -68,7 +104,7 @@ export default function App() {
           projectName="Untitled garment"
           onUpload={browse}
           exportEnabled={false}
-          status={canvas.status === "ready" ? aiStatus(canvas.aiMode) : null}
+          status={canvas.status === "ready" && canvas.source === "analysis" ? aiStatus(canvas.aiMode) : null}
         />
         <div className="workspace">
           <UploadPanel
@@ -80,12 +116,16 @@ export default function App() {
           <CanvasStage
             state={canvas}
             hasSketch={sketch.state.status === "ready"}
-            showSample={showSample}
-            onToggleSample={() => setShowSample((v) => !v)}
+            onShowSample={showSample}
+            onHideSample={hideSample}
             onUpload={browse}
             onRetry={analysis.retry}
           />
-          <PropertiesPanel canvas={canvas} />
+          <PropertiesPanel
+            spec={canvas.status === "ready" ? design.spec : null}
+            canvasStatus={canvas.status}
+            onEdit={applyEdit}
+          />
         </div>
       </div>
     </div>

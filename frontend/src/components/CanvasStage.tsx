@@ -2,13 +2,12 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { CanvasState } from "../types";
 import { AlertIcon, CheckIcon, EyeIcon, FitIcon, UploadIcon, ZoomInIcon, ZoomOutIcon } from "./Icons";
 import { PlaceholderFlat } from "./PlaceholderFlat";
-import { SampleFlat } from "./SampleFlat";
 
 interface Props {
   state: CanvasState;
   hasSketch: boolean;
-  showSample: boolean;
-  onToggleSample: () => void;
+  onShowSample: () => void;
+  onHideSample: () => void;
   onUpload: () => void;
   onRetry: () => void;
 }
@@ -18,10 +17,10 @@ const FIT_INDEX = 2;
 const SAMPLE_LABEL = "Sample preview—not generated from a sketch";
 const MOCK_LABEL = "Demo result (mock AI)—not real sketch recognition";
 
-export function CanvasStage({ state, hasSketch, showSample, onToggleSample, onUpload, onRetry }: Props) {
+export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUpload, onRetry }: Props) {
   const [zoomIndex, setZoomIndex] = useState(FIT_INDEX);
-  const sampling = state.status === "empty" && showSample;
-  const hasArt = state.status === "ready" || sampling;
+  const sampling = state.status === "ready" && state.source === "sample";
+  const hasArt = state.status === "ready";
   const zoom = hasArt ? ZOOM_STEPS[zoomIndex] : 1;
 
   useEffect(() => setZoomIndex(FIT_INDEX), [hasArt]);
@@ -33,19 +32,19 @@ export function CanvasStage({ state, hasSketch, showSample, onToggleSample, onUp
   }, [state]);
   useEffect(() => () => { if (svgUrl) URL.revokeObjectURL(svgUrl); }, [svgUrl]);
 
-  const context = sampling
-    ? { label: "Sample", tone: "sample" }
-    : state.status === "ready"
-      ? state.aiMode === "mock"
+  const context = state.status === "ready"
+    ? state.source === "sample"
+      ? { label: "Sample", tone: "sample" }
+      : state.aiMode === "mock"
         ? { label: "Demo result", tone: "sample" }
         : state.aiMode === "gemini"
           ? { label: "AI result", tone: "live" }
           : { label: "Result · AI mode unknown", tone: "neutral" }
-      : state.status === "loading"
-        ? { label: "Analyzing…", tone: "neutral" }
-        : state.status === "error"
-          ? { label: "Error", tone: "error" }
-          : { label: "Placeholder · no builder output yet", tone: "neutral" };
+    : state.status === "loading"
+      ? { label: "Analyzing…", tone: "neutral" }
+      : state.status === "error"
+        ? { label: "Error", tone: "error" }
+        : { label: "Placeholder · nothing loaded yet", tone: "neutral" };
 
   return (
     <main className="stage" aria-labelledby="canvas-heading">
@@ -57,7 +56,7 @@ export function CanvasStage({ state, hasSketch, showSample, onToggleSample, onUp
         </div>
         <div className="stage__tools">
           {sampling && (
-            <button type="button" className="btn btn--ghost btn--sm stage__hide" onClick={onToggleSample}>
+            <button type="button" className="btn btn--ghost btn--sm stage__hide" onClick={onHideSample}>
               Hide sample
             </button>
           )}
@@ -100,26 +99,26 @@ export function CanvasStage({ state, hasSketch, showSample, onToggleSample, onUp
       >
         {hasArt && (
           <div className="sheet sheet--art" style={{ "--zoom": zoom } as CSSProperties}>
-            {sampling && <span className="sheet__tag sheet__tag--sample">{SAMPLE_LABEL}</span>}
-            {state.status === "ready" && state.aiMode === "mock" && (
+            {state.source === "sample" && <span className="sheet__tag sheet__tag--sample">{SAMPLE_LABEL}</span>}
+            {state.source === "analysis" && state.aiMode === "mock" && (
               <span className="sheet__tag sheet__tag--sample">{MOCK_LABEL}</span>
             )}
-            {state.status === "ready" && svgUrl ? (
+            {svgUrl && (
               <img
                 src={svgUrl}
                 alt={
-                  state.aiMode === "mock"
-                    ? "Demo technical flat from the backend's mock AI. Not recognized from the sketch."
-                    : "Generated technical flat"
+                  state.source === "sample"
+                    ? "Sample technical flat of a dress. Not generated from a sketch."
+                    : state.aiMode === "mock"
+                      ? "Demo technical flat from the backend's mock AI. Not recognized from the sketch."
+                      : "Generated technical flat"
                 }
               />
-            ) : (
-              <SampleFlat />
             )}
           </div>
         )}
 
-        {state.status === "empty" && !sampling && (
+        {state.status === "empty" && (
           <div className="sheet sheet--empty">
             <div className="empty-canvas">
               <div className="empty-canvas__figure"><PlaceholderFlat /></div>
@@ -129,7 +128,7 @@ export function CanvasStage({ state, hasSketch, showSample, onToggleSample, onUp
                 </p>
                 <p className="muted">
                   {hasSketch
-                    ? "Your sketch is in place. You can also view a static sample."
+                    ? "Your sketch is in place. You can also view an editable sample."
                     : "Upload a front-view sketch. The backend reads its design, and the technical flat is drawn here."}
                 </p>
               </div>
@@ -140,7 +139,7 @@ export function CanvasStage({ state, hasSketch, showSample, onToggleSample, onUp
                     <span>Upload sketch</span>
                   </button>
                 )}
-                <button type="button" className="btn btn--ghost" onClick={onToggleSample}>
+                <button type="button" className="btn btn--ghost" onClick={onShowSample}>
                   <EyeIcon />
                   <span>View sample</span>
                 </button>

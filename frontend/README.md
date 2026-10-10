@@ -14,14 +14,15 @@ Other scripts: `npm.cmd run build`, `npm.cmd run preview`, `npm.cmd run typechec
 
 ## Current scope
 
-- UI shell only. **There is no backend connection yet.** The canvas shows a labeled placeholder, not generated output.
-- Sketch upload runs only in the browser: it checks the file type and size, shows a preview, and reads the image dimensions. Nothing is sent anywhere.
-- The properties panel defines no garment fields. Those will come from the shared design-spec contract once it exists.
-- `CanvasState` in `src/types.ts` holds only UI state. Builder SVG is passed through as opaque text and rendered through an `<img>`, so no script inside it can run.
+- **Upload and analyze:** a valid sketch (PNG, JPG or WebP, up to 5 MB) is sent once to `POST /analyze` (`VITE_API_URL`, default `http://localhost:8000`). The returned DesignSpec is drawn with `Builder/buildFlat`. If `X-AI-Mode` is `mock`, the result is labeled as a demo, not real sketch recognition. No API key is sent.
+- **Editing:** the properties panel edits the current spec. One reducer (`src/state/specReducer.ts`) holds it and applies `{ op: "set", path, value }` edit actions; invalid actions are ignored using the same rules as the backend (`src/state/specSchema.ts`). Every change redraws the flat with `buildFlat`. Edits stay in the browser; nothing is saved or sent.
+- Loading a new sketch or opening the sample replaces the current spec and discards edits.
+- Export is not connected yet and stays disabled.
+- `CanvasState` in `src/types.ts` holds only UI state. Builder SVG is rendered through an `<img>`, so no script inside it can run.
 
 ## Sample preview
 
-The empty canvas has a **View sample** button. It renders the Builder's `buildFlat(mockSpec)` output (`src/components/SampleFlat.tsx`), always labeled "Sample preview—not generated from a sketch". The sample never enables Export and has nothing to do with uploaded sketches.
+The empty canvas has a **View sample** button. It loads the Builder's `mockSpec` into the same editable spec, always labeled "Sample preview—not generated from a sketch". It is editable like any other spec, never enables Export, and has nothing to do with uploaded sketches.
 
 ## Previewing states (dev only)
 

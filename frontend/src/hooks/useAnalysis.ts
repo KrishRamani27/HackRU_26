@@ -1,46 +1,46 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { buildFlat } from "../../../Builder/buildFlat";
+import { useCallback, useEffect, useRef, useState, type Dispatch } from "react";
 import { analyzeSketch, AnalyzeError } from "../api/analyze";
-import type { CanvasState } from "../types";
+import type { SpecAction } from "../state/specReducer";
+import type { AnalysisStatus } from "../types";
 
 /**
- * Sends each valid sketch to the backend, then draws the returned DesignSpec
- * with the Builder. Returns the canvas state plus a retry action.
+ * Sends each valid sketch to the backend and loads the returned DesignSpec into
+ * the spec reducer. Returns only the request status plus a retry action.
  */
-export function useAnalysis(file: File | null, initial: CanvasState) {
-  const [state, setState] = useState<CanvasState>(initial);
+export function useAnalysis(
+  file: File | null,
+  dispatch: Dispatch<SpecAction>,
+  initial: AnalysisStatus,
+) {
+  const [status, setStatus] = useState<AnalysisStatus>(initial);
   const [attempt, setAttempt] = useState(0);
   const hadFile = useRef(false);
 
   useEffect(() => {
     if (!file) {
-      // Sketch removed or being replaced: go back to the empty canvas.
+      // Sketch removed or being replaced: drop its result and return to idle.
       if (hadFile.current) {
         hadFile.current = false;
-        setState({ status: "empty" });
+        setStatus({ status: "idle" });
+        dispatch({ type: "clear", source: "analysis" });
       }
       return;
     }
     hadFile.current = true;
 
     const controller = new AbortController();
-    setState({ status: "loading" });
+    setStatus({ status: "loading" });
 
     const send = () => analyzeSketch(file, controller.signal)
       .then(({ spec, aiMode }) => {
-        try {
-          setState({ status: "ready", svgMarkup: buildFlat(spec), aiMode });
-        } catch {
-          setState({
-            status: "error",
-            title: "Couldn’t draw the flat",
-            message: "The backend returned a design the builder couldn’t draw.",
-          });
-        }
+        if (controller.signal.aborted) return;
+        // Both updates land in one render, so the canvas never shows a gap.
+        dispatch({ type: "load", spec, meta: { source: "analysis", aiMode } });
+        setStatus({ status: "idle" });
       })
       .catch((err: unknown) => {
         if (controller.signal.aborted) return;
-        setState(
+        setStatus(
           err instanceof AnalyzeError
             ? { status: "error", title: err.title, message: err.message }
             : { status: "error", title: "Analysis failed", message: "Something went wrong. Try again." },
@@ -56,8 +56,8 @@ export function useAnalysis(file: File | null, initial: CanvasState) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [file, attempt]);
+  }, [file, attempt, dispatch]);
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
-  return { state, retry };
+  return { status, retry };
 }
