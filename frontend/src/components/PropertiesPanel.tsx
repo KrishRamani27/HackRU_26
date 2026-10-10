@@ -201,7 +201,7 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit }: Props
                 min={0} max={1} step={0.05}
                 value={spec.proportions.waist_y}
                 display={unitDisplay(spec.proportions.waist_y)}
-                ends={["Neckline", "Hem"]}
+                ends={["Empire", "Dropped"]}
                 onChange={(v) => set("proportions.waist_y", round2(v))}
               />
             </Section>
