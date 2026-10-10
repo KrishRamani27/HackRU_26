@@ -4,6 +4,7 @@
 
 import type {
   DesignSpec,
+  PartStyle,
   NecklineType,
   Pattern,
   PartName,
@@ -114,10 +115,31 @@ export function isValidEdit(action: EditAction): boolean {
 
 /**
  * Parts whose style Builder/buildFlat.ts actually reads (it calls fillFor for exactly
- * these). The collar and waist seam are drawn without a fill, so a color or pattern
- * set on them cannot change the drawing.
+ * these). A part missing from this list would have its color and pattern controls
+ * disabled, because setting them could not change the drawing. Today the builder
+ * fills all eight: the collar band and the waistband are 6px strips.
  */
-export const FILLED_PARTS: readonly PartName[] = ["bodice", "left_sleeve", "right_sleeve", "skirt", "pockets", "buttons"];
+export const FILLED_PARTS: readonly PartName[] = [
+  "collar_neckline",
+  "bodice",
+  "left_sleeve",
+  "right_sleeve",
+  "waist_seam",
+  "skirt",
+  "pockets",
+  "buttons",
+];
+
+/**
+ * Trim parts that copy the bodice's color and pattern, and keep copying it when the
+ * bodice changes, until the user sets their own color or pattern on that part.
+ */
+export const FOLLOWER_PARTS: readonly PartName[] = ["collar_neckline", "waist_seam"];
+
+/** True when two parts have the same color and pattern. */
+export function sameStyle(a: Partial<PartStyle> | undefined, b: Partial<PartStyle> | undefined): boolean {
+  return !!a && !!b && a.fill?.toLowerCase() === b.fill?.toLowerCase() && a.pattern === b.pattern;
+}
 
 /**
  * Makes every part's style complete and safe before it reaches buildFlat:

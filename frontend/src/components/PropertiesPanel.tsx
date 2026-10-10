@@ -34,6 +34,8 @@ interface Props {
   /** Saves the selected part's settings to the library under this name. */
   onSavePart: (part: PartName, name: string) => Promise<void>;
   onOpenLibrary: () => void;
+  /** Trim parts (collar, waistband) that currently copy the bodice's color and pattern. */
+  following: readonly PartName[];
 }
 
 // Which section holds the controls for each canvas part. The bodice has no
@@ -79,7 +81,7 @@ const unitDisplay = (v: number) => v.toFixed(2);
 // Avoid float noise like 0.30000000000000004 reaching the spec.
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
-export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommit, onSavePart, onOpenLibrary }: Props) {
+export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommit, onSavePart, onOpenLibrary, following }: Props) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const flashTimer = useRef<number>(0);
 
@@ -249,6 +251,12 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
                         onChange={(v) => set(stylePath(part, "pattern"), v)}
                       />
                       {!filled && <p className="field__hint">The builder doesn’t fill this part yet.</p>}
+                      {following.includes(part) && (
+                        <p className="field__hint">Follows the bodice until you set a color or pattern here.</p>
+                      )}
+                      {part === "waist_seam" && !spec.waist.seam && (
+                        <p className="field__hint">The waistband only shows when the waist seam is on.</p>
+                      )}
                     </div>
                   );
                 })}
