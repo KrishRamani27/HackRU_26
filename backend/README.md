@@ -1,0 +1,180 @@
+# FlatSketch backend
+
+Python + FastAPI for the **dress-only** MVP. Gemini reads design choices; the frontend
+builds the SVG. Saved parts are settings and styles, not AI-cut image fragments.
+The AI lead owns prompts in `app/ai.py`. Backend owns routes, validation, storage and deployment.
+
+## Run locally
+
+Run these commands from the `backend` folder with Python 3.12 or newer:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.lock
+Copy-Item .env.example .env
+.venv\Scripts\python -m uvicorn app.main:app --reload
+```
+
+Open http://localhost:8000/docs to try the API. No keys are needed in mock mode.
+If Windows `python` opens the Store, use an installed Python interpreter or `uv`.
+This workspace already has `.venv` prepared, so you can start with the last command.
+
+```powershell
+.venv\Scripts\python -m pytest -q
+```
+
+## Services
+
+| Service | What goes there |
+| --- | --- |
+| Google Cloud Run | FastAPI code, running inside the Docker container |
+| Google Cloud Storage | Original sketches, PNG/JPEG/WebP previews uploaded by the frontend |
+| Tiger Cloud PostgreSQL | Design specs, version history, reusable parts, image object keys |
+| Gemini API | Sketch analysis, optional suggestions, verification, text edits |
+| Google Secret Manager | Gemini key, database URL, shared backend key |
+
+Local development uses SQLite and `data/uploads`. In Cloud Run, use Tiger and GCS:
+local container files are temporary and are not shared between instances.
+
+## API contract for teammates
+
+All protected routes accept `X-API-Key` when `BACKEND_API_KEY` is set.
+This is a shared team demo, not a multi-user account system. A browser-accessible shared
+key is not a private user identity. Add real user authentication before public production use.
+
+| Route | Input | Output |
+| --- | --- | --- |
+| `GET /health` | None | Status and AI mode |
+| `GET /ready` | None | Database check and configured storage mode |
+| `GET /spec/example` | None | Full sample dress spec |
+| `POST /analyze` | Multipart file `sketch` | Design spec directly |
+| `POST /verify` | Multipart files `sketch`, `flat`, text `spec` (JSON) | Array of edit actions |
+| `POST /command` | JSON `{text, spec}` | Array of edit actions |
+| `POST /suggestions` | JSON `{spec, goal?}` | `{suggestions: [{explanation, actions}], end_goal}` |
+| `POST /assets` | Multipart file `image` | Asset record with `id` and relative `url` |
+| `GET /assets/{id}` | None | Image bytes |
+| `POST /designs` | JSON `{name, spec, sketch_asset_id?}` | Saved design, ID, version |
+| `GET /designs` | Optional `limit`, `offset` | Array of designs |
+| `GET /designs/{id}` | None | Saved design |
+| `PUT /designs/{id}` | Same JSON as create | Updated design, new version |
+| `GET /designs/{id}/versions` | Optional `limit`, `offset` | Saved specs, newest first |
+| `DELETE /designs/{id}` | None | 204; removes design and versions, keeps image |
+| `POST /parts` | Saved-part JSON from the handout | Saved part with ID |
+| `GET /parts` | Optional `part_type`, `limit`, `offset` | Array of saved parts |
+| `GET /parts/{id}` | None | Saved part |
+| `DELETE /parts/{id}` | None | 204 |
+
+The eight style keys follow the frontend SVG groups: `collar_neckline`, `bodice`,
+`left_sleeve`, `right_sleeve`, `waist_seam`, `skirt`, `pockets`, `buttons`.
+Each value is `{fill: "#ffffff", pattern: "solid"}`. Agree this naming with the builder teammate.
+All other spec fields match `CHATGPT.md`. `/docs` includes the full schemas.
+An edit uses `{op: "set", path: "sleeves.type", value: "puff"}`.
+Unknown paths, invalid options, wrong types and out-of-range values are rejected.
+
+### Frontend upload example
+
+```typescript
+const form = new FormData();
+form.append("sketch", sketchFile);
+const response = await fetch(`${apiUrl}/analyze`, {
+  method: "POST",
+  headers: { "X-API-Key": teamKey },
+  body: form,
+});
+if (!response.ok) throw new Error("Analysis failed");
+const spec = await response.json();
+```
+
+`FormData` attaches the drawing file. `fetch` sends it to the backend.
+The status check catches failed requests. `response.json()` reads the dress settings.
+Let the browser set multipart Content-Type, including its boundary.
+
+To save a drawing: upload with `/assets`, then put the returned ID in `sketch_asset_id`
+when creating a design. Analysis alone does not save the upload.
+To display protected image URLs, fetch them with the header and use a Blob URL;
+an ordinary `<img>` cannot attach `X-API-Key`.
+
+### Saved sleeve example
+
+```json
+{
+  "name": "My puff sleeve",
+  "part_type": "sleeves",
+  "spec_settings": {"type": "puff", "length": "elbow"},
+  "style": {"fill": "#1f2a44", "pattern": "denim"}
+}
+```
+
+The frontend applies these settings to `spec.sleeves`, applies the style to both
+sleeve groups and rebuilds the flat. Supported library categories: neckline, sleeves,
+waist, skirt, details, proportions. There is no standalone bodice shape field in the handout.
+
+## Connect real Gemini
+
+Set `AI_MODE=gemini`, `GEMINI_API_KEY`, and a `GEMINI_MODEL` available to your account.
+The current example uses `gemini-2.5-flash`; the model is configurable.
+Mock analysis always returns the same sample spec. Mock verify and command return `[]`.
+Mock suggestions return no suggested edits. AI responses carry `X-AI-Mode` so the UI can
+show a demo badge. Real AI errors never silently return a mock result.
+
+The Gemini SDK uses structured responses, followed by backend validation.
+The AI lead can refine prompts without changing the HTTP contract.
+`/command` accepts transcribed text; audio transcription and ElevenLabs are stretch work.
+Suggestions describe the end goal; they do not generate a finished dress image.
+
+## Connect Tiger Cloud
+
+Create a Tiger Cloud service. Put its provided connection URL in `DATABASE_URL`, keeping SSL:
+
+```dotenv
+DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST:PORT/tsdb?sslmode=require
+```
+
+URL-encode special password characters. Keep this URL private.
+The app creates four tables on startup: `assets`, `designs`, `design_versions`, `saved_parts`.
+This MVP uses normal PostgreSQL tables; time-series features are not needed yet.
+Switching from local SQLite does not copy local records to Tiger automatically.
+For later schema changes, add migrations instead of relying on startup table creation.
+
+## Google Cloud and Docker
+
+Set `STORAGE_MODE=gcs`, `GCS_BUCKET`, `GOOGLE_CLOUD_PROJECT` and `BACKEND_API_KEY`.
+Give the Cloud Run service account `roles/storage.objectUser` on the private bucket.
+Use the default Cloud Run identity; do not commit a service-account key file.
+Grant Secret Manager access only to the needed secrets.
+Set `CORS_ORIGINS` to a JSON array containing your real frontend URL.
+Cloud Run requires billing and enabled deployment APIs. Use your sponsor credits and a budget alert.
+
+Build and run locally from `backend`:
+
+```powershell
+docker build -t flatsketch-backend .
+docker run --rm -p 8080:8080 --env-file .env flatsketch-backend
+```
+
+The container excludes `.env`, uploaded images and local databases.
+To preserve local Docker data, mount a volume at `/app/data`.
+
+When your project, private bucket and secrets exist, a deployment template is:
+
+```powershell
+gcloud run deploy flatsketch-backend --source . --region us-central1 --allow-unauthenticated --max-instances 2 --set-env-vars 'AI_MODE=gemini,STORAGE_MODE=gcs,GCS_BUCKET=YOUR_BUCKET,GOOGLE_CLOUD_PROJECT=YOUR_PROJECT' --set-secrets 'GEMINI_API_KEY=gemini-api-key:latest,DATABASE_URL=tiger-database-url:latest,BACKEND_API_KEY=backend-api-key:latest'
+```
+
+Set the frontend CORS URL in the Cloud Run environment before connecting the UI.
+`--allow-unauthenticated` makes the service reachable; application routes still check
+the shared team key. This template is documentation; no cloud resources have been created.
+The Docker entrypoint respects Cloud Run's `PORT`.
+
+## Limits for this MVP
+
+Uploads are limited to 5 MB and 20 million pixels; only PNG/JPEG/WebP are accepted.
+The library saves editable settings, not automatic cutouts or SVG geometry.
+There is no Google Images scraper, generated-image service, user login or voice upload.
+The frontend owns rendering, clicking edits, previews and layered SVG export.
+Live Gemini, Tiger, GCS and Docker deployment require credentials/tools and separate testing.
+
+References: [Gemini structured output](https://ai.google.dev/gemini-api/docs/structured-output),
+[Cloud Run FastAPI](https://docs.cloud.google.com/run/docs/quickstarts/build-and-deploy/deploy-python-fastapi-service),
+[Cloud Storage uploads](https://docs.cloud.google.com/storage/docs/uploading-objects-from-memory),
+[Tiger Data MLH resources](https://www.mlh.com/partners/tigerdata).
