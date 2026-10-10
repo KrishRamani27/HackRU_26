@@ -26,7 +26,7 @@ export function useAnalysis(file: File | null, initial: CanvasState) {
     const controller = new AbortController();
     setState({ status: "loading" });
 
-    analyzeSketch(file, controller.signal)
+    const send = () => analyzeSketch(file, controller.signal)
       .then(({ spec, aiMode }) => {
         try {
           setState({ status: "ready", svgMarkup: buildFlat(spec), aiMode });
@@ -47,7 +47,15 @@ export function useAnalysis(file: File | null, initial: CanvasState) {
         );
       });
 
-    return () => controller.abort();
+    // Send on the next tick, not inside the effect. React StrictMode (dev) runs
+    // effect → cleanup → effect back to back, so the cleanup clears this timer
+    // before the first request ever leaves the browser. One upload = one call.
+    const timer = setTimeout(send, 0);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [file, attempt]);
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);

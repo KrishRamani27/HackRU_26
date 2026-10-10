@@ -21,10 +21,10 @@ Other scripts: `npm.cmd run build`, `npm.cmd run preview`, `npm.cmd run typechec
 
 ## Sample preview
 
-The empty canvas has a **View sample** button. It shows a static tee drawing that ships with the app (`src/components/SampleFlat.tsx`), always labeled "Sample preview—not generated from a sketch". The sample never enables Export and has nothing to do with uploaded sketches.
+The empty canvas has a **View sample** button. It renders the Builder's `buildFlat(mockSpec)` output (`src/components/SampleFlat.tsx`), always labeled "Sample preview—not generated from a sketch". The sample never enables Export and has nothing to do with uploaded sketches.
 
 ## Previewing states (dev only)
 
 - `http://localhost:5173/?canvas=loading`: canvas loading state
 - `http://localhost:5173/?canvas=error`: canvas error state
-- To see the upload error state, upload a non-image file or one larger than 15 MB.
+- To see the upload error state, upload a non-image file or one larger than 5 MB.
