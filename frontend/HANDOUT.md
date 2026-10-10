@@ -71,6 +71,8 @@ Before applying an edit, the reducer checks it with the same rules as the backen
 
 The reducer also keeps the history that powers undo and redo: a list of earlier versions of the settings (up to 50) and a list of undone ones. A new edit after an undo throws away the undone ones, like in any editor. To make a slider drag count as one step, edits that come from the same slider back to back are merged into one history entry until you let go. The same trick covers dragging in the color picker and typing in the notes box. Loading a new sketch or opening the sample starts a fresh, empty history.
 
+The reducer also knows one styling rule. The collar band and the waistband (6 pixel strips the builder draws) copy the bodice's color and pattern by default, and keep copying it whenever the bodice changes. The first time you pick a color or a pattern on one of them, it gets its own style and stops following. The other one keeps following until you do the same to it. A small "Match bodice" button appears in the row of a collar or waistband that has its own style. Click it and that part follows the bodice again. It is one undo step. This is saved with every undo step, so undoing your edit to the collar makes it follow the bodice again. A design that already has a different collar color when it loads is treated as the collar's own choice.
+
 The reducer starts empty. It gets filled by an analysis result or by the sample, and either one replaces whatever was there.
 
 ### How the drawing is made (buildFlat)
@@ -117,7 +119,7 @@ We checked this by measuring the picture before and after each change: every col
 | Details, Buttons | Slider from 0 to 8 buttons down the front (`details.buttons`) |
 | Proportions, Shoulder width | Slider from 0 to 1 (`proportions.shoulder_width`) |
 | Proportions, Waist height | Slider from 0 to 1 (`proportions.waist_y`). In the builder now, 0 is the empire line (high), 0.5 a natural waist, 1 a dropped waist (low). See the known limits about its labels. |
-| Fabric & color, one row per part | A color swatch and four pattern chips (Solid, Denim, Plaid, Floral) for each of the 8 parts (`style.<part>.fill` and `style.<part>.pattern`) |
+| Fabric & color, one row per part | A color swatch and four pattern chips (Solid, Denim, Plaid, Floral) for each of the 8 parts (`style.<part>.fill` and `style.<part>.pattern`). The collar and waist seam rows say "Follows the bodice until you set a color or pattern here" until you style them yourself. |
 | Notes | A free text box up to 4000 characters (`notes`). It is for anything the settings cannot express, and it does not change the drawing. |
 
 Two things you cannot edit: the garment type (it is always a dress), and anything the builder does not draw (see limits).
@@ -240,7 +242,7 @@ You can try the sample with only the frontend running. Uploading a sketch needs 
 * **Opening an export in Illustrator itself.** The SVG was checked as valid XML and rendered in a browser, and it has the named layers, fills and patterns. Nobody has opened it in Illustrator yet, so test one before promising it.
 * **Saving designs.** Whole designs are not saved. A refresh loses the current design. Only library parts are saved, because the frontend does not use the backend's design routes yet.
 * **Library limits.** Everyone who uses the same backend shares one library, because there are no user accounts. It shows the 100 newest parts. You cannot rename a saved part.
-* **Library and the builder.** A color or pattern saved on the collar or the waist seam is stored and applied, but the builder does not draw those, so you will not see it. The card previews use a plain white dress as the base.
+* **Library previews.** The card previews use a plain white dress as the base. Applying a saved collar or waist seam style gives that part its own style, so it stops following the bodice.
 * **Layers panel.** The project guide mentions one. We have click to select instead.
 * **AI suggestions, voice, and the verify loop.** The backend has routes for them. The frontend does not use them.
 * **Renaming the project.** The name "Untitled garment" and the "Draft" tag are fixed.
@@ -248,7 +250,7 @@ You can try the sample with only the frontend running. Uploading a sketch needs 
 **Things that behave in a limited way**
 * **Gemini mode is untested from the frontend.** Everything was tested against the backend in mock mode. The code reads the header and handles real mode, but we have not seen it work with a real Gemini key.
 * **The mock returns the same dress for any sketch.** That is why demo results are labeled.
-* **Collar and waist seam cannot be colored.** The builder draws them as plain lines with no fill, so their color and pattern controls are greyed out with a note.
+* **The collar band and waistband are thin.** The builder fills them as 6 pixel strips, so colors show clearly but patterns are small. Floral is the hardest to see on the waistband. The waistband only exists while the waist seam is on, and the panel says so when it is off.
 * **Side seam pockets cannot be colored** (they are just a line), and patterns on buttons are very small because buttons are tiny dots.
 * **The "Waist height" slider labels are out of date.** The ends say "Neckline" and "Hem", but the builder now means empire line to dropped waist (0 high, 1 low). The slider itself works. Only the two end labels are wrong. The Builder notes also say the backend's Gemini prompt may still use the old meaning, so it is worth checking with the AI teammate.
 * **The backend key.** If the backend turns on its shared key, the app shows "Backend needs an API key", because the frontend does not send one.

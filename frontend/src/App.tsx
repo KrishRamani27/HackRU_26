@@ -18,7 +18,7 @@ import { describeError } from "./api/parts";
 import { buildSavedPart, editsFor, type SavedPart } from "./library/libraryModel";
 import { useUndoShortcuts } from "./hooks/useUndoShortcuts";
 import { initialSpecState, specReducer } from "./state/specReducer";
-import type { EditAction } from "./state/specSchema";
+import { FOLLOWER_PARTS, type EditAction } from "./state/specSchema";
 import type { AiMode, AnalysisStatus, CanvasState } from "./types";
 
 /**
@@ -140,6 +140,7 @@ export default function App() {
     [library.remove],
   );
 
+  const matchBodice = useCallback((part: PartName) => dispatch({ type: "follow", part }), []);
   const commitEdit = useCallback(() => dispatch({ type: "commit" }), []);
 
   // Undo and redo step through the spec history kept by the reducer.
@@ -231,7 +232,9 @@ export default function App() {
             onEdit={applyEdit}
             onCommit={commitEdit}
             onSavePart={savePart}
+            following={design.spec ? FOLLOWER_PARTS.filter((p) => !design.detached.includes(p)) : []}
             onOpenLibrary={() => setLeftTab("library")}
+            onMatchBodice={matchBodice}
           />
           </ErrorBoundary>
         </div>
