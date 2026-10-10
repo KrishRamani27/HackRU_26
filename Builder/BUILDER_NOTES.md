@@ -35,6 +35,13 @@ Handoff from planning chat. Read this together with CLAUDE.md (the contracts the
 - Bodice side seam curves in to the waist (was a straight diagonal).
 - Flared-skirt fold lines end on the curved hem (were poking out below it).
 - Sleeve underarm edge starts at the armpit (short sleeves hooked out from behind the bodice).
+- Fill colors are checked before going into the SVG: only 6-digit hex gets through, anything else becomes white (blocks code injection through a fake "color"). Unknown patterns draw as solid.
+- Unknown option values and NaN numbers fall back to defaults instead of crashing or printing NaN.
+- Patch and side-seam pockets shrink to fit short or narrow skirts.
+- Buttons are limited to how many fit between neckline and waist.
+- Button color comes from style.buttons (was always white).
+- Neckline topstitch runs parallel to the neck edge (was drawn on top of it at the sides).
+- Fabric patterns: denim lines no longer break at tile corners; denim and floral show on white and light colors; left sleeve and left pocket fabric is no longer mirrored (pattern is flipped back with patternTransform).
 
 ## Next steps (in order)
 1. Run the gallery and check every option looks right.
