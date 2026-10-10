@@ -7,7 +7,7 @@ This is the part of FlatSketch you see in the browser. You give it a photo of a 
 1. **Open the app.** You see an empty paper sheet that says "Begin with a sketch", with a faint dashed outline of a top. That outline is only a placeholder picture so the page does not look empty. It is not a result.
 2. **Upload a sketch.** Drag a picture onto the left panel, or click "Choose file" (or the "Upload sketch" button at the top). It accepts PNG, JPG and WebP, up to 5 MB. The app checks the file before sending anything. A wrong file type or a file over 5 MB gets a clear message and nothing is sent.
 3. **See your sketch.** The left panel shows a preview with the file name, the picture size and the file size. You can replace it or remove it with the X.
-4. **It analyzes automatically.** As soon as a good file is picked, the picture goes to the backend. The middle sheet says "Analyzing your sketch" while it waits.
+4. **It analyzes automatically.** As soon as a good file is picked, the picture goes to the backend. The middle sheet says "Reading your sketch" with a thin moving line under it while it waits. If the wait runs past about four seconds, a quiet line below the title softly changes through "Finding the neckline", "Measuring the skirt" and "Drafting your flat", and starts over if it keeps going. Those words are only reassurance, they do not show what the backend is really doing.
 5. **The flat appears.** The backend sends back a short list of settings (neckline type, sleeve type, skirt length and so on). Our drawing code turns those settings into a clean, symmetrical flat on the paper sheet. A tag tells you whether this is a demo result or a real AI result (see section 3).
 6. **Edit it.** Every control in the right panel changes one setting, and the drawing redraws right away.
 7. **Save a part to the library.** Click a part of the dress. A bar appears at the top of the right panel with a "Save to library" button. Give the part a name and press Enter. It saves that part's settings (and its color and pattern) to the backend, so you can reuse it in any design.
@@ -135,7 +135,7 @@ Sliders always show their current value next to the label. The selected chip is 
 * "Couldn't be read": the file may be damaged.
 
 **On the Canvas**
-* "Analyzing your sketch": waiting on the backend.
+* "Reading your sketch": waiting on the backend. After a few seconds the follow up words rotate under it, and the thin line keeps moving. With reduced motion turned on in the system, the line stays still.
 * "Couldn't reach the backend": nothing answered at the backend address. Usually the backend is not running, or it is blocking this page.
 * "Backend needs an API key": the backend is protected by a shared key and this app does not send one yet.
 * "Sketch too large for the backend": the backend said the picture is over its limit.
@@ -205,6 +205,7 @@ Everything is in `frontend/`. The drawing code is not ours: it lives in `Builder
 * `PropertiesPanel.tsx`: the Properties panel and the scroll and flash when a part is selected.
 * `Controls.tsx`: the reusable pieces: section heading, chip group, slider.
 * `ErrorBoundary.tsx`: the safety nets and their messages.
+* `LoadingNote.tsx`: the follow up words that rotate under "Reading your sketch" when the wait is long.
 * `PlaceholderFlat.tsx`: the dashed outline on the empty canvas.
 * `garmentPaths.ts`: line art of a plain tee, used only for that placeholder and the little picture in the empty Properties panel.
 * `Icons.tsx`: the small icons.
