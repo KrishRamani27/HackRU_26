@@ -21,6 +21,9 @@ use the current labels.
 | Backend starter prompt | Backend, live | 5 | 39/40 | `test3` neckline |
 | Backend full prompt | Backend, live | 5 | 39/40 | `test3` neckline |
 | Backend full prompt + neckline fix | Backend | 0 | not tested yet | |
+| + new waist_y scale | Backend, live | 2 | 16/16 | none (`test3` not run) |
+| + skirt silhouette definitions | Backend, live | 3 | 23/24 | `test3` neckline (`v`) |
+| + accents | Backend | 0 | not tested yet | |
 
 ## AI Studio v1
 
@@ -103,8 +106,60 @@ whether v1 or v2 produced them. _Confirm which one and move this line under it._
 - **Why:** the builder changed the contract in `CHATGPT.md` and `Builder/buildFlat.ts`
   on October 10. With the old wording, Gemini's values (about 0.3 to 0.4 for a natural
   waist) would be drawn as a raised waist.
-- **Results:** not tested yet (quota). `waist_y` is not one of the 8 scored fields, so
-  check it by eye on the built flat.
+- **Results:** two live runs are saved in `AI/results/` from about 7:02 PM on
+  October 10 (`test1` and `test2`). Both returned `waist_y` 0.5, the natural waist on
+  the new scale, and both score 8/8 on the labelled fields. `test3` has not been run,
+  so the neckline fix is still untested. `waist_y` is not one of the 8 scored fields.
+
+## Backend full prompt + skirt silhouette definitions
+
+- **Where:** `ANALYZE_PROMPT` in `backend/app/ai.py` (current version).
+- **What changed:** the three `skirt.silhouette` definitions.
+  - `straight`: falls nearly straight down from the waist with little or no widening.
+  - `a_line`: widens gently and evenly from waist to hem, even if the skirt is gathered
+    or pleated at the waist.
+  - `flared`: dramatically full at the hem, like a circle or bell skirt.
+  - New rule: "Gathers or pleats at the waist alone do not make a skirt flared; judge
+    by how wide the hem is compared with the waist."
+- **Why:** the old wording defined `flared` as "clear fullness: gathers, pleats, folds",
+  so any gathered waist was read as flared. `test2`, a shirt dress gathered at the
+  waist, came back `flared` in every run with the full prompt (three runs), although
+  its hem is only moderately wider than its waist. The label accepts both values, so
+  the score did not show it.
+- **Also changed:** the short silhouette descriptions in `EDIT_GUIDE` now use the same
+  wording, so `/verify` does not "correct" a gathered A-line skirt back to flared.
+- **Results:** saved runs from 7:10 to 7:26 PM on October 10, after this change (this
+  assumes the server had reloaded the new prompt):
+  - `test2`: `a_line`, where the three earlier runs said `flared`.
+  - `test1`: still `flared`.
+  - `test3`: `a_line` and `knee`, both correct, but `neckline.type` came back `v`
+    (label `scoop`). Before the neckline fix it was `crew`, so the fix changed the
+    answer without making it right.
+  - Score for these three runs: 23/24.
+- **What to check:** `test2` should now return `a_line`, and `test1` (a very full
+  floor-length skirt) should stay `flared`.
+
+## Backend full prompt + accents
+
+- **Where:** `ANALYZE_PROMPT` and `spread_style` in `backend/app/ai.py`;
+  `GeminiAccent` in `backend/app/ai_schemas.py` (current version).
+- **What changed:**
+  - Gemini still returns one `main_style`, and can now also return `accents`: a list
+    of up to 3 items, each with `part` (one of the 8 SVG group names) and `fill`
+    (6-digit hex).
+  - The code copies `main_style` to all 8 parts, then sets each accent's fill on its
+    part. The pattern stays the main pattern. Only the first 3 accents are used.
+  - New prompt line: "Use accents only for parts whose color clearly differs from the
+    main color, such as contrast buttons or a contrast collar."
+- **Why:** with a single main style, color-blocking was lost. On `test3`, the black
+  buttons came back the same off-white as the dress. Asking Gemini for all 8 part
+  styles was tried first and made replies slow, so accents add only the exceptions.
+- **Results:** not tested yet; no live calls were made for this change.
+- **What to check:** `test3` should return an accent for `buttons` in a dark color;
+  `test1` and `test2` should return an empty list.
+- **Known limit:** the builder draws `collar_neckline` and `waist_seam` without a
+  fill, so an accent on those two parts is stored in the spec but does not change
+  the drawing.
 
 # Edit prompts (/verify, /command, /suggestions)
 

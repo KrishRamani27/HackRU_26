@@ -1,0 +1,61 @@
+{
+  "garment_type": "dress",
+  "neckline": {
+    "type": "scoop",
+    "depth": 0.3
+  },
+  "sleeves": {
+    "type": "puff",
+    "length": "long"
+  },
+  "waist": {
+    "seam": true
+  },
+  "skirt": {
+    "silhouette": "flared",
+    "length": "floor"
+  },
+  "details": {
+    "pockets": "none",
+    "buttons": 0
+  },
+  "proportions": {
+    "shoulder_width": 0.55,
+    "waist_y": 0.5
+  },
+  "style": {
+    "collar_neckline": {
+      "fill": "#cba273",
+      "pattern": "floral"
+    },
+    "bodice": {
+      "fill": "#cba273",
+      "pattern": "floral"
+    },
+    "left_sleeve": {
+      "fill": "#cba273",
+      "pattern": "floral"
+    },
+    "right_sleeve": {
+      "fill": "#cba273",
+      "pattern": "floral"
+    },
+    "waist_seam": {
+      "fill": "#cba273",
+      "pattern": "floral"
+    },
+    "skirt": {
+      "fill": "#cba273",
+      "pattern": "floral"
+    },
+    "pockets": {
+      "fill": "#cba273",
+      "pattern": "floral"
+    },
+    "buttons": {
+      "fill": "#cba273",
+      "pattern": "floral"
+    }
+  },
+  "notes": "Historical 1830s-1840s style printed cotton day dress featuring gathered/pleated bodice converging into a pointed waist seam, full gathered floor-length skirt with a ruffled flounce at the hem, and bishop/imbecile-style full sleeves with upper arm tucks and cuffs."
+}

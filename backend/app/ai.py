@@ -14,6 +14,7 @@ from .schemas import AIEditResult, DesignSpec, Styles, Suggestions, apply_action
 logger = logging.getLogger(__name__)
 
 MAX_IMAGE_SIDE = 1536  # longest side sent to Gemini, in pixels
+MAX_ACCENTS = 3  # contrast-color parts accepted from one /analyze reply
 THINKING_LEVEL = "low"  # less model thinking means faster replies
 TIMEOUT_MS = 45000  # per attempt; call() retries once on a timeout or 5xx
 # Live /analyze specs are saved here so AI/evaluate.py can score them offline.
@@ -47,11 +48,12 @@ Fields:
 - waist.seam: true if a horizontal seam, waistband or join separates bodice and skirt.
   false if the dress falls in one piece with no join at the waist.
 - skirt.silhouette: the outline of the skirt from waist to hem.
-  "straight" = the sides drop almost vertically from the hip; the hem is about as wide
-  as the hips. "a_line" = the sides widen steadily in straight lines, like the letter
-  A; the hem is moderately wider than the hips, with little or no gathering.
-  "flared" = much wider at the hem than at the hips, with clear fullness: gathers,
-  pleats, folds, tiers or a circle skirt.
+  "straight" = falls nearly straight down from the waist with little or no widening.
+  "a_line" = widens gently and evenly from waist to hem, even if the skirt is gathered
+  or pleated at the waist.
+  "flared" = dramatically full at the hem, like a circle or bell skirt.
+  Gathers or pleats at the waist alone do not make a skirt flared; judge by how wide
+  the hem is compared with the waist.
 - skirt.length: where the hem ends on a standing figure. "mini" = mid-thigh or above.
   "knee" = at the knee, just above or just below it. "midi" = mid-calf.
   "floor" = ankle or floor.
@@ -70,6 +72,11 @@ Fields:
   Use "#ffffff" for an uncolored line drawing.
 - main_style.pattern: "solid", "denim", "plaid" or "floral". Use "solid" unless the
   fabric clearly shows one of the others.
+- accents: a list of up to 3 parts whose color differs from main_style.fill. Each item
+  has "part" (one of collar_neckline, bodice, left_sleeve, right_sleeve, waist_seam,
+  skirt, pockets, buttons) and "fill" (a 6-digit hex code). Use accents only for parts
+  whose color clearly differs from the main color, such as contrast buttons or a
+  contrast collar. Use an empty list when the dress is one color.
 - notes: short free text for anything the fields above cannot express, and for any
   uncertainty.
 
@@ -98,9 +105,9 @@ Use only the paths below, and only the values listed for that path.
   point), "puff" (gathered fullness) or "fitted" (plain, follows the arm).
 - sleeves.length: "short" (above the elbow), "elbow" or "long" (to the wrist).
 - waist.seam: true or false.
-- skirt.silhouette: "straight" (sides drop almost vertically), "a_line" (widens
-  steadily in straight lines) or "flared" (much wider at the hem, with gathers, pleats
-  or folds).
+- skirt.silhouette: "straight" (falls nearly straight down from the waist), "a_line"
+  (widens gently and evenly, even if gathered or pleated at the waist) or "flared"
+  (dramatically full at the hem, like a circle or bell skirt).
 - skirt.length: "mini" (mid-thigh or above), "knee", "midi" (mid-calf) or "floor"
   (ankle or floor).
 - details.pockets: "none", "patch" or "side_seam".
@@ -166,6 +173,9 @@ def spread_style(data):
     # Gemini picks one main style; the contract stores one style per part.
     main = data.pop("main_style")
     data["style"] = {part: dict(main) for part in Styles.model_fields}
+    # Accents then recolor single parts, such as contrast buttons.
+    for accent in data.pop("accents")[:MAX_ACCENTS]:
+        data["style"][accent["part"]]["fill"] = accent["fill"]
     return data
 
 

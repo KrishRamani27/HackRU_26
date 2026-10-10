@@ -299,6 +299,57 @@ def test_gemini_retries_once_on_timeout_or_server_error(client, monkeypatch):
     assert len(calls) == 1
 
 
+def analyze_reply(**extra):
+    reply = DesignSpec().model_dump(exclude={"style"})
+    reply["main_style"] = {"fill": "#e8ebe9", "pattern": "floral"}
+    return json.dumps({**reply, **extra})
+
+
+def test_accents_recolor_single_parts(client, monkeypatch):
+    accents = [{"part": "buttons", "fill": "#000000"}, {"part": "collar_neckline", "fill": "#112233"}]
+    fake_gemini(client, monkeypatch, analyze_reply(accents=accents))
+    result = client.post("/analyze", files={"sketch": ("dress.png", png())})
+    assert result.status_code == 200
+    style = result.json()["style"]
+    # Only the fill changes; the main pattern stays on every part.
+    assert style["buttons"] == {"fill": "#000000", "pattern": "floral"}
+    assert style["collar_neckline"] == {"fill": "#112233", "pattern": "floral"}
+    others = [value for part, value in style.items() if part not in ("buttons", "collar_neckline")]
+    assert len(others) == 6 and all(value == {"fill": "#e8ebe9", "pattern": "floral"} for value in others)
+
+
+def test_accents_are_optional_and_capped_at_three(client, monkeypatch):
+    for reply in (analyze_reply(), analyze_reply(accents=[])):
+        fake_gemini(client, monkeypatch, reply)
+        style = client.post("/analyze", files={"sketch": ("dress.png", png())}).json()["style"]
+        assert all(value["fill"] == "#e8ebe9" for value in style.values())
+
+    parts = ["buttons", "pockets", "skirt", "bodice"]
+    fake_gemini(client, monkeypatch, analyze_reply(accents=[{"part": part, "fill": "#000000"} for part in parts]))
+    style = client.post("/analyze", files={"sketch": ("dress.png", png())}).json()["style"]
+    # Only the first three accents are used; the fourth (bodice) is ignored.
+    assert sorted(part for part, value in style.items() if value["fill"] == "#000000") == ["buttons", "pockets", "skirt"]
+
+
+@pytest.mark.parametrize("accent", [
+    {"part": "hem", "fill": "#000000"},      # not one of the 8 parts
+    {"part": "buttons", "fill": "black"},    # not a 6-digit hex color
+    {"part": "buttons"},                     # fill missing
+])
+def test_bad_accents_are_502(client, monkeypatch, accent):
+    fake_gemini(client, monkeypatch, analyze_reply(accents=[accent]))
+    assert client.post("/analyze", files={"sketch": ("dress.png", png())}).status_code == 502
+
+
+def test_accent_parts_match_the_contract():
+    from typing import get_args
+
+    from app.ai_schemas import GeminiAccent
+    from app.schemas import Styles
+
+    assert list(get_args(GeminiAccent.model_fields["part"].annotation)) == list(Styles.model_fields)
+
+
 def test_gemini_reply_with_missing_fields_is_502(client, monkeypatch):
     fake_gemini(client, monkeypatch, '{"garment_type": "dress"}')
     result = client.post("/analyze", files={"sketch": ("dress.png", png())})
@@ -384,9 +435,12 @@ def test_gemini_schemas_avoid_unsupported_fields(model):
 def test_gemini_spec_matches_strict_contract():
     def same(loose, strict):
         # Gemini returns one main_style in place of the per-part style block.
-        names = ["style" if name == "main_style" else name for name in loose.model_fields]
+        # accents is Gemini-only: ai.py folds it into the style block.
+        names = ["style" if name == "main_style" else name for name in loose.model_fields if name != "accents"]
         assert names == list(strict.model_fields)
         for name, field in loose.model_fields.items():
+            if name == "accents":
+                continue
             if name == "main_style":
                 same(field.annotation, PartStyle)
                 continue

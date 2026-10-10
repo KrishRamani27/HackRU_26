@@ -1,0 +1,61 @@
+{
+  "garment_type": "dress",
+  "neckline": {
+    "type": "v",
+    "depth": 0.2
+  },
+  "sleeves": {
+    "type": "fitted",
+    "length": "short"
+  },
+  "waist": {
+    "seam": true
+  },
+  "skirt": {
+    "silhouette": "a_line",
+    "length": "knee"
+  },
+  "details": {
+    "pockets": "none",
+    "buttons": 8
+  },
+  "proportions": {
+    "shoulder_width": 0.5,
+    "waist_y": 0.5
+  },
+  "style": {
+    "collar_neckline": {
+      "fill": "#ffffff",
+      "pattern": "solid"
+    },
+    "bodice": {
+      "fill": "#ffffff",
+      "pattern": "solid"
+    },
+    "left_sleeve": {
+      "fill": "#ffffff",
+      "pattern": "solid"
+    },
+    "right_sleeve": {
+      "fill": "#ffffff",
+      "pattern": "solid"
+    },
+    "waist_seam": {
+      "fill": "#ffffff",
+      "pattern": "solid"
+    },
+    "skirt": {
+      "fill": "#ffffff",
+      "pattern": "solid"
+    },
+    "pockets": {
+      "fill": "#ffffff",
+      "pattern": "solid"
+    },
+    "buttons": {
+      "fill": "#ffffff",
+      "pattern": "solid"
+    }
+  },
+  "notes": "Shirtdress featuring a classic pointed collar with a small V-neck notch, short set-in sleeves, gathered waist seam, and a full-length button placket running through bodice and skirt with 12 buttons visible in total (capped at maximum 8)."
+}

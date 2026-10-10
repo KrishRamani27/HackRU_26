@@ -1,0 +1,61 @@
+{
+  "garment_type": "dress",
+  "neckline": {
+    "type": "v",
+    "depth": 0.2
+  },
+  "sleeves": {
+    "type": "fitted",
+    "length": "short"
+  },
+  "waist": {
+    "seam": true
+  },
+  "skirt": {
+    "silhouette": "flared",
+    "length": "midi"
+  },
+  "details": {
+    "pockets": "none",
+    "buttons": 8
+  },
+  "proportions": {
+    "shoulder_width": 0.5,
+    "waist_y": 0.5
+  },
+  "style": {
+    "collar_neckline": {
+      "fill": "#ffffff",
+      "pattern": "solid"
+    },
+    "bodice": {
+      "fill": "#ffffff",
+      "pattern": "solid"
+    },
+    "left_sleeve": {
+      "fill": "#ffffff",
+      "pattern": "solid"
+    },
+    "right_sleeve": {
+      "fill": "#ffffff",
+      "pattern": "solid"
+    },
+    "waist_seam": {
+      "fill": "#ffffff",
+      "pattern": "solid"
+    },
+    "skirt": {
+      "fill": "#ffffff",
+      "pattern": "solid"
+    },
+    "pockets": {
+      "fill": "#ffffff",
+      "pattern": "solid"
+    },
+    "buttons": {
+      "fill": "#ffffff",
+      "pattern": "solid"
+    }
+  },
+  "notes": "Shirtdress style with a spread collar and full-length front button placket containing approximately 12 visible buttons (capped at 8). Skirt is gathered at the waist seam with soft folds."
+}

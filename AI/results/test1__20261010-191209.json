@@ -1,0 +1,61 @@
+{
+  "garment_type": "dress",
+  "neckline": {
+    "type": "scoop",
+    "depth": 0.25
+  },
+  "sleeves": {
+    "type": "puff",
+    "length": "long"
+  },
+  "waist": {
+    "seam": true
+  },
+  "skirt": {
+    "silhouette": "flared",
+    "length": "floor"
+  },
+  "details": {
+    "pockets": "none",
+    "buttons": 0
+  },
+  "proportions": {
+    "shoulder_width": 0.55,
+    "waist_y": 0.5
+  },
+  "style": {
+    "collar_neckline": {
+      "fill": "#d19a66",
+      "pattern": "floral"
+    },
+    "bodice": {
+      "fill": "#d19a66",
+      "pattern": "floral"
+    },
+    "left_sleeve": {
+      "fill": "#d19a66",
+      "pattern": "floral"
+    },
+    "right_sleeve": {
+      "fill": "#d19a66",
+      "pattern": "floral"
+    },
+    "waist_seam": {
+      "fill": "#d19a66",
+      "pattern": "floral"
+    },
+    "skirt": {
+      "fill": "#d19a66",
+      "pattern": "floral"
+    },
+    "pockets": {
+      "fill": "#d19a66",
+      "pattern": "floral"
+    },
+    "buttons": {
+      "fill": "#d19a66",
+      "pattern": "floral"
+    }
+  },
+  "notes": "Historical/period dress (1830s-1840s style) featuring a wide gathered/shirred scoop neckline, pleated pointed bodice waistline, and voluminous gigot/bishop-style puff sleeves with upper arm pin-tucking/cuffing. The full floor-length skirt features a wide gathered flounce at the hem."
+}

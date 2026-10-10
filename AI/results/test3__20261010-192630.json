@@ -1,0 +1,61 @@
+{
+  "garment_type": "dress",
+  "neckline": {
+    "type": "v",
+    "depth": 0.45
+  },
+  "sleeves": {
+    "type": "puff",
+    "length": "short"
+  },
+  "waist": {
+    "seam": true
+  },
+  "skirt": {
+    "silhouette": "a_line",
+    "length": "knee"
+  },
+  "details": {
+    "pockets": "none",
+    "buttons": 4
+  },
+  "proportions": {
+    "shoulder_width": 0.5,
+    "waist_y": 0.45
+  },
+  "style": {
+    "collar_neckline": {
+      "fill": "#f2f4f3",
+      "pattern": "solid"
+    },
+    "bodice": {
+      "fill": "#f2f4f3",
+      "pattern": "solid"
+    },
+    "left_sleeve": {
+      "fill": "#f2f4f3",
+      "pattern": "solid"
+    },
+    "right_sleeve": {
+      "fill": "#f2f4f3",
+      "pattern": "solid"
+    },
+    "waist_seam": {
+      "fill": "#f2f4f3",
+      "pattern": "solid"
+    },
+    "skirt": {
+      "fill": "#f2f4f3",
+      "pattern": "solid"
+    },
+    "pockets": {
+      "fill": "#f2f4f3",
+      "pattern": "solid"
+    },
+    "buttons": {
+      "fill": "#f2f4f3",
+      "pattern": "solid"
+    }
+  },
+  "notes": "The dress features an off-the-shoulder/sweetheart neckline style layered over a high black turtleneck yoke/underlayer. The bodice and skirt feature centre-front button detailing (4 visible black buttons), puff sleeves, and pleating in the skirt."
+}
