@@ -4,9 +4,11 @@ interface Props {
   projectName: string;
   onUpload: () => void;
   exportEnabled: boolean;
+  /** Short backend status, shown once an analysis has returned. */
+  status: string | null;
 }
 
-export function TopBar({ projectName, onUpload, exportEnabled }: Props) {
+export function TopBar({ projectName, onUpload, exportEnabled, status }: Props) {
   return (
     <header className="topbar">
       <div className="topbar__titles">
@@ -18,10 +20,12 @@ export function TopBar({ projectName, onUpload, exportEnabled }: Props) {
       </div>
 
       <div className="topbar__actions">
-        <span className="status" title="The garment builder is not connected yet">
-          <span className="status__dot" aria-hidden="true" />
-          Builder not connected
-        </span>
+        {status && (
+          <span className="status">
+            <span className="status__dot" aria-hidden="true" />
+            {status}
+          </span>
+        )}
         <button type="button" className="btn btn--ghost" onClick={onUpload} aria-label="Upload sketch">
           <UploadIcon />
           <span>Upload sketch</span>
@@ -31,14 +35,14 @@ export function TopBar({ projectName, onUpload, exportEnabled }: Props) {
           className="btn btn--primary"
           disabled={!exportEnabled}
           aria-describedby={exportEnabled ? undefined : "export-hint"}
-          title={exportEnabled ? undefined : "Available once a technical flat has been generated"}
+          title={exportEnabled ? undefined : "Export isn’t available yet"}
         >
           <ExportIcon />
           <span>Export</span>
         </button>
         {!exportEnabled && (
           <span id="export-hint" className="visually-hidden">
-            Export becomes available once a technical flat has been generated.
+            Export isn’t available yet.
           </span>
         )}
       </div>

@@ -10,13 +10,15 @@ interface Props {
   showSample: boolean;
   onToggleSample: () => void;
   onUpload: () => void;
+  onRetry: () => void;
 }
 
 const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
 const FIT_INDEX = 2;
 const SAMPLE_LABEL = "Sample preview—not generated from a sketch";
+const MOCK_LABEL = "Demo result (mock AI)—not real sketch recognition";
 
-export function CanvasStage({ state, hasSketch, showSample, onToggleSample, onUpload }: Props) {
+export function CanvasStage({ state, hasSketch, showSample, onToggleSample, onUpload, onRetry }: Props) {
   const [zoomIndex, setZoomIndex] = useState(FIT_INDEX);
   const sampling = state.status === "empty" && showSample;
   const hasArt = state.status === "ready" || sampling;
@@ -34,9 +36,13 @@ export function CanvasStage({ state, hasSketch, showSample, onToggleSample, onUp
   const context = sampling
     ? { label: "Sample", tone: "sample" }
     : state.status === "ready"
-      ? { label: "Builder output", tone: "live" }
+      ? state.aiMode === "mock"
+        ? { label: "Demo result", tone: "sample" }
+        : state.aiMode === "gemini"
+          ? { label: "AI result", tone: "live" }
+          : { label: "Result · AI mode unknown", tone: "neutral" }
       : state.status === "loading"
-        ? { label: "Building…", tone: "neutral" }
+        ? { label: "Analyzing…", tone: "neutral" }
         : state.status === "error"
           ? { label: "Error", tone: "error" }
           : { label: "Placeholder · no builder output yet", tone: "neutral" };
@@ -95,8 +101,18 @@ export function CanvasStage({ state, hasSketch, showSample, onToggleSample, onUp
         {hasArt && (
           <div className="sheet sheet--art" style={{ "--zoom": zoom } as CSSProperties}>
             {sampling && <span className="sheet__tag sheet__tag--sample">{SAMPLE_LABEL}</span>}
+            {state.status === "ready" && state.aiMode === "mock" && (
+              <span className="sheet__tag sheet__tag--sample">{MOCK_LABEL}</span>
+            )}
             {state.status === "ready" && svgUrl ? (
-              <img src={svgUrl} alt="Generated technical flat" />
+              <img
+                src={svgUrl}
+                alt={
+                  state.aiMode === "mock"
+                    ? "Demo technical flat from the backend's mock AI. Not recognized from the sketch."
+                    : "Generated technical flat"
+                }
+              />
             ) : (
               <SampleFlat />
             )}
@@ -109,12 +125,12 @@ export function CanvasStage({ state, hasSketch, showSample, onToggleSample, onUp
               <div className="empty-canvas__figure"><PlaceholderFlat /></div>
               <div className="empty-canvas__copy">
                 <p className="display-title">
-                  {hasSketch ? "Your sketch is in place" : "Begin with a sketch"}
+                  {hasSketch ? "Sketch ready" : "Begin with a sketch"}
                 </p>
                 <p className="muted">
                   {hasSketch
-                    ? "The garment builder isn’t connected yet, so no flat has been generated from it. You can view a static sample in the meantime."
-                    : "Upload a front-view sketch. Once the garment builder is connected, its technical flat will be drawn here."}
+                    ? "Your sketch is in place. You can also view a static sample."
+                    : "Upload a front-view sketch. The backend reads its design, and the technical flat is drawn here."}
                 </p>
               </div>
               <div className="empty-canvas__actions">
@@ -136,7 +152,7 @@ export function CanvasStage({ state, hasSketch, showSample, onToggleSample, onUp
                 </li>
                 <li className={hasSketch ? "is-current" : undefined}>
                   <span className="steps__num">2</span>
-                  Generate flat <em>(not connected)</em>
+                  Generate flat
                 </li>
                 <li>
                   <span className="steps__num">3</span>
@@ -152,8 +168,8 @@ export function CanvasStage({ state, hasSketch, showSample, onToggleSample, onUp
             <div className="empty-canvas">
               <div className="skeleton" aria-hidden="true" />
               <div className="empty-canvas__copy">
-                <p className="display-title">Building flat…</p>
-                <p className="muted">This can take a few seconds.</p>
+                <p className="display-title">Analyzing your sketch…</p>
+                <p className="muted">Reading the design and drawing the flat. This can take a few seconds.</p>
               </div>
             </div>
           </div>
@@ -165,8 +181,13 @@ export function CanvasStage({ state, hasSketch, showSample, onToggleSample, onUp
               <div className="notice notice--error notice--center" role="alert">
                 <AlertIcon />
                 <div>
-                  <p className="notice__title">Couldn’t display the flat</p>
+                  <p className="notice__title">{state.title ?? "Couldn’t display the flat"}</p>
                   <p>{state.message}</p>
+                  {hasSketch && (
+                    <button type="button" className="btn btn--ghost btn--sm notice__action" onClick={onRetry}>
+                      Try again
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

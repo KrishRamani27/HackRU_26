@@ -31,6 +31,7 @@
   --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
 
   --gap: 20px;
+  --gutter: 24px; /* left/right inset shared by the top bar and the panels below it */
   --rail: 68px;
 
   color-scheme: light;
@@ -121,7 +122,7 @@ img { display: block; max-width: 100%; }
   display: grid;
   grid-template-columns: 296px minmax(0, 1fr) 280px;
   gap: var(--gap);
-  padding: 4px var(--gap) var(--gap);
+  padding: 4px var(--gutter) var(--gap);
   min-height: 0;
 }
 
@@ -183,7 +184,7 @@ img { display: block; max-width: 100%; }
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 18px var(--gap) 16px;
+  padding: 18px var(--gutter) 16px;
 }
 
 .topbar__titles { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -457,6 +458,7 @@ img { display: block; max-width: 100%; }
   /* One grid cell; sheets size against it so nothing scrolls until zoomed in. */
   display: grid;
   grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  container-type: size; /* lets .sheet--art size itself from the canvas box (cqw/cqh) */
   flex: 1;
   min-height: 0;
   padding: 28px;
@@ -507,16 +509,25 @@ img { display: block; max-width: 100%; }
 }
 
 .sheet--art {
+  /* Fixed 4:5 portrait sheet. At 100% it is the largest 4:5 box that fits the
+     canvas; zoom scales that box, never the aspect ratio. */
+  aspect-ratio: 4 / 5;
+  height: calc(min(100cqh, 125cqw) * var(--zoom, 1));
+  width: auto;
   display: grid;
-  place-items: center;
-  padding: 48px 40px 36px;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  /* Percent padding is relative to width, so the margins scale with the sheet. */
+  padding: 11% 8% 7%;
 }
 .sheet--art > img,
 .sheet--art > svg {
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   max-width: none;
   object-fit: contain;
+  object-position: center;
 }
 
 .sheet__tag {
@@ -590,19 +601,6 @@ img { display: block; max-width: 100%; }
 .steps .is-current .steps__num { border-color: var(--accent); color: var(--accent); }
 .steps .is-done .steps__num { border-color: var(--accent); background: var(--accent); color: #fff; }
 
-/* Sample flat drawing */
-.sample-flat .flat-fill { fill: #fffdf8; stroke: var(--ink); }
-.sample-flat .flat-shade { fill: var(--surface-sunk); stroke: var(--ink); }
-.sample-flat .flat-line { stroke: var(--ink); }
-.sample-flat .flat-stitch { stroke: var(--ink-2); }
-.sample-flat .flat-label {
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 650;
-  letter-spacing: 0.2em;
-  fill: var(--ink-3);
-}
-
 .zoom {
   display: flex;
   align-items: center;
@@ -637,7 +635,7 @@ img { display: block; max-width: 100%; }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1240px) {
-  :root { --gap: 16px; }
+  :root { --gap: 16px; --gutter: 20px; }
   .workspace { grid-template-columns: 260px minmax(0, 1fr) 236px; }
   .status { display: none; }
 }
@@ -652,7 +650,7 @@ img { display: block; max-width: 100%; }
 }
 
 @media (max-width: 560px) {
-  :root { --gap: 16px; }
+  :root { --gap: 16px; --gutter: 16px; }
   .topbar { padding-top: 14px; }
   .topbar__crumb { display: none; }
   .topbar__project { font-size: 22px; }
@@ -661,7 +659,6 @@ img { display: block; max-width: 100%; }
   .stage__toolbar .chip { max-width: 180px; }
   .stage__tools { width: 100%; justify-content: space-between; margin-left: 0; }
   .stage__canvas { padding: 12px; }
-  .sheet--art { padding: 44px 16px 20px; }
   .display-title { font-size: 22px; }
 }
 
@@ -672,3 +669,5 @@ img { display: block; max-width: 100%; }
     transition-duration: 0.01ms !important;
   }
 }
+
+.notice__action { margin-top: 10px; }

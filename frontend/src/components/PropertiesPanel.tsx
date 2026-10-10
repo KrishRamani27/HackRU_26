@@ -7,7 +7,7 @@ interface Props {
 
 /**
  * Garment properties are intentionally not defined here. They will be driven
- * by the shared design-spec contract once it exists.
+ * by the shared design-spec contract once editing is built.
  */
 export function PropertiesPanel({ canvas }: Props) {
   const ready = canvas.status === "ready";
@@ -28,16 +28,14 @@ export function PropertiesPanel({ canvas }: Props) {
               <path d={tee.frontRib} fill="none" className="empty__art-line" />
             </g>
           </svg>
-          <p className="empty__title">{ready ? "Select a part to edit" : "No part selected"}</p>
+          <p className="empty__title">No part selected</p>
           <p className="muted">
             {ready
-              ? "Click a part of the flat on the canvas to see its properties here."
-              : "When a flat has been generated, selecting a part on the canvas, such as a sleeve, will show its properties here."}
+              ? "Part selection and editing aren’t available yet."
+              : "When part editing is added, selecting a part on the canvas, such as a sleeve, will show its properties here."}
           </p>
         </div>
-        {!ready && (
-          <p className="panel__footnote">Editing becomes available once the garment builder is connected.</p>
-        )}
+        <p className="panel__footnote">Editing isn’t available yet.</p>
       </div>
     </aside>
   );
