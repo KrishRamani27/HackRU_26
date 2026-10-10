@@ -1,45 +1,60 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
+import type { PartName } from "../../../Builder/types";
 import type { CanvasState } from "../types";
+import { PART_LABELS } from "../state/specSchema";
 import { AlertIcon, CheckIcon, EyeIcon, FitIcon, UploadIcon, ZoomInIcon, ZoomOutIcon } from "./Icons";
+import { InlineFlat } from "./InlineFlat";
 import { PlaceholderFlat } from "./PlaceholderFlat";
-import { SampleFlat } from "./SampleFlat";
 
 interface Props {
   state: CanvasState;
   hasSketch: boolean;
-  showSample: boolean;
-  onToggleSample: () => void;
+  onShowSample: () => void;
+  onHideSample: () => void;
   onUpload: () => void;
+  onRetry: () => void;
+  /** The part picked on the canvas (a Builder group id), if any. */
+  selectedPart: PartName | null;
+  onSelectPart: (part: PartName | null) => void;
 }
 
 const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
 const FIT_INDEX = 2;
 const SAMPLE_LABEL = "Sample preview—not generated from a sketch";
+const MOCK_LABEL = "Demo result (mock AI)—not real sketch recognition";
 
-export function CanvasStage({ state, hasSketch, showSample, onToggleSample, onUpload }: Props) {
+export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUpload, onRetry, selectedPart, onSelectPart }: Props) {
   const [zoomIndex, setZoomIndex] = useState(FIT_INDEX);
-  const sampling = state.status === "empty" && showSample;
-  const hasArt = state.status === "ready" || sampling;
+  const sampling = state.status === "ready" && state.source === "sample";
+  const hasArt = state.status === "ready";
   const zoom = hasArt ? ZOOM_STEPS[zoomIndex] : 1;
 
   useEffect(() => setZoomIndex(FIT_INDEX), [hasArt]);
 
-  // Builder SVG is rendered through an <img> so any scripts inside it cannot run.
-  const svgUrl = useMemo(() => {
-    if (state.status !== "ready") return null;
-    return URL.createObjectURL(new Blob([state.svgMarkup], { type: "image/svg+xml" }));
-  }, [state]);
-  useEffect(() => () => { if (svgUrl) URL.revokeObjectURL(svgUrl); }, [svgUrl]);
+  // Escape deselects. Ignored while typing, so it can't interfere with the notes field.
+  useEffect(() => {
+    if (!selectedPart) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.target instanceof HTMLTextAreaElement) return;
+      onSelectPart(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [selectedPart, onSelectPart]);
 
-  const context = sampling
-    ? { label: "Sample", tone: "sample" }
-    : state.status === "ready"
-      ? { label: "Builder output", tone: "live" }
-      : state.status === "loading"
-        ? { label: "Building…", tone: "neutral" }
-        : state.status === "error"
-          ? { label: "Error", tone: "error" }
-          : { label: "Placeholder · no builder output yet", tone: "neutral" };
+  const context = state.status === "ready"
+    ? state.source === "sample"
+      ? { label: "Sample", tone: "sample" }
+      : state.aiMode === "mock"
+        ? { label: "Demo result", tone: "sample" }
+        : state.aiMode === "gemini"
+          ? { label: "AI result", tone: "live" }
+          : { label: "Result · AI mode unknown", tone: "neutral" }
+    : state.status === "loading"
+      ? { label: "Analyzing…", tone: "neutral" }
+      : state.status === "error"
+        ? { label: "Error", tone: "error" }
+        : { label: "Placeholder · nothing loaded yet", tone: "neutral" };
 
   return (
     <main className="stage" aria-labelledby="canvas-heading">
@@ -51,7 +66,7 @@ export function CanvasStage({ state, hasSketch, showSample, onToggleSample, onUp
         </div>
         <div className="stage__tools">
           {sampling && (
-            <button type="button" className="btn btn--ghost btn--sm stage__hide" onClick={onToggleSample}>
+            <button type="button" className="btn btn--ghost btn--sm stage__hide" onClick={onHideSample}>
               Hide sample
             </button>
           )}
@@ -91,30 +106,45 @@ export function CanvasStage({ state, hasSketch, showSample, onToggleSample, onUp
       <div
         className={`stage__canvas${zoom > 1 ? " is-zoomed" : ""}`}
         aria-busy={state.status === "loading"}
+        // Parts stop propagation on their own click, so anything reaching here is empty canvas.
+        onClick={() => onSelectPart(null)}
       >
         {hasArt && (
           <div className="sheet sheet--art" style={{ "--zoom": zoom } as CSSProperties}>
-            {sampling && <span className="sheet__tag sheet__tag--sample">{SAMPLE_LABEL}</span>}
-            {state.status === "ready" && svgUrl ? (
-              <img src={svgUrl} alt="Generated technical flat" />
-            ) : (
-              <SampleFlat />
+            {state.source === "sample" && <span className="sheet__tag sheet__tag--sample">{SAMPLE_LABEL}</span>}
+            {state.source === "analysis" && state.aiMode === "mock" && (
+              <span className="sheet__tag sheet__tag--sample">{MOCK_LABEL}</span>
+            )}
+            <InlineFlat
+              markup={state.svgMarkup}
+              label={
+                state.source === "sample"
+                  ? "Sample technical flat of a dress. Not generated from a sketch. Select a part to edit it."
+                  : state.aiMode === "mock"
+                    ? "Demo technical flat from the backend's mock AI. Not recognized from the sketch. Select a part to edit it."
+                    : "Generated technical flat. Select a part to edit it."
+              }
+              selected={selectedPart}
+              onSelect={onSelectPart}
+            />
+            {selectedPart && (
+              <span className="sheet__selected" role="status">Selected · {PART_LABELS[selectedPart]}</span>
             )}
           </div>
         )}
 
-        {state.status === "empty" && !sampling && (
+        {state.status === "empty" && (
           <div className="sheet sheet--empty">
             <div className="empty-canvas">
               <div className="empty-canvas__figure"><PlaceholderFlat /></div>
               <div className="empty-canvas__copy">
                 <p className="display-title">
-                  {hasSketch ? "Your sketch is in place" : "Begin with a sketch"}
+                  {hasSketch ? "Sketch ready" : "Begin with a sketch"}
                 </p>
                 <p className="muted">
                   {hasSketch
-                    ? "The garment builder isn’t connected yet, so no flat has been generated from it. You can view a static sample in the meantime."
-                    : "Upload a front-view sketch. Once the garment builder is connected, its technical flat will be drawn here."}
+                    ? "Your sketch is in place. You can also view an editable sample."
+                    : "Upload a front-view sketch. The backend reads its design, and the technical flat is drawn here."}
                 </p>
               </div>
               <div className="empty-canvas__actions">
@@ -124,7 +154,7 @@ export function CanvasStage({ state, hasSketch, showSample, onToggleSample, onUp
                     <span>Upload sketch</span>
                   </button>
                 )}
-                <button type="button" className="btn btn--ghost" onClick={onToggleSample}>
+                <button type="button" className="btn btn--ghost" onClick={onShowSample}>
                   <EyeIcon />
                   <span>View sample</span>
                 </button>
@@ -136,7 +166,7 @@ export function CanvasStage({ state, hasSketch, showSample, onToggleSample, onUp
                 </li>
                 <li className={hasSketch ? "is-current" : undefined}>
                   <span className="steps__num">2</span>
-                  Generate flat <em>(not connected)</em>
+                  Generate flat
                 </li>
                 <li>
                   <span className="steps__num">3</span>
@@ -152,8 +182,8 @@ export function CanvasStage({ state, hasSketch, showSample, onToggleSample, onUp
             <div className="empty-canvas">
               <div className="skeleton" aria-hidden="true" />
               <div className="empty-canvas__copy">
-                <p className="display-title">Building flat…</p>
-                <p className="muted">This can take a few seconds.</p>
+                <p className="display-title">Analyzing your sketch…</p>
+                <p className="muted">Reading the design and drawing the flat. This can take a few seconds.</p>
               </div>
             </div>
           </div>
@@ -165,8 +195,13 @@ export function CanvasStage({ state, hasSketch, showSample, onToggleSample, onUp
               <div className="notice notice--error notice--center" role="alert">
                 <AlertIcon />
                 <div>
-                  <p className="notice__title">Couldn’t display the flat</p>
+                  <p className="notice__title">{state.title ?? "Couldn’t display the flat"}</p>
                   <p>{state.message}</p>
+                  {hasSketch && (
+                    <button type="button" className="btn btn--ghost btn--sm notice__action" onClick={onRetry}>
+                      Try again
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

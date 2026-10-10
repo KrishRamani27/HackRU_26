@@ -3,7 +3,8 @@ import type { SketchState } from "../types";
 
 export const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp"];
 export const ACCEPT_ATTR = ".png,.jpg,.jpeg,.webp";
-export const MAX_BYTES = 15 * 1024 * 1024;
+// Matches the backend's default upload limit (max_upload_bytes = 5 MB).
+export const MAX_BYTES = 5 * 1024 * 1024;
 
 function decodeImage(url: string): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
