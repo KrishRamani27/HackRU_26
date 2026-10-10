@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { buildFlat } from "./buildFlat";
+import { buildFlat, type CustomElement } from "./buildFlat";
 import { mockSpec } from "./mockSpec";
 import type { DesignSpec, PartName, Pattern } from "./types";
 
@@ -27,7 +27,7 @@ const FABRIC_PARTS: PartName[] = ["bodice", "skirt", "left_sleeve", "right_sleev
 const fabric = (fill: string, pattern: Pattern): DesignSpec["style"] =>
   Object.fromEntries(FABRIC_PARTS.map((p) => [p, { fill, pattern }]));
 
-const flats: { name: string; spec: DesignSpec }[] = [];
+const flats: { name: string; spec: DesignSpec; elements?: CustomElement[] }[] = [];
 const push = (name: string, o: Override) => flats.push({ name, spec: variant(o) });
 
 // Necklines (4)
@@ -85,11 +85,44 @@ push("contrast_trim", {
   },
 });
 
+// Manual drawing (1): hand-drawn custom elements on top of the dress
+const drawn = (el: Partial<CustomElement> & Pick<CustomElement, "id" | "points">): CustomElement => ({
+  name: el.id,
+  type: "stroke",
+  parent_part: null,
+  closed: false,
+  stroke: "#222222",
+  stroke_width: 2,
+  fill: null,
+  pattern: "solid",
+  transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0 },
+  visible: true,
+  layer_order: 0,
+  ...el,
+});
+flats.push({
+  name: "custom_elements",
+  spec: variant({ skirt: { silhouette: "a_line" }, style: fabric("#dfe8f5", "solid") }),
+  elements: [
+    // bow at the waist: two closed loops and a knot on top
+    drawn({ id: "bow-left", points: [[200, 216], [172, 202], [172, 230]], closed: true, fill: "#c0392b", layer_order: 1 }),
+    drawn({ id: "bow-right", points: [[200, 216], [228, 202], [228, 230]], closed: true, fill: "#c0392b", layer_order: 1 }),
+    drawn({ id: "bow-knot", points: [[195, 211], [205, 211], [205, 221], [195, 221]], closed: true, fill: "#8e2a1f", layer_order: 2 }),
+    // plaid hem panel, and an open stroke for a dart
+    drawn({ id: "hem-panel", points: [[150, 340], [250, 340], [262, 372], [138, 372]], closed: true, fill: "#2f4a7a", pattern: "plaid" }),
+    drawn({ id: "dart", points: [[176, 120], [182, 150], [180, 178]], stroke_width: 1.2 }),
+    // same star twice: once as drawn, once moved, rotated and scaled by its transform
+    drawn({ id: "star", points: [[0, -10], [3, -3], [10, -3], [4, 2], [6, 10], [0, 5], [-6, 10], [-4, 2], [-10, -3], [-3, -3]], closed: true, fill: "#f1c40f", stroke_width: 1, transform: { x: 232, y: 110, scale_x: 1, scale_y: 1, rotation: 0 } }),
+    drawn({ id: "star-big", points: [[0, -10], [3, -3], [10, -3], [4, 2], [6, 10], [0, 5], [-6, 10], [-4, 2], [-10, -3], [-3, -3]], closed: true, fill: "#f1c40f", stroke_width: 1, transform: { x: 200, y: 290, scale_x: 2, scale_y: 2, rotation: 18 } }),
+    drawn({ id: "hidden", points: [[100, 100], [300, 500]], stroke: "#ff0000", stroke_width: 8, visible: false }),
+  ],
+});
+
 const outDir = join(dirname(process.argv[1]), "preview");
 mkdirSync(outDir, { recursive: true });
 
-const cards = flats.map(({ name, spec }) => {
-  const svg = buildFlat(spec);
+const cards = flats.map(({ name, spec, elements }) => {
+  const svg = buildFlat(spec, elements);
   writeFileSync(join(outDir, `${name}.svg`), svg);
   return `<figure>${svg}<figcaption>${name}</figcaption></figure>`;
 });

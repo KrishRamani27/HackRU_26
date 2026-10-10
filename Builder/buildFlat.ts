@@ -1,7 +1,10 @@
-import type { DesignSpec, PartName, PartStyle } from "./types";
+import type { DesignSpec, PartName, PartStyle, Pattern } from "./types";
+// Manual drawing contract, owned by the backend. Types only, so nothing from backend/ is bundled.
+import type { CustomElement } from "../backend/contracts/custom-elements";
 
 /*
  * FLAT BUILDER: spec in, SVG string out. Pure function, no React, no state.
+ * Hand-drawn custom elements (optional second argument) are drawn on top of the dress.
  *
  * COORDINATE SYSTEM
  *   Canvas is 400 x 600 (viewBox "0 0 400 600"). x grows right, y grows DOWN.
@@ -350,13 +353,17 @@ const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 // flipped back, so the fabric lines up with the rest of the dress instead of running the other way.
 function fillFor(part: PartName, spec: DesignSpec, defs: string[], mirrored = false): string {
   const style = spec.style?.[part] ?? DEFAULT_STYLE;
+  const flip = mirrored ? ` patternTransform="matrix(-1 0 0 1 ${W} 0)"` : "";
+  return paint(`fabric_${part}${mirrored ? "_mirrored" : ""}`, style.fill, style.pattern, defs, flip);
+}
+
+// Turns a color + pattern into a value for an SVG fill attribute. Solid gives the hex color;
+// a fabric adds a <pattern> to defs under the given id and gives url(#id).
+function paint(id: string, color: unknown, pattern: unknown, defs: string[], flip = ""): string {
   // The fill is pasted into the SVG markup, so only a plain 6-digit hex color is allowed through.
-  const fill = HEX_COLOR.test(style.fill) ? style.fill : DEFAULT_STYLE.fill;
-  const pattern = style.pattern;
+  const fill = typeof color === "string" && HEX_COLOR.test(color) ? color : DEFAULT_STYLE.fill;
   if (pattern !== "denim" && pattern !== "plaid" && pattern !== "floral") return fill; // solid, or unknown
 
-  const id = `fabric_${part}${mirrored ? "_mirrored" : ""}`;
-  const flip = mirrored ? ` patternTransform="matrix(-1 0 0 1 ${W} 0)"` : "";
   // One square tile: base color first, then the marks. Every pattern uses both light and dark
   // marks so it shows on any base color, including white.
   const tile = (size: number, marks: string) =>
@@ -387,18 +394,75 @@ function fillFor(part: PartName, spec: DesignSpec, defs: string[], mirrored = fa
         })
         .join("") + `<circle cx="11" cy="11" r="1.6" fill="#000" fill-opacity="0.25"/>`,
     ),
-  }[pattern];
+  }[pattern as Exclude<Pattern, "solid">];
   defs.push(body);
   return `url(#${id})`;
 }
 
-// ---------- 8. Assemble ----------
+// ---------- 8. Custom elements: hand-drawn strokes and closed shapes (manual drawing) ----------
+// Contract: backend/CUSTOM_ELEMENTS.md. Points are in the same 400 x 600 canvas as the dress.
+// Elements are drawn on top of the dress, lowest layer_order first, and are never mirrored.
+
+const ELEMENT_ID = /^[A-Za-z0-9_-]{1,64}$/;
+const num = (v: unknown, fallback: number) => (typeof v === "number" && Number.isFinite(v) ? v : fallback);
+const n2 = (v: number) => String(Number(v.toFixed(2))); // short numbers: long drawings have thousands of points
+
+function customElement(el: CustomElement, index: number, defs: string[]): string {
+  // The id goes into the markup, so anything but letters, digits, _ and - is replaced.
+  const id = `custom_${typeof el.id === "string" && ELEMENT_ID.test(el.id) ? el.id : `element_${index}`}`;
+
+  const points = (Array.isArray(el.points) ? el.points : [])
+    .filter((p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]))
+    .map((p) => `${n2(clamp(p[0], -10000, 10000))},${n2(clamp(p[1], -10000, 10000))}`);
+  if (points.length < 2) return ""; // nothing to draw
+  const closed = el.closed === true && points.length >= 3;
+  const d = `M ${points.join(" L ")}${closed ? " Z" : ""}`;
+
+  // Only closed shapes can be filled; a fabric pattern needs a fill color to sit on.
+  const fill = closed && typeof el.fill === "string" && HEX_COLOR.test(el.fill)
+    ? paint(`fabric_${id}`, el.fill, el.pattern, defs)
+    : "none";
+  const stroke = typeof el.stroke === "string" && HEX_COLOR.test(el.stroke) ? el.stroke : "#222222";
+  const width = clamp(num(el.stroke_width, 2), 0.1, 100);
+
+  // Contract order: scale, then rotate around the canvas origin, then move. Written as one
+  // matrix, which is the same thing as translate(x y) rotate(r) scale(sx sy).
+  const tr = el.transform ?? ({} as Partial<CustomElement["transform"]>);
+  const r = (clamp(num(tr.rotation, 0), -360, 360) * Math.PI) / 180;
+  const sx = clamp(num(tr.scale_x, 1), 0.0001, 100);
+  const sy = clamp(num(tr.scale_y, 1), 0.0001, 100);
+  const m = [sx * Math.cos(r), sx * Math.sin(r), -sy * Math.sin(r), sy * Math.cos(r), num(tr.x, 0), num(tr.y, 0)];
+  const transform = `transform="matrix(${m.map((v) => Number(v.toFixed(6))).join(" ")})"`;
+
+  return (
+    `<g id="${id}" ${transform}>` +
+    `<path d="${d}" fill="${fill}" stroke="${stroke}" stroke-width="${n2(width)}" stroke-linejoin="round" stroke-linecap="round"/>` +
+    `</g>`
+  );
+}
+
+// Markup for all visible custom elements, plus any fabric patterns they need.
+// Use this to draw the elements on their own; buildFlat(spec, elements) already includes them.
+export function buildCustomElements(elements: readonly CustomElement[] = []): { defs: string; markup: string } {
+  const defs: string[] = [];
+  const groups = (Array.isArray(elements) ? elements : [])
+    .map((el, index) => ({ el, index }))
+    .filter(({ el }) => el && el.visible !== false)
+    .sort((a, b) => num(a.el.layer_order, 0) - num(b.el.layer_order, 0) || a.index - b.index)
+    .map(({ el, index }) => customElement(el, index, defs))
+    .filter(Boolean);
+  const markup = groups.length ? `<g id="manual_drawing">${groups.join("")}</g>` : "";
+  return { defs: defs.join(""), markup };
+}
+
+// ---------- 9. Assemble ----------
 
 function group(name: PartName, children: string[], extra = "") {
   return `<g id="${name}" ${extra}>${children.join("")}</g>`;
 }
 
-export function buildFlat(spec: DesignSpec): string {
+// customElements is optional: without it the output is exactly the generated dress.
+export function buildFlat(spec: DesignSpec, customElements: readonly CustomElement[] = []): string {
   const g = layout(spec);
   const defs: string[] = [];
   const rightSleeve = rightSleevePaths(spec, g, fillFor("right_sleeve", spec, defs));
@@ -416,10 +480,12 @@ export function buildFlat(spec: DesignSpec): string {
     buttons(spec, g, fillFor("buttons", spec, defs)),
   ];
 
+  const custom = buildCustomElements(customElements); // drawn last, so on top of the dress
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">` +
-    `<defs>${defs.join("")}</defs>${groups.join("")}</svg>`
+    `<defs>${defs.join("")}${custom.defs}</defs>${groups.join("")}${custom.markup}</svg>`
   );
 }
 
 export const FLAT_SIZE = { width: W, height: H };
+export type { CustomElement };

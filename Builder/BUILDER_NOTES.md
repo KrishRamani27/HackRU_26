@@ -11,7 +11,7 @@ Handoff from planning chat. Read this together with CLAUDE.md (the contracts the
 - `mockSpec.ts`: hand-made spec (crew neck, no sleeves, straight knee skirt, waist seam).
 - `buildFlat.ts`: `buildFlat(spec): string`. Pure function, spec in, SVG string out. No React, no state.
 - `svgToPng.ts`: browser-only helper, SVG string to PNG Blob, for POST /verify.
-- `preview.ts`: dev-only gallery. `npx tsx Builder/preview.ts` writes `Builder/preview/gallery.html` (37 flats) plus one .svg per flat. `Builder/preview/` is generated; keep it out of git.
+- `preview.ts`: dev-only gallery. `npx tsx Builder/preview.ts` writes `Builder/preview/gallery.html` (38 flats) plus one .svg per flat. `Builder/preview/` is generated; keep it out of git.
 
 ## How buildFlat works (judge explanation)
 - Canvas 400 x 600, `viewBox="0 0 400 600"`. y grows down. Center line CX = 200. Neck/shoulder line NECK_Y = 70. Hem y comes from skirt.length (mini 300, knee 380, midi 460, floor 560). Waist y comes from proportions.waist_y on a fixed 175..250 scale.
@@ -43,6 +43,7 @@ Handoff from planning chat. Read this together with CLAUDE.md (the contracts the
 - Neckline topstitch runs parallel to the neck edge (was drawn on top of it at the sides).
 - Fabric patterns: denim lines no longer break at tile corners; denim and floral show on white and light colors; left sleeve and left pocket fabric is no longer mirrored (pattern is flipped back with patternTransform).
 - Collar and waist seam take a fill: the collar is a 6px band along the neck edge (`style.collar_neckline`), the waist seam a 6px waistband below the waist line (`style.waist_seam`). Stitch lines sit inside the bands. Buttons start just below the collar band. With every part the same color the drawing looks the same as before.
+- Manual drawing: `buildFlat(spec, customElements)` draws hand-drawn strokes and closed shapes on top of the dress (contract: `backend/CUSTOM_ELEMENTS.md`). `buildCustomElements(elements)` returns just their markup. Each element is a `<g id="custom_<id>">` inside one `<g id="manual_drawing">`, sorted by `layer_order`, hidden ones skipped. Ids, colors and numbers are validated before going into the SVG; element names are never written.
 
 ## Next steps (in order)
 1. Run the gallery and check every option looks right.
