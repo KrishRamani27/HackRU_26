@@ -1,5 +1,8 @@
 import io
 import logging
+import re
+from datetime import datetime
+from pathlib import Path
 
 from fastapi import HTTPException
 from PIL import Image, ImageOps
@@ -13,6 +16,8 @@ logger = logging.getLogger(__name__)
 MAX_IMAGE_SIDE = 1536  # longest side sent to Gemini, in pixels
 THINKING_LEVEL = "low"  # less model thinking means faster replies
 TIMEOUT_MS = 45000  # per attempt; call() retries once on a timeout or 5xx
+# Live /analyze specs are saved here so AI/evaluate.py can score them offline.
+RESULTS_DIR = Path(__file__).resolve().parents[2] / "AI" / "results"
 
 SYSTEM = """You are FlatSketch's dress design assistant. Only dresses, front view.
 Use the provided schema and allowed values. Preserve the student's design intent.
@@ -73,6 +78,9 @@ Rules:
   arm that bends, does not change the silhouette or the sleeve.
 - If layers are visible, describe the outermost main garment. Mention underlayers and
   color-blocking in notes.
+- neckline.type describes the neckline edge of the outermost dress. If a high-neck
+  layer of a different color sits underneath, ignore it for neckline.type and mention
+  it in notes.
 - If a feature is unclear or falls between two options, choose the closest allowed
   value and explain the choice in notes.
 - Describe only what is visible. Do not invent pockets, buttons or seams.
@@ -91,6 +99,18 @@ def shrink(image):
         output = io.BytesIO()
         picture.save(output, format=image_format)
     return output.getvalue(), mime
+
+
+def save_result(name, spec):
+    """Save one live /analyze spec as AI/results/<image>__<time>.json."""
+    if not RESULTS_DIR.is_dir():  # for example inside Docker, where AI/ is not copied
+        return
+    image = re.sub(r"[^A-Za-z0-9_-]", "_", Path(name or "").stem) or "sketch"
+    path = RESULTS_DIR / f"{image}__{datetime.now():%Y%m%d-%H%M%S}.json"
+    try:
+        path.write_text(spec.model_dump_json(indent=2))
+    except OSError as exc:
+        logger.warning("Could not save analyze result (%s)", type(exc).__name__)
 
 
 def spread_style(data):
@@ -147,10 +167,12 @@ class AIService:
         # Full message for the server log, with the API key removed if it ever appears.
         return str(exc).replace(self.settings.gemini_api_key, "[redacted]")
 
-    def analyze(self, image):
+    def analyze(self, image, name=""):
         if self.settings.ai_mode == "mock":
             return DesignSpec(notes="MOCK: fixed sample dress; this image was not analyzed.")
-        return self.call(ANALYZE_PROMPT, GeminiDesignSpec, DesignSpec, [image], prepare=spread_style)
+        spec = self.call(ANALYZE_PROMPT, GeminiDesignSpec, DesignSpec, [image], prepare=spread_style)
+        save_result(name, spec)
+        return spec
 
     def edits(self, spec, text, images=()):
         if self.settings.ai_mode == "mock":

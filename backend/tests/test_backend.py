@@ -14,7 +14,9 @@ from app.schemas import DesignSpec, EditAction, PartStyle, apply_actions
 
 
 @pytest.fixture
-def client(tmp_path):
+def client(tmp_path, monkeypatch):
+    # Keep test runs out of the real AI/results folder.
+    monkeypatch.setattr("app.ai.RESULTS_DIR", tmp_path / "results")
     settings = Settings(_env_file=None, database_url=f"sqlite:///{tmp_path / 'test.db'}",
                         local_storage_dir=str(tmp_path / "uploads"), backend_api_key="team-test",
                         ai_mode="mock", storage_mode="local", max_upload_bytes=2048)
@@ -177,6 +179,20 @@ def test_real_gemini_adapter_validates_response(client, monkeypatch):
     styles = result.json()["style"]
     assert len(styles) == 8
     assert all(style == {"fill": "#1f2a44", "pattern": "denim"} for style in styles.values())
+
+
+def test_live_analyze_results_are_saved_for_evaluation(client, monkeypatch, tmp_path):
+    reply = DesignSpec().model_dump(exclude={"style"})
+    reply["main_style"] = {"fill": "#ffffff", "pattern": "solid"}
+    results = tmp_path / "results"
+    results.mkdir()
+    client.post("/analyze", files={"sketch": ("mock.png", png())})
+    assert list(results.iterdir()) == []  # mock replies are never saved
+    fake_gemini(client, monkeypatch, json.dumps(reply))
+    response = client.post("/analyze", files={"sketch": ("../my sketch.png", png())})
+    saved = list(results.iterdir())
+    assert len(saved) == 1 and saved[0].name.startswith("my_sketch__")
+    assert json.loads(saved[0].read_text()) == response.json()
 
 
 def test_large_images_are_downscaled_for_gemini():
