@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 
 /**
  * Small uppercase label that groups related controls. `name` is a stable key
@@ -67,6 +67,8 @@ interface RangeFieldProps {
   /** Text shown beside the label and announced to screen readers. */
   display: string;
   onChange: (value: number) => void;
+  /** The drag or key press ended, so the whole drag counts as one undo step. */
+  onCommit?: () => void;
   disabled?: boolean;
   /** Short captions under the two ends of the track. */
   ends?: [string, string];
@@ -74,7 +76,7 @@ interface RangeFieldProps {
 }
 
 /** Slider with its current value always visible. */
-export function RangeField({ label, min, max, step, value, display, onChange, disabled, ends, hint }: RangeFieldProps) {
+export function RangeField({ label, min, max, step, value, display, onChange, onCommit, disabled, ends, hint }: RangeFieldProps) {
   const id = useId();
   return (
     <div className="field">
@@ -93,6 +95,10 @@ export function RangeField({ label, min, max, step, value, display, onChange, di
         disabled={disabled}
         aria-valuetext={display}
         onChange={(e) => onChange(Number(e.target.value))}
+        onPointerUp={onCommit}
+        onPointerCancel={onCommit}
+        onKeyUp={onCommit}
+        onBlur={onCommit}
       />
       {ends && (
         <div className="range__ends" aria-hidden="true">
@@ -102,5 +108,39 @@ export function RangeField({ label, min, max, step, value, display, onChange, di
       )}
       {hint && <p className="field__hint">{hint}</p>}
     </div>
+  );
+}
+
+interface ColorSwatchProps {
+  id: string;
+  value: string;
+  label: string;
+  disabled?: boolean;
+  onChange: (hex: string) => void;
+  /** The picker was closed or released, so the whole color drag counts as one undo step. */
+  onCommit: () => void;
+}
+
+/** A color picker. React's onChange fires on every drag movement; the native "change" event fires once at the end. */
+export function ColorSwatch({ id, value, label, disabled, onChange, onCommit }: ColorSwatchProps) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.addEventListener("change", onCommit);
+    return () => el.removeEventListener("change", onCommit);
+  }, [onCommit]);
+  return (
+    <input
+      ref={ref}
+      id={id}
+      className="swatch"
+      type="color"
+      value={value}
+      disabled={disabled}
+      aria-label={label}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={onCommit}
+    />
   );
 }

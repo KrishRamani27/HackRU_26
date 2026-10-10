@@ -17,7 +17,8 @@ import {
   stylePath,
   type EditAction,
 } from "../state/specSchema";
-import { ChipGroup, RangeField, Section } from "./Controls";
+import { ChipGroup, ColorSwatch, RangeField, Section } from "./Controls";
+import { SavePartBar } from "./SavePartBar";
 import { tee } from "./garmentPaths";
 
 interface Props {
@@ -26,7 +27,13 @@ interface Props {
   canvasStatus: CanvasState["status"];
   /** The part picked on the canvas. A new `nonce` on every click, so re-clicking re-highlights. */
   selection: { part: PartName; nonce: number } | null;
-  onEdit: (action: EditAction) => void;
+  /** `coalesce` names a control that streams changes (a slider drag), so they merge into one undo step. */
+  onEdit: (action: EditAction, coalesce?: string) => void;
+  /** A drag or typing session ended. */
+  onCommit: () => void;
+  /** Saves the selected part's settings to the library under this name. */
+  onSavePart: (part: PartName, name: string) => Promise<void>;
+  onOpenLibrary: () => void;
 }
 
 // Which section holds the controls for each canvas part. The bodice has no
@@ -72,7 +79,7 @@ const unitDisplay = (v: number) => v.toFixed(2);
 // Avoid float noise like 0.30000000000000004 reaching the spec.
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
-export function PropertiesPanel({ spec, canvasStatus, selection, onEdit }: Props) {
+export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommit, onSavePart, onOpenLibrary }: Props) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const flashTimer = useRef<number>(0);
 
@@ -97,7 +104,9 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit }: Props
     };
   }, [selection]);
 
-  const set = (path: string, value: EditAction["value"]) => onEdit({ op: "set", path, value });
+  // `stream` marks edits that arrive many times per gesture (sliders, color picker, typing).
+  const set = (path: string, value: EditAction["value"], stream = false) =>
+    onEdit({ op: "set", path, value }, stream ? path : undefined);
 
   return (
     <aside className="panel panel--right" aria-labelledby="props-heading">
@@ -110,6 +119,7 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit }: Props
       <div className="panel__body" ref={bodyRef}>
         {spec ? (
           <>
+            {selection && <SavePartBar key={selection.part} part={selection.part} onSave={onSavePart} onOpenLibrary={onOpenLibrary} />}
             <Section name="neckline" title="Neckline">
               <ChipGroup
                 label="Type"
@@ -118,12 +128,13 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit }: Props
                 onChange={(v) => set("neckline.type", v)}
               />
               <RangeField
+                onCommit={onCommit}
                 label="Depth"
                 min={0} max={1} step={0.05}
                 value={spec.neckline.depth}
                 display={unitDisplay(spec.neckline.depth)}
                 ends={["Shallow", "Deep"]}
-                onChange={(v) => set("neckline.depth", round2(v))}
+                onChange={(v) => set("neckline.depth", round2(v), true)}
               />
             </Section>
 
@@ -135,6 +146,7 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit }: Props
                 onChange={(v) => set("sleeves.type", v)}
               />
               <RangeField
+                onCommit={onCommit}
                 label="Length"
                 min={0} max={SLEEVE_LENGTHS.length - 1} step={1}
                 value={SLEEVE_LENGTHS.indexOf(spec.sleeves.length)}
@@ -142,7 +154,7 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit }: Props
                 ends={["Short", "Long"]}
                 disabled={spec.sleeves.type === "none"}
                 hint={spec.sleeves.type === "none" ? "Sleeve length applies when sleeves are present." : undefined}
-                onChange={(i) => set("sleeves.length", SLEEVE_LENGTHS[i])}
+                onChange={(i) => set("sleeves.length", SLEEVE_LENGTHS[i], true)}
               />
             </Section>
 
@@ -163,12 +175,13 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit }: Props
                 onChange={(v) => set("skirt.silhouette", v)}
               />
               <RangeField
+                onCommit={onCommit}
                 label="Length"
                 min={0} max={SKIRT_LENGTHS.length - 1} step={1}
                 value={SKIRT_LENGTHS.indexOf(spec.skirt.length)}
                 display={SKIRT_LENGTH_LABELS[spec.skirt.length]}
                 ends={["Mini", "Floor"]}
-                onChange={(i) => set("skirt.length", SKIRT_LENGTHS[i])}
+                onChange={(i) => set("skirt.length", SKIRT_LENGTHS[i], true)}
               />
             </Section>
 
@@ -180,29 +193,32 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit }: Props
                 onChange={(v) => set("details.pockets", v)}
               />
               <RangeField
+                onCommit={onCommit}
                 label="Buttons"
                 min={0} max={8} step={1}
                 value={spec.details.buttons}
                 display={String(spec.details.buttons)}
-                onChange={(v) => set("details.buttons", v)}
+                onChange={(v) => set("details.buttons", v, true)}
               />
             </Section>
 
             <Section name="proportions" title="Proportions">
               <RangeField
+                onCommit={onCommit}
                 label="Shoulder width"
                 min={0} max={1} step={0.05}
                 value={spec.proportions.shoulder_width}
                 display={unitDisplay(spec.proportions.shoulder_width)}
-                onChange={(v) => set("proportions.shoulder_width", round2(v))}
+                onChange={(v) => set("proportions.shoulder_width", round2(v), true)}
               />
               <RangeField
+                onCommit={onCommit}
                 label="Waist height"
                 min={0} max={1} step={0.05}
                 value={spec.proportions.waist_y}
                 display={unitDisplay(spec.proportions.waist_y)}
                 ends={["Empire", "Dropped"]}
-                onChange={(v) => set("proportions.waist_y", round2(v))}
+                onChange={(v) => set("proportions.waist_y", round2(v), true)}
               />
             </Section>
 
@@ -215,14 +231,13 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit }: Props
                     <div className="part" key={part} data-part-row={part}>
                       <div className="field__row">
                         <label className="field__label" htmlFor={`fill-${part}`}>{PART_LABELS[part]}</label>
-                        <input
+                        <ColorSwatch
                           id={`fill-${part}`}
-                          className="swatch"
-                          type="color"
                           value={String(style.fill).toLowerCase()}
                           disabled={!filled}
-                          aria-label={`${PART_LABELS[part]} color`}
-                          onChange={(e) => set(stylePath(part, "fill"), e.target.value)}
+                          label={`${PART_LABELS[part]} color`}
+                          onChange={(hex) => set(stylePath(part, "fill"), hex, true)}
+                          onCommit={onCommit}
                         />
                       </div>
                       <ChipGroup
@@ -250,7 +265,8 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit }: Props
                   maxLength={MAX_NOTES_LENGTH}
                   value={spec.notes}
                   placeholder="Anything the settings above can’t express"
-                  onChange={(e) => set("notes", e.target.value)}
+                  onChange={(e) => set("notes", e.target.value, true)}
+                  onBlur={onCommit}
                 />
               </div>
             </Section>

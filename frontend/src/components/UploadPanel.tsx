@@ -26,24 +26,14 @@ export function UploadPanel({ state, onBrowse, onFile, onClear }: Props) {
   };
 
   return (
-    <aside className="panel panel--left" aria-labelledby="sketch-heading">
-      <div className="panel__header">
-        <div className="panel__heading">
-          <span className="panel__index" aria-hidden="true">01</span>
-          <h2 id="sketch-heading" className="panel__title">Sketch</h2>
-        </div>
-        {state.status === "ready" && (
-          <button type="button" className="icon-btn" onClick={onClear} aria-label="Remove sketch">
-            <CloseIcon />
-          </button>
-        )}
-      </div>
-
-      <div className="panel__body">
+    <>
         {state.status === "ready" ? (
           <figure className="sketch-preview">
             <div className="sketch-preview__frame">
               <img src={state.url} alt={`Uploaded sketch: ${state.file.name}`} />
+              <button type="button" className="icon-btn sketch-preview__remove" onClick={onClear} aria-label="Remove sketch">
+                <CloseIcon />
+              </button>
             </div>
             <figcaption>
               <span className="sketch-preview__name" title={state.file.name}>{state.file.name}</span>
@@ -99,7 +89,6 @@ export function UploadPanel({ state, onBrowse, onFile, onClear }: Props) {
             <li><CheckIcon width={15} height={15} />Shot flat, without heavy shadows</li>
           </ul>
         </section>
-      </div>
-    </aside>
+      </>
   );
 }

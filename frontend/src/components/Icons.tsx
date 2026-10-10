@@ -16,6 +16,21 @@ const base = {
 export const UploadIcon = (p: P) => (
   <svg {...base} {...p}><path d="M12 15V4M7 9l5-5 5 5M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" /></svg>
 );
+export const UndoIcon = (p: P) => (
+  <svg {...base} {...p}><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>
+);
+export const RedoIcon = (p: P) => (
+  <svg {...base} {...p}><path d="m15 14 5-5-5-5" /><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" /></svg>
+);
+export const TrashIcon = (p: P) => (
+  <svg {...base} {...p}><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a1.5 1.5 0 0 0 1.5 1.4h7A1.5 1.5 0 0 0 17 19l1-12M9 7V4.5h6V7" /></svg>
+);
+export const BookmarkIcon = (p: P) => (
+  <svg {...base} {...p}><path d="M7 4h10a1 1 0 0 1 1 1v15l-6-4-6 4V5a1 1 0 0 1 1-1Z" /></svg>
+);
+export const ChevronDownIcon = (p: P) => (
+  <svg {...base} {...p}><path d="m6 9 6 6 6-6" /></svg>
+);
 export const ExportIcon = (p: P) => (
   <svg {...base} {...p}><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>
 );
