@@ -23,6 +23,7 @@ const VALUE_RULES: Record<string, RegExp> = {
   d: /^[MmLlHhVvCcSsQqTtAaZz\d\s.,eE+-]*$/,
   viewBox: NUMBER_LIST,
   transform: /^matrix\([\d\s.,eE+-]+\)$/,
+  patternTransform: /^matrix\([\d\s.,eE+-]+\)$/, // the builder mirrors left-side fabric patterns with this
   fill: PAINT,
   stroke: PAINT,
   "stroke-width": NUMBER,
@@ -45,7 +46,7 @@ const ATTRIBUTES: Record<string, ReadonlySet<string>> = {
   svg: new Set(["viewBox"]), // width/height dropped: the canvas sizes the SVG
   g: new Set(["id", "transform"]),
   defs: new Set(),
-  pattern: new Set(["id", "patternUnits", "width", "height"]),
+  pattern: new Set(["id", "patternUnits", "patternTransform", "width", "height"]),
   path: new Set(["id", "d", "fill", "stroke", "stroke-width", "stroke-opacity", "fill-opacity", "stroke-dasharray", "stroke-linejoin", "stroke-linecap", "transform"]),
   rect: new Set(["x", "y", "width", "height", "fill", "stroke", "stroke-width", "fill-opacity", "stroke-opacity", "transform"]),
   circle: new Set(["cx", "cy", "r", "fill", "stroke", "stroke-width", "fill-opacity", "stroke-opacity", "transform"]),

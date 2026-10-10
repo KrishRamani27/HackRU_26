@@ -114,10 +114,10 @@ export function isValidEdit(action: EditAction): boolean {
 
 /**
  * Parts whose style Builder/buildFlat.ts actually reads (it calls fillFor for exactly
- * these). The collar, waist seam and buttons are drawn without a fill, so a color or
- * pattern set on them cannot change the drawing.
+ * these). The collar and waist seam are drawn without a fill, so a color or pattern
+ * set on them cannot change the drawing.
  */
-export const FILLED_PARTS: readonly PartName[] = ["bodice", "left_sleeve", "right_sleeve", "skirt", "pockets"];
+export const FILLED_PARTS: readonly PartName[] = ["bodice", "left_sleeve", "right_sleeve", "skirt", "pockets", "buttons"];
 
 /**
  * Makes every part's style complete and safe before it reaches buildFlat:
