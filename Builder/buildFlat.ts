@@ -28,6 +28,8 @@ const HEM_Y = { mini: 300, knee: 380, midi: 460, floor: 560 } as const;
 const SLEEVE_LEN = { short: 50, elbow: 120, long: 195 } as const;
 const ARM_ANGLE = (20 * Math.PI) / 180; // sleeves hang 20° out from vertical
 const SHOULDER_SLOPE = 0.28; // shoulder seam drop per px of width (~16°)
+const COLLAR_BAND = 6; // width of the fillable collar band
+const WAIST_BAND = 6; // height of the fillable waistband
 
 // Line styles (set as attributes, not CSS, so Illustrator keeps them)
 const INK = "#1a1a1a";
@@ -87,10 +89,11 @@ function layout(spec: DesignSpec) {
 type Layout = ReturnType<typeof layout>;
 
 // ---------- 2. Neckline: one path from the LEFT neck point to the RIGHT one ----------
+// dir = -1 traces the same shape right-to-left (used to close the collar band).
 
-function necklinePath(type: DesignSpec["neckline"]["type"], half: number, top: number, d: number) {
-  const L = pt(CX - half, top);
-  const R = pt(CX + half, top);
+function necklinePath(type: DesignSpec["neckline"]["type"], half: number, top: number, d: number, dir = 1) {
+  const L = pt(CX - dir * half, top);
+  const R = pt(CX + dir * half, top);
   switch (type) {
     case "v":
       return `L ${s(pt(CX, top + d))} L ${s(R)}`;
@@ -119,18 +122,32 @@ function bodice(spec: DesignSpec, g: Layout, fill: string) {
   ]);
 }
 
-function collarNeckline(spec: DesignSpec, g: Layout) {
-  // Neck edge drawn again on top + a topstitch line that runs parallel to it, 4px into the garment.
+// The neckline shape pushed k px into the garment, staying parallel to the neck edge.
+// Its ends sit on the shoulder seams.
+function neckOffset(type: DesignSpec["neckline"]["type"], neckHalf: number, neckDepth: number, k: number) {
+  // A V's edges are slanted, so widening and deepening by k alone would not stay parallel.
+  const slant = type === "v" ? Math.hypot(neckHalf, neckDepth) : 0;
+  const half = neckHalf + (type === "v" ? (k * slant) / neckDepth : k);
+  const drop = type === "v" ? (k * slant) / neckHalf : k; // how much lower its deepest point is
+  const y = NECK_Y + SHOULDER_SLOPE * (half - neckHalf);
+  return { half, y, drop, depth: neckDepth + drop - (y - NECK_Y) };
+}
+
+function collarNeckline(spec: DesignSpec, g: Layout, fill: string) {
+  // Collar band: a 6px strip along the neck edge with a topstitch line inside it. The band
+  // takes its own fill, so a contrast collar is possible.
   const type = spec.neckline.type;
   const top = `M ${s(mirror(g.neckR))} ${necklinePath(type, g.neckHalf, NECK_Y, g.neckDepth)}`;
-  const k = 4;
-  // A V's edges are slanted, so widening and deepening by k alone would not stay parallel.
-  const slant = type === "v" ? Math.hypot(g.neckHalf, g.neckDepth) : 0;
-  const half = g.neckHalf + (type === "v" ? (k * slant) / g.neckDepth : k);
-  const depth = g.neckDepth + (type === "v" ? (k * slant) / g.neckHalf : k);
-  const stitchY = NECK_Y + SHOULDER_SLOPE * (half - g.neckHalf); // start on the shoulder seam
-  const stitch = `M ${s(pt(CX - half, stitchY))} ${necklinePath(type, half, stitchY, depth - (stitchY - NECK_Y))}`;
-  return group("collar_neckline", [`<path d="${top}" ${OUTLINE}/>`, `<path d="${stitch}" ${STITCH}/>`]);
+  const edge = neckOffset(type, g.neckHalf, g.neckDepth, COLLAR_BAND);
+  const st = neckOffset(type, g.neckHalf, g.neckDepth, COLLAR_BAND - 2);
+  // Closed band: along the neck edge left to right, then back along the band's outer edge right to left.
+  const band = `${top} L ${s(pt(CX + edge.half, edge.y))} ${necklinePath(type, edge.half, edge.y, edge.depth, -1)} Z`;
+  const stitch = `M ${s(pt(CX - st.half, st.y))} ${necklinePath(type, st.half, st.y, st.depth)}`;
+  return group("collar_neckline", [
+    `<path d="${band}" fill="${fill}" stroke="none"/>`,
+    `<path d="${top}" ${OUTLINE}/>`,
+    `<path d="${stitch}" ${STITCH}/>`,
+  ]);
 }
 
 // ---------- 4. Skirt ----------
@@ -178,12 +195,30 @@ function skirt(spec: DesignSpec, g: Layout, fill: string) {
   return group("skirt", parts);
 }
 
-function waistSeam(spec: DesignSpec, g: Layout) {
+// Point on a quadratic curve (p0 to p1, control c) at height y. Used to find where a
+// horizontal line meets the skirt's side seam.
+function quadAtY(p0: Pt, c: Pt, p1: Pt, y: number): Pt {
+  const a = p0.y - 2 * c.y + p1.y;
+  const b = 2 * (c.y - p0.y);
+  const k = p0.y - y;
+  const t = Math.abs(a) < 1e-6 ? -k / b : (-b + Math.sqrt(b * b - 4 * a * k)) / (2 * a);
+  return pt((1 - t) * (1 - t) * p0.x + 2 * t * (1 - t) * c.x + t * t * p1.x, y);
+}
+
+function waistSeam(spec: DesignSpec, g: Layout, fill: string) {
   if (!spec.waist.seam) return group("waist_seam", []); // empty group keeps layer names stable
-  const L = mirror(g.waistR);
+  // Waistband: a 6px strip below the waist line with a topstitch line inside it and its ends
+  // on the skirt's side seams. It takes its own fill, so a contrast waistband is possible.
+  const { hemR, sideCtrlR } = skirtShape(spec, g);
+  const bandR = quadAtY(g.waistR, sideCtrlR, hemR, g.waistY + WAIST_BAND);
+  const stitchR = quadAtY(g.waistR, sideCtrlR, hemR, g.waistY + WAIST_BAND - 2);
+  const [waistL, bandL, stitchL] = [g.waistR, bandR, stitchR].map(mirror);
   return group("waist_seam", [
-    `<path d="M ${s(L)} L ${s(g.waistR)}" ${OUTLINE}/>`,
-    `<path d="M ${s(pt(L.x + 2, g.waistY + 4))} L ${s(pt(g.waistR.x - 2, g.waistY + 4))}" ${STITCH}/>`,
+    `<path d="M ${s(waistL)} L ${s(g.waistR)} L ${s(bandR)} L ${s(bandL)} Z" fill="${fill}" stroke="none"/>`,
+    // The fill covers the inner half of the skirt's side outline, so the two short ends are redrawn.
+    `<path d="M ${s(waistL)} L ${s(bandL)} M ${s(g.waistR)} L ${s(bandR)}" ${OUTLINE}/>`,
+    `<path d="M ${s(waistL)} L ${s(g.waistR)}" ${OUTLINE}/>`,
+    `<path d="M ${s(pt(stitchL.x + 2, stitchL.y))} L ${s(pt(stitchR.x - 2, stitchR.y))}" ${STITCH}/>`,
   ]);
 }
 
@@ -252,7 +287,8 @@ function rightSleevePaths(spec: DesignSpec, g: Layout, fill: string): string[] {
 // ---------- 6. Details ----------
 
 function buttons(spec: DesignSpec, g: Layout, fill: string) {
-  const top = NECK_Y + g.neckDepth + 4;
+  const collar = neckOffset(spec.neckline.type, g.neckHalf, g.neckDepth, COLLAR_BAND);
+  const top = NECK_Y + g.neckDepth + collar.drop + 3; // just below the collar band
   const bottom = g.waistY - 6;
   // A deep neckline over a high waist leaves little room: draw only as many buttons as fit (8px each).
   const fits = Math.max(0, Math.floor((bottom - top) / 8));
@@ -374,8 +410,8 @@ export function buildFlat(spec: DesignSpec): string {
     group("right_sleeve", rightSleeve),
     skirt(spec, g, fillFor("skirt", spec, defs)),
     bodice(spec, g, fillFor("bodice", spec, defs)),
-    waistSeam(spec, g),
-    collarNeckline(spec, g),
+    waistSeam(spec, g, fillFor("waist_seam", spec, defs)),
+    collarNeckline(spec, g, fillFor("collar_neckline", spec, defs)),
     pockets(spec, g, fillFor("pockets", spec, defs), fillFor("pockets", spec, defs, true)),
     buttons(spec, g, fillFor("buttons", spec, defs)),
   ];

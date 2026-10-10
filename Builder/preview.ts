@@ -74,6 +74,17 @@ push("fabric_denim", { ...dressy, style: fabric("#3b5b8c", "denim") });
 push("fabric_plaid", { ...dressy, style: fabric("#a8322d", "plaid") });
 push("fabric_floral", { ...dressy, style: fabric("#d98aa5", "floral") });
 
+// Contrast trim (1): collar band, waistband and buttons take their own color
+push("contrast_trim", {
+  details: { buttons: 4 },
+  style: {
+    ...fabric("#22304f", "solid"),
+    collar_neckline: { fill: "#ffffff", pattern: "solid" },
+    waist_seam: { fill: "#ffffff", pattern: "solid" },
+    buttons: { fill: "#ffffff", pattern: "solid" },
+  },
+});
+
 const outDir = join(dirname(process.argv[1]), "preview");
 mkdirSync(outDir, { recursive: true });
 
