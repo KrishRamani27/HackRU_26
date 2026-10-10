@@ -4,6 +4,10 @@ Python + FastAPI for the **dress-only** MVP. Gemini reads design choices; the fr
 builds the SVG. Saved parts are settings and styles, not AI-cut image fragments.
 The AI lead owns prompts in `app/ai.py`. Backend owns routes, validation, storage and deployment.
 
+Manual strokes and shapes can now be saved with a design, edited, restored from history
+and reused. See [the custom-element contract](CUSTOM_ELEMENTS.md) for frontend/builder
+types, coordinate rules and endpoints. These operations do not call Gemini.
+
 ## Run locally
 
 Run these commands from the `backend` folder with Python 3.12 or newer:
@@ -29,7 +33,7 @@ This workspace already has `.venv` prepared, so you can start with the last comm
 | --- | --- |
 | Google Cloud Run | FastAPI code, running inside the Docker container |
 | Google Cloud Storage | Original sketches, PNG/JPEG/WebP previews uploaded by the frontend |
-| Tiger Cloud PostgreSQL | Design specs, version history, reusable parts, image object keys |
+| Tiger Cloud PostgreSQL | Design specs, manual drawing points/styles/transforms, versions, reusable parts, image object keys |
 | Gemini API | Sketch analysis, optional suggestions, verification, text edits |
 | Google Secret Manager | Gemini key, database URL, shared backend key |
 
@@ -53,11 +57,11 @@ key is not a private user identity. Add real user authentication before public p
 | `POST /suggestions` | JSON `{spec, goal?}` | `{suggestions: [{explanation, actions}], end_goal}` |
 | `POST /assets` | Multipart file `image` | Asset record with `id` and relative `url` |
 | `GET /assets/{id}` | None | Image bytes |
-| `POST /designs` | JSON `{name, spec, sketch_asset_id?}` | Saved design, ID, version |
+| `POST /designs` | JSON `{name, spec, sketch_asset_id?, custom_elements?}` | Saved design, ID, version |
 | `GET /designs` | Optional `limit`, `offset` | Array of designs |
 | `GET /designs/{id}` | None | Saved design |
 | `PUT /designs/{id}` | Same JSON as create | Updated design, new version |
-| `GET /designs/{id}/versions` | Optional `limit`, `offset` | Saved specs, newest first |
+| `GET /designs/{id}/versions` | Optional `limit`, `offset` | Saved specs and custom elements, newest first |
 | `DELETE /designs/{id}` | None | 204; removes design and versions, keeps image |
 | `POST /parts` | Saved-part JSON from the handout | Saved part with ID |
 | `GET /parts` | Optional `part_type`, `limit`, `offset` | Array of saved parts |
@@ -131,10 +135,11 @@ DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST:PORT/tsdb?sslmode=require
 ```
 
 URL-encode special password characters. Keep this URL private.
-The app creates four tables on startup: `assets`, `designs`, `design_versions`, `saved_parts`.
+The app creates five tables on startup: `assets`, `designs`, `design_versions`, `saved_parts`, `custom_parts`.
 This MVP uses normal PostgreSQL tables; time-series features are not needed yet.
 Switching from local SQLite does not copy local records to Tiger automatically.
-For later schema changes, add migrations instead of relying on startup table creation.
+The manual-drawing upgrade adds its JSON columns to old databases on startup without
+deleting records. See `CUSTOM_ELEMENTS.md`. For future schema changes, add migrations.
 
 ## Google Cloud and Docker
 
@@ -169,7 +174,8 @@ The Docker entrypoint respects Cloud Run's `PORT`.
 ## Limits for this MVP
 
 Uploads are limited to 5 MB and 20 million pixels; only PNG/JPEG/WebP are accepted.
-The library saves editable settings, not automatic cutouts or SVG geometry.
+The predefined library saves dress settings. The custom library saves manual drawing
+points/styles/transforms. Neither automatically cuts parts out of images.
 There is no Google Images scraper, generated-image service, user login or voice upload.
 The frontend owns rendering, clicking edits, previews and layered SVG export.
 Live Gemini, Tiger, GCS and Docker deployment require credentials/tools and separate testing.

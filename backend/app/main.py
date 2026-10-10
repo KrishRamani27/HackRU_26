@@ -8,14 +8,18 @@ from uuid import uuid4
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from PIL import Image, UnidentifiedImageError
 from pydantic import ValidationError
 from sqlalchemy import delete, select, text
+from sqlalchemy.orm.exc import StaleDataError
 
 from .ai import AIService
 from .config import Settings
-from .database import Asset, Base, Design, Part, Version, database, now, record
-from .schemas import CommandRequest, DesignSpec, DesignWrite, EditAction, SavedPart, SuggestionRequest, apply_actions
+from .custom_schemas import DesignDocumentWrite
+from .custom_routes import custom_router, locked_design, save_snapshot
+from .database import Asset, Design, Part, Version, database, initialize_database, record
+from .schemas import CommandRequest, DesignSpec, EditAction, SavedPart, SuggestionRequest
 from .storage import Storage
 
 logger = logging.getLogger(__name__)
@@ -30,7 +34,7 @@ def create_app(settings: Settings | None = None):
 
     @asynccontextmanager
     async def lifespan(app):
-        Base.metadata.create_all(engine)
+        initialize_database(engine)
         app.state.storage = Storage(settings)
         app.state.ai = AIService(settings)
         try:
@@ -49,6 +53,11 @@ def create_app(settings: Settings | None = None):
             raise HTTPException(401, "Missing or incorrect X-API-Key")
 
     protected = [Depends(authorize)]
+
+    @app.exception_handler(StaleDataError)
+    async def concurrent_update(request, exc):
+        return JSONResponse(status_code=409,
+                            content={"detail": "Design changed. Reload it before saving your edits."})
 
     def db_session():
         with sessions() as session:
@@ -154,12 +163,15 @@ def create_app(settings: Settings | None = None):
                         headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "private, max-age=300"})
 
     @app.post("/designs", status_code=201, dependencies=protected)
-    def create_design(body: DesignWrite, session=Depends(db_session)):
+    def create_design(body: DesignDocumentWrite, session=Depends(db_session)):
         check_asset(session, body.sketch_asset_id)
-        row = Design(**body.model_dump())
+        data = body.model_dump()
+        data["custom_elements"] = data["custom_elements"] or []
+        row = Design(**data)
         session.add(row)
         session.flush()
-        session.add(Version(design_id=row.id, version=1, spec=row.spec))
+        session.add(Version(design_id=row.id, version=1, spec=row.spec,
+                            custom_elements=row.custom_elements))
         session.commit()
         return record(row)
 
@@ -175,17 +187,14 @@ def create_app(settings: Settings | None = None):
         return record(get_row(session, Design, design_id))
 
     @app.put("/designs/{design_id}", dependencies=protected)
-    def update_design(design_id: str, body: DesignWrite, session=Depends(db_session)):
-        row = session.scalar(select(Design).where(Design.id == design_id).with_for_update())
-        if row is None:
-            raise HTTPException(404, "Record not found")
+    def update_design(design_id: str, body: DesignDocumentWrite,
+                      expected_version: int | None = Query(None, ge=1), session=Depends(db_session)):
+        row = locked_design(session, design_id, expected_version)
         check_asset(session, body.sketch_asset_id)
         row.name, row.spec, row.sketch_asset_id = body.name, body.spec.model_dump(), body.sketch_asset_id
-        row.version += 1
-        row.updated_at = now()
-        session.add(Version(design_id=row.id, version=row.version, spec=row.spec))
-        session.commit()
-        return record(row)
+        if body.custom_elements is not None:
+            row.custom_elements = [element.model_dump() for element in body.custom_elements]
+        return save_snapshot(session, row)
 
     @app.get("/designs/{design_id}/versions", dependencies=protected)
     def versions(design_id: str, limit: int = Query(50, ge=1, le=100),
@@ -228,6 +237,7 @@ def create_app(settings: Settings | None = None):
         session.commit()
         return Response(status_code=204)
 
+    app.include_router(custom_router(db_session, protected))
     return app
 
 

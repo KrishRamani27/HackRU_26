@@ -16,6 +16,8 @@
   and turns text commands into edits. The AI lead owns prompts and AI quality.
 - The frontend builds clean SVG dress parts from settings and handles editing/export.
 - Reusable parts are saved settings and styles, not automatically cut-out images.
+- Manual custom drawings are now stored separately from the AI `DesignSpec`, as
+  top-level `custom_elements` on saved designs. Frontend/builder must render them.
 - Google Cloud Run hosts the backend. Google Cloud Storage holds image files.
 - Tiger Cloud PostgreSQL holds design records, history, reusable parts and image references.
 - Google Secret Manager holds deployed credentials.
@@ -65,6 +67,10 @@ All paths below start at this repository's root.
 | `backend/app/database.py` | Design, version, saved-part and image-record tables |
 | `backend/app/storage.py` | Local image files and Google Cloud Storage |
 | `backend/app/config.py` | Environment settings |
+| `backend/app/custom_schemas.py` | Manual stroke/shape validation and saved-design extension |
+| `backend/app/custom_routes.py` | Custom element CRUD, library reuse and version restore |
+| `backend/CUSTOM_ELEMENTS.md` | Exact manual drawing contract, coordinates and integration steps |
+| `backend/contracts/custom-elements.ts` | Shared TypeScript types for frontend and builder |
 | `backend/.env.example` | Settings template; contains no real credentials |
 | `backend/requirements.txt` | Direct Python dependency ranges |
 | `backend/requirements.lock` | Pinned dependencies used for setup and Docker |
@@ -94,6 +100,9 @@ local files, so no keys are needed. See `backend/README.md` for a fresh setup.
 ## Still to do
 
 - Connect the frontend and agree the exact eight style-group names with its builder.
+- Frontend: pen/select/move/resize controls and custom layer UI. Builder: render custom
+  elements on top of the dress and include them in SVG/PNG export. Backend persistence
+  exists; no visible manual editor has been implemented in this backend task.
 - Have the AI lead refine prompts and test real dress sketches.
 - Configure Gemini credentials, a Tiger database and a private Google Storage bucket.
 - Test real Gemini, Tiger and GCS together, then deploy to Cloud Run.
@@ -102,6 +111,22 @@ local files, so no keys are needed. See `backend/README.md` for a fresh setup.
 
 No live cloud resources were created or deployed. No credentials were added.
 The current backend is a shared team demo; it does not have individual user accounts.
+
+## Manual drawing backend update — October 10, 2026
+
+- Added custom element creation, full replacement, partial edits, deletion and reads.
+- Saves points, color/fill/pattern, position/scale/rotation, visibility, parent-part label
+  and layer order. Uses 400 × 600 canvas coordinates; parent_part is metadata, not an
+  automatic part-relative transform. See `backend/CUSTOM_ELEMENTS.md` before integrating.
+- Existing design PUT requests preserve custom elements when the field is omitted/null;
+  sending [] clears them. IDs are unique per design. Invalid shapes are rejected.
+- Design history includes manual elements; restoring a version appends a new version.
+- Custom reusable parts use `/custom-parts`; inserting a template generates a fresh ID.
+- Added a non-destructive startup upgrade for existing databases and stale-write checks.
+- Verification after this update: **49 tests passed**, including old database preservation,
+  custom edit/reuse/restore, invalid input rejection and concurrent-save checks.
+- No Gemini requests are needed for these routes. No frontend, builder or AI prompt files
+  were changed. SQLite migration is tested; live Tiger/GCS deployment still needs testing.
 
 ## Rules for future code work
 
