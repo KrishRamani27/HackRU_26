@@ -45,7 +45,8 @@ Every field has a fixed set of allowed values. Gemini must only use these values
 - details.pockets: "none" | "patch" | "side_seam"
 - details.buttons: integer 0-8 (front placket)
 - proportions.shoulder_width: number 0-1 (relative to figure width)
-- proportions.waist_y: number 0-1 (vertical position, 0 = neckline, 1 = hem)
+- proportions.waist_y: number 0-1 (waistline position, independent of skirt length:
+  0 = empire line just under the bust, 0.5 = natural waist, 1 = dropped waist at the hip)
 - style: per part, fill color (hex) and fabric pattern ("solid" | "denim" | "plaid" | "floral")
 - notes: free text from Gemini about anything it saw that the spec cannot express
 

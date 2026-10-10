@@ -27,6 +27,7 @@ const NECK_Y = 70;
 const HEM_Y = { mini: 300, knee: 380, midi: 460, floor: 560 } as const;
 const SLEEVE_LEN = { short: 50, elbow: 120, long: 195 } as const;
 const ARM_ANGLE = (20 * Math.PI) / 180; // sleeves hang 20° out from vertical
+const SHOULDER_SLOPE = 0.28; // shoulder seam drop per px of width (~16°)
 
 // Line styles (set as attributes, not CSS, so Illustrator keeps them)
 const INK = "#1a1a1a";
@@ -39,7 +40,11 @@ type Pt = { x: number; y: number };
 const pt = (x: number, y: number): Pt => ({ x, y });
 const mirror = (p: Pt): Pt => pt(2 * CX - p.x, p.y);
 const s = (p: Pt) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+// A value that is not a real number (NaN, missing) falls back to the low end instead of spreading NaN.
+const clamp = (v: number, lo: number, hi: number) => (Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : lo);
+// Table lookup for a spec option; an unknown option falls back to a default instead of undefined.
+const pick = <T extends object>(table: T, key: string, fallback: keyof T): T[keyof T] =>
+  table[Object.hasOwn(table, key) ? (key as keyof T) : fallback];
 const add = (a: Pt, b: Pt, k = 1): Pt => pt(a.x + b.x * k, a.y + b.y * k);
 const mid = (a: Pt, b: Pt): Pt => pt((a.x + b.x) / 2, (a.y + b.y) / 2);
 const MIRROR_TRANSFORM = `transform="matrix(-1 0 0 1 ${W} 0)"`;
@@ -47,20 +52,23 @@ const MIRROR_TRANSFORM = `transform="matrix(-1 0 0 1 ${W} 0)"`;
 // ---------- 1. Layout: every key measurement, computed once from the spec ----------
 
 function layout(spec: DesignSpec) {
+  const nType = spec.neckline.type;
+  const depth = clamp(spec.neckline.depth, 0, 1);
+  const neckHalf = pick({ crew: 26, v: 28, scoop: 36, square: 30 }, nType, "crew");
+  const neckDepth = nType === "crew" ? 8 + 22 * depth : 15 + 75 * depth;
+
   const shoulderHalf = 50 + 40 * clamp(spec.proportions.shoulder_width, 0, 1); // 50..90
+  const shoulderDrop = SHOULDER_SLOPE * (shoulderHalf - neckHalf); // same slope at any shoulder or neck width
   const bustHalf = shoulderHalf - 6;
   const waistHalf = bustHalf - 16;
   const armY = NECK_Y + 80;
-  const hemY = HEM_Y[spec.skirt.length];
+  const hemY = pick(HEM_Y, spec.skirt.length, "knee");
 
-  // Contract: waist_y 0 = neckline, 1 = hem. Clamped so the bodice never collapses.
-  const rawWaist = NECK_Y + clamp(spec.proportions.waist_y, 0, 1) * (hemY - NECK_Y);
-  const waistY = clamp(rawWaist, armY + 25, hemY - 50);
-
-  const nType = spec.neckline.type;
-  const depth = clamp(spec.neckline.depth, 0, 1);
-  const neckHalf = { crew: 26, v: 28, scoop: 36, square: 30 }[nType];
-  const neckDepth = nType === "crew" ? 8 + 22 * depth : 15 + 75 * depth;
+  // Contract: waist_y 0 = empire line, 0.5 = natural waist, 1 = dropped waist at the hip.
+  // Fixed scale (175..250), so the waist stays put when the skirt length changes.
+  const empireY = armY + 25; // highest waist the bodice can take
+  const dropY = HEM_Y.mini - 50; // lowest waist that still leaves a mini skirt
+  const waistY = empireY + clamp(spec.proportions.waist_y, 0, 1) * (dropY - empireY);
 
   return {
     hemY,
@@ -69,9 +77,10 @@ function layout(spec: DesignSpec) {
     neckHalf,
     waistHalf,
     neckR: pt(CX + neckHalf, NECK_Y),
-    shoulderR: pt(CX + shoulderHalf, NECK_Y + 14),
+    shoulderR: pt(CX + shoulderHalf, NECK_Y + shoulderDrop),
     armR: pt(CX + bustHalf, armY),
     armCtrlR: pt(CX + bustHalf - 6, armY - 38), // pulls the armhole curve inward
+    sideCtrlR: pt(CX + waistHalf + 3, armY + 0.55 * (waistY - armY)), // side seam curves in to the waist
     waistR: pt(CX + waistHalf, waistY),
   };
 }
@@ -95,14 +104,14 @@ function necklinePath(type: DesignSpec["neckline"]["type"], half: number, top: n
 // ---------- 3. Bodice ----------
 
 function bodice(spec: DesignSpec, g: Layout, fill: string) {
-  const { neckR, shoulderR, armR, armCtrlR, waistR } = g;
-  const [neckL, shoulderL, armL, armCtrlL, waistL] = [neckR, shoulderR, armR, armCtrlR, waistR].map(mirror);
+  const { neckR, shoulderR, armR, armCtrlR, sideCtrlR, waistR } = g;
+  const [neckL, shoulderL, armL, armCtrlL, sideCtrlL, waistL] = [neckR, shoulderR, armR, armCtrlR, sideCtrlR, waistR].map(mirror);
   const neck = necklinePath(spec.neckline.type, g.neckHalf, NECK_Y, g.neckDepth);
 
   // waist L -> up left side -> armhole -> shoulder -> neckline -> right shoulder -> armhole -> waist R
   const outline =
-    `M ${s(waistL)} L ${s(armL)} Q ${s(armCtrlL)} ${s(shoulderL)} L ${s(neckL)} ` +
-    `${neck} L ${s(shoulderR)} Q ${s(armCtrlR)} ${s(armR)} L ${s(waistR)}`;
+    `M ${s(waistL)} Q ${s(sideCtrlL)} ${s(armL)} Q ${s(armCtrlL)} ${s(shoulderL)} L ${s(neckL)} ` +
+    `${neck} L ${s(shoulderR)} Q ${s(armCtrlR)} ${s(armR)} Q ${s(sideCtrlR)} ${s(waistR)}`;
 
   return group("bodice", [
     `<path d="${outline} Z" fill="${fill}" stroke="none"/>`,
@@ -111,10 +120,17 @@ function bodice(spec: DesignSpec, g: Layout, fill: string) {
 }
 
 function collarNeckline(spec: DesignSpec, g: Layout) {
-  // Neck edge drawn again on top + a topstitch line 5px inside it.
-  const top = `M ${s(mirror(g.neckR))} ${necklinePath(spec.neckline.type, g.neckHalf, NECK_Y, g.neckDepth)}`;
-  const inner = `M ${s(pt(CX - g.neckHalf, NECK_Y + 5))} ${necklinePath(spec.neckline.type, g.neckHalf, NECK_Y + 5, g.neckDepth)}`;
-  return group("collar_neckline", [`<path d="${top}" ${OUTLINE}/>`, `<path d="${inner}" ${STITCH}/>`]);
+  // Neck edge drawn again on top + a topstitch line that runs parallel to it, 4px into the garment.
+  const type = spec.neckline.type;
+  const top = `M ${s(mirror(g.neckR))} ${necklinePath(type, g.neckHalf, NECK_Y, g.neckDepth)}`;
+  const k = 4;
+  // A V's edges are slanted, so widening and deepening by k alone would not stay parallel.
+  const slant = type === "v" ? Math.hypot(g.neckHalf, g.neckDepth) : 0;
+  const half = g.neckHalf + (type === "v" ? (k * slant) / g.neckDepth : k);
+  const depth = g.neckDepth + (type === "v" ? (k * slant) / g.neckHalf : k);
+  const stitchY = NECK_Y + SHOULDER_SLOPE * (half - g.neckHalf); // start on the shoulder seam
+  const stitch = `M ${s(pt(CX - half, stitchY))} ${necklinePath(type, half, stitchY, depth - (stitchY - NECK_Y))}`;
+  return group("collar_neckline", [`<path d="${top}" ${OUTLINE}/>`, `<path d="${stitch}" ${STITCH}/>`]);
 }
 
 // ---------- 4. Skirt ----------
@@ -154,7 +170,7 @@ function skirt(spec: DesignSpec, g: Layout, fill: string) {
   if (spec.skirt.silhouette === "flared") {
     for (const f of [0.25, 0.6]) {
       const top = pt(CX + g.waistHalf * f, g.waistY + 0.35 * len);
-      const bottom = pt(CX + hemHalf * f, g.hemY + hemDip * (1 - f * f) - 2);
+      const bottom = pt(CX + hemHalf * f, g.hemY + (hemDip * (1 - f * f)) / 2); // lands exactly on the curved hem
       parts.push(`<path d="M ${s(top)} L ${s(bottom)}" ${DETAIL}/>`);
       parts.push(`<path d="M ${s(mirror(top))} L ${s(mirror(bottom))}" ${DETAIL}/>`);
     }
@@ -182,13 +198,18 @@ function rightSleevePaths(spec: DesignSpec, g: Layout, fill: string): string[] {
   const n = pt(Math.cos(ARM_ANGLE), -Math.sin(ARM_ANGLE)); // across the arm, pointing outward
   const base = mid(top, pit);
 
-  const L = type === "cap" ? 26 : SLEEVE_LEN[length];
+  const L = type === "cap" ? 26 : pick(SLEEVE_LEN, length, "short");
   const cuffHalf =
-    type === "cap" ? 34 : type === "puff" ? { short: 26, elbow: 20, long: 16 }[length] : { short: 30, elbow: 24, long: 18 }[length];
+    type === "cap"
+      ? 34
+      : pick(type === "puff" ? { short: 26, elbow: 20, long: 16 } : { short: 30, elbow: 24, long: 18 }, length, "short");
 
   const end = add(base, u, L);
   const outer = add(end, n, cuffHalf);
-  const inner = add(end, n, -cuffHalf);
+  // Underarm edge never crosses inside the armpit, or it would hook out from behind the bodice.
+  const pitAcross = (pit.x - end.x) * n.x + (pit.y - end.y) * n.y;
+  const inner = add(end, n, Math.max(-cuffHalf, pitAcross));
+  const cuffMid = mid(outer, inner);
   const armhole = `Q ${s(armCtrlR)} ${s(top)}`; // reuses the bodice armhole curve exactly
 
   let outerEdge: string;
@@ -200,7 +221,7 @@ function rightSleevePaths(spec: DesignSpec, g: Layout, fill: string): string[] {
     cuffEdge = `L ${s(inner)}`;
   } else if (type === "cap") {
     outerEdge = `L ${s(outer)}`;
-    cuffEdge = `Q ${s(add(end, u, 6))} ${s(inner)}`; // soft curved hem
+    cuffEdge = `Q ${s(add(cuffMid, u, 6))} ${s(inner)}`; // soft curved hem
   } else {
     outerEdge = `L ${s(outer)}`;
     cuffEdge = `L ${s(inner)}`;
@@ -217,7 +238,7 @@ function rightSleevePaths(spec: DesignSpec, g: Layout, fill: string): string[] {
       `<path d="M ${s(outer)} L ${s(bandOuter)} L ${s(bandInner)} L ${s(inner)} Z" fill="${fill}" ${LINE}/>`,
     );
     for (const t of [-0.5, 0, 0.5]) {
-      const a = add(end, n, cuffHalf * t);
+      const a = add(cuffMid, pt(outer.x - cuffMid.x, outer.y - cuffMid.y), t);
       paths.push(`<path d="M ${s(a)} L ${s(add(a, u, -10))}" ${DETAIL}/>`);
     }
   } else if (type === "fitted" && length !== "short") {
@@ -230,80 +251,106 @@ function rightSleevePaths(spec: DesignSpec, g: Layout, fill: string): string[] {
 
 // ---------- 6. Details ----------
 
-function buttons(spec: DesignSpec, g: Layout) {
-  const count = clamp(Math.round(spec.details.buttons), 0, 8);
-  if (count === 0) return group("buttons", []);
+function buttons(spec: DesignSpec, g: Layout, fill: string) {
   const top = NECK_Y + g.neckDepth + 4;
   const bottom = g.waistY - 6;
+  // A deep neckline over a high waist leaves little room: draw only as many buttons as fit (8px each).
+  const fits = Math.max(0, Math.floor((bottom - top) / 8));
+  const count = Math.min(clamp(Math.round(spec.details.buttons), 0, 8), fits);
+  if (count === 0) return group("buttons", []);
   const parts = [
     `<path d="M ${s(pt(CX - 6, top))} L ${s(pt(CX - 6, bottom))} M ${s(pt(CX + 6, top))} L ${s(pt(CX + 6, bottom))}" ${DETAIL}/>`,
   ];
   const step = (bottom - top) / count;
   for (let i = 0; i < count; i++) {
     const y = top + step * (i + 0.5);
-    parts.push(`<circle cx="${CX}" cy="${y.toFixed(1)}" r="3.2" fill="#ffffff" stroke="${INK}" stroke-width="0.9"/>`);
+    parts.push(`<circle cx="${CX}" cy="${y.toFixed(1)}" r="3.2" fill="${fill}" stroke="${INK}" stroke-width="0.9"/>`);
   }
   return group("buttons", parts);
 }
 
-function pockets(spec: DesignSpec, g: Layout, fill: string) {
+function pockets(spec: DesignSpec, g: Layout, fill: string, leftFill: string) {
   const type = spec.details.pockets;
   if (type === "none") return group("pockets", []);
-  let right: string[];
+  const len = g.hemY - g.waistY;
+  let draw: (f: string) => string[]; // one pocket; called once per side with that side's fill
 
   if (type === "patch") {
-    const w = 34;
-    const h = 38;
-    const y = clamp(g.waistY + 35, g.waistY + 10, g.hemY - h - 12);
-    // Gap at center front, but never past the side seam on narrow skirts.
-    const x = Math.min(CX + g.waistHalf * 0.5 + 14 - w / 2, CX + g.waistHalf + 8 - w);
+    // Pocket shrinks on short or narrow skirts so it always sits inside the skirt.
+    const h = Math.min(38, len - 24);
+    const y = Math.min(g.waistY + 35, g.hemY - h - 12);
+    // The skirt is only waist-wide at the top and widens below, so a higher pocket gets less room.
+    const sideLimit = g.waistHalf + Math.min(8, (y - g.waistY) * 0.2);
+    const w = Math.min(34, sideLimit - 8);
+    // Centered on its half of the skirt, at least 8px from center front, never past the side seam.
+    const x = clamp(CX + g.waistHalf * 0.5 + 14 - w / 2, CX + 8, CX + sideLimit - w);
     const r = 6;
     const d =
       `M ${x},${y} L ${x + w},${y} L ${x + w},${y + h - r} Q ${x + w},${y + h} ${x + w - r},${y + h} ` +
       `L ${x + r},${y + h} Q ${x},${y + h} ${x},${y + h - r} Z`;
-    right = [
-      `<path d="${d}" fill="${fill}" ${LINE}/>`,
+    draw = (f) => [
+      `<path d="${d}" fill="${f}" ${LINE}/>`,
       `<path d="M ${x + 3},${y + 5} L ${x + w - 3},${y + 5}" ${STITCH}/>`,
     ];
   } else {
     // side_seam: slanted opening near the side seam, just below the waist
-    const a = pt(CX + g.waistHalf + 4, g.waistY + 16);
-    const b = pt(CX + g.waistHalf - 10, g.waistY + 58);
-    right = [`<path d="M ${s(a)} Q ${s(pt(a.x - 14, a.y + 14))} ${s(b)}" ${DETAIL}/>`];
+    const k = Math.min(1, (len - 12) / 58); // shorter opening on short skirts
+    const a = pt(CX + g.waistHalf + 4, g.waistY + 16 * k);
+    const b = pt(CX + g.waistHalf - 10, g.waistY + 58 * k);
+    draw = () => [`<path d="M ${s(a)} Q ${s(pt(a.x - 14, a.y + 14))} ${s(b)}" ${DETAIL}/>`];
   }
   return group("pockets", [
-    `<g id="pocket_right">${right.join("")}</g>`,
-    `<g id="pocket_left" ${MIRROR_TRANSFORM}>${right.join("")}</g>`,
+    `<g id="pocket_right">${draw(fill).join("")}</g>`,
+    `<g id="pocket_left" ${MIRROR_TRANSFORM}>${draw(leftFill).join("")}</g>`,
   ]);
 }
 
 // ---------- 7. Fabric fills (pure SVG patterns, no images — safe for PNG export) ----------
 
 const DEFAULT_STYLE: PartStyle = { fill: "#ffffff", pattern: "solid" };
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 
-function fillFor(part: PartName, spec: DesignSpec, defs: string[]): string {
-  const { fill, pattern } = spec.style[part] ?? DEFAULT_STYLE;
-  if (pattern === "solid") return fill;
-  const id = `fabric_${part}`;
-  const base = `<rect width="100%" height="100%" fill="${fill}"/>`;
+// `mirrored` is for parts drawn inside a mirrored group (left sleeve, left pocket): the pattern is
+// flipped back, so the fabric lines up with the rest of the dress instead of running the other way.
+function fillFor(part: PartName, spec: DesignSpec, defs: string[], mirrored = false): string {
+  const style = spec.style?.[part] ?? DEFAULT_STYLE;
+  // The fill is pasted into the SVG markup, so only a plain 6-digit hex color is allowed through.
+  const fill = HEX_COLOR.test(style.fill) ? style.fill : DEFAULT_STYLE.fill;
+  const pattern = style.pattern;
+  if (pattern !== "denim" && pattern !== "plaid" && pattern !== "floral") return fill; // solid, or unknown
+
+  const id = `fabric_${part}${mirrored ? "_mirrored" : ""}`;
+  const flip = mirrored ? ` patternTransform="matrix(-1 0 0 1 ${W} 0)"` : "";
+  // One square tile: base color first, then the marks. Every pattern uses both light and dark
+  // marks so it shows on any base color, including white.
+  const tile = (size: number, marks: string) =>
+    `<pattern id="${id}" patternUnits="userSpaceOnUse" width="${size}" height="${size}"${flip}>` +
+    `<rect width="${size}" height="${size}" fill="${fill}"/>${marks}</pattern>`;
+
   const body = {
-    denim:
-      `<pattern id="${id}" patternUnits="userSpaceOnUse" width="6" height="6">${base}` +
-      `<path d="M0,6 L6,0" stroke="#ffffff" stroke-opacity="0.22" stroke-width="1"/></pattern>`,
-    plaid:
-      `<pattern id="${id}" patternUnits="userSpaceOnUse" width="24" height="24">${base}` +
+    // Twill diagonals. The short corner pieces continue each line into the next tile;
+    // without them the line is clipped at the tile corners and looks dashed.
+    denim: tile(
+      6,
+      `<path d="M-1,1 L1,-1 M0,6 L6,0 M5,7 L7,5" stroke="#fff" stroke-opacity="0.22" stroke-width="1"/>` +
+        `<path d="M-1,4 L4,-1 M2,7 L7,2" stroke="#000" stroke-opacity="0.1" stroke-width="1"/>`,
+    ),
+    plaid: tile(
+      24,
       `<rect y="8" width="24" height="6" fill="#000" fill-opacity="0.18"/>` +
-      `<rect x="8" width="6" height="24" fill="#000" fill-opacity="0.18"/>` +
-      `<path d="M0,20 L24,20 M20,0 L20,24" stroke="#fff" stroke-opacity="0.35" stroke-width="1"/></pattern>`,
-    floral:
-      `<pattern id="${id}" patternUnits="userSpaceOnUse" width="22" height="22">${base}` +
+        `<rect x="8" width="6" height="24" fill="#000" fill-opacity="0.18"/>` +
+        `<path d="M0,20 L24,20 M20,0 L20,24" stroke="#fff" stroke-opacity="0.35" stroke-width="1"/>`,
+    ),
+    floral: tile(
+      22,
       [0, 72, 144, 216, 288]
         .map((deg) => {
           const r = (deg * Math.PI) / 180;
-          return `<circle cx="${(11 + 3 * Math.cos(r)).toFixed(1)}" cy="${(11 + 3 * Math.sin(r)).toFixed(1)}" r="2.2" fill="#fff" fill-opacity="0.6"/>`;
+          const [cx, cy] = [11 + 3 * Math.cos(r), 11 + 3 * Math.sin(r)];
+          return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="2.2" fill="#fff" fill-opacity="0.6" stroke="#000" stroke-opacity="0.25" stroke-width="0.4"/>`;
         })
-        .join("") +
-      `<circle cx="11" cy="11" r="1.6" fill="#000" fill-opacity="0.25"/></pattern>`,
+        .join("") + `<circle cx="11" cy="11" r="1.6" fill="#000" fill-opacity="0.25"/>`,
+    ),
   }[pattern];
   defs.push(body);
   return `url(#${id})`;
@@ -319,7 +366,7 @@ export function buildFlat(spec: DesignSpec): string {
   const g = layout(spec);
   const defs: string[] = [];
   const rightSleeve = rightSleevePaths(spec, g, fillFor("right_sleeve", spec, defs));
-  const leftSleeve = rightSleevePaths(spec, g, fillFor("left_sleeve", spec, defs)); // same definition...
+  const leftSleeve = rightSleevePaths(spec, g, fillFor("left_sleeve", spec, defs, true)); // same definition...
 
   // Draw order = stacking order: sleeves behind the bodice so the armhole seam shows.
   const groups = [
@@ -329,8 +376,8 @@ export function buildFlat(spec: DesignSpec): string {
     bodice(spec, g, fillFor("bodice", spec, defs)),
     waistSeam(spec, g),
     collarNeckline(spec, g),
-    pockets(spec, g, fillFor("pockets", spec, defs)),
-    buttons(spec, g),
+    pockets(spec, g, fillFor("pockets", spec, defs), fillFor("pockets", spec, defs, true)),
+    buttons(spec, g, fillFor("buttons", spec, defs)),
   ];
 
   return (
