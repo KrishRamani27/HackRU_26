@@ -237,6 +237,52 @@ def fake_gemini(client, monkeypatch, text):
     client.app.state.ai.settings.gemini_api_key = "fake-test-key"
 
 
+def test_gemini_retries_once_on_timeout_or_server_error(client, monkeypatch):
+    import httpx
+    from google import genai
+    from google.genai import errors
+
+    reply = DesignSpec().model_dump(exclude={"style"})
+    reply["main_style"] = {"fill": "#ffffff", "pattern": "solid"}
+    calls = []
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            self.models = self
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def generate_content(self, **kwargs):
+            calls.append(1)
+            if len(calls) in failing:
+                raise failing[len(calls)]
+            return SimpleNamespace(text=json.dumps(reply))
+
+    monkeypatch.setattr(genai, "Client", FakeClient)
+    client.app.state.ai.settings.ai_mode = "gemini"
+    client.app.state.ai.settings.gemini_api_key = "fake-test-key"
+    timeout = httpx.ReadTimeout("The read operation timed out")
+    server_error = errors.ServerError(503, {"error": {"message": "overloaded", "status": "UNAVAILABLE"}})
+
+    failing = {1: timeout}
+    assert client.post("/analyze", files={"sketch": ("dress.png", png())}).status_code == 200
+    assert len(calls) == 2
+
+    calls.clear()
+    failing = {1: server_error, 2: timeout}
+    assert client.post("/analyze", files={"sketch": ("dress.png", png())}).status_code == 502
+    assert len(calls) == 2
+
+    calls.clear()
+    failing = {1: errors.ClientError(400, {"error": {"message": "bad request", "status": "INVALID_ARGUMENT"}})}
+    assert client.post("/analyze", files={"sketch": ("dress.png", png())}).status_code == 502
+    assert len(calls) == 1
+
+
 def test_gemini_reply_with_missing_fields_is_502(client, monkeypatch):
     fake_gemini(client, monkeypatch, '{"garment_type": "dress"}')
     result = client.post("/analyze", files={"sketch": ("dress.png", png())})
