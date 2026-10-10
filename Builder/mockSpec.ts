@@ -8,7 +8,7 @@ export const mockSpec: DesignSpec = {
   waist: { seam: true },
   skirt: { silhouette: "straight", length: "knee" },
   details: { pockets: "none", buttons: 0 },
-  proportions: { shoulder_width: 0.5, waist_y: 0.3 },
+  proportions: { shoulder_width: 0.5, waist_y: 0.5 },
   style: {},
   notes: "",
 };

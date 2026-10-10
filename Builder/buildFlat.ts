@@ -59,9 +59,11 @@ function layout(spec: DesignSpec) {
   const armY = NECK_Y + 80;
   const hemY = HEM_Y[spec.skirt.length];
 
-  // Contract: waist_y 0 = neckline, 1 = hem. Clamped so the bodice never collapses.
-  const rawWaist = NECK_Y + clamp(spec.proportions.waist_y, 0, 1) * (hemY - NECK_Y);
-  const waistY = clamp(rawWaist, armY + 25, hemY - 50);
+  // Contract: waist_y 0 = empire line, 0.5 = natural waist, 1 = dropped waist at the hip.
+  // Fixed scale (175..250), so the waist stays put when the skirt length changes.
+  const empireY = armY + 25; // highest waist the bodice can take
+  const dropY = HEM_Y.mini - 50; // lowest waist that still leaves a mini skirt
+  const waistY = empireY + clamp(spec.proportions.waist_y, 0, 1) * (dropY - empireY);
 
   return {
     hemY,

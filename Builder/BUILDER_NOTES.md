@@ -11,10 +11,10 @@ Handoff from planning chat. Read this together with CLAUDE.md (the contracts the
 - `mockSpec.ts`: hand-made spec (crew neck, no sleeves, straight knee skirt, waist seam).
 - `buildFlat.ts`: `buildFlat(spec): string`. Pure function, spec in, SVG string out. No React, no state.
 - `svgToPng.ts`: browser-only helper, SVG string to PNG Blob, for POST /verify.
-- `preview.ts`: dev-only gallery. `npx tsx Builder/preview.ts` writes `Builder/preview/gallery.html` (34 flats) plus one .svg per flat. `Builder/preview/` is generated; keep it out of git.
+- `preview.ts`: dev-only gallery. `npx tsx Builder/preview.ts` writes `Builder/preview/gallery.html` (36 flats) plus one .svg per flat. `Builder/preview/` is generated; keep it out of git.
 
 ## How buildFlat works (judge explanation)
-- Canvas 400 x 600, `viewBox="0 0 400 600"`. y grows down. Center line CX = 200. Neck/shoulder line NECK_Y = 70. Hem y comes from skirt.length (mini 300, knee 380, midi 460, floor 560).
+- Canvas 400 x 600, `viewBox="0 0 400 600"`. y grows down. Center line CX = 200. Neck/shoulder line NECK_Y = 70. Hem y comes from skirt.length (mini 300, knee 380, midi 460, floor 560). Waist y comes from proportions.waist_y on a fixed 175..250 scale.
 - `layout(spec)` computes every measurement once: shoulder/bust/waist half-widths from proportions.shoulder_width, waist y from proportions.waist_y, neckline width/depth from neckline type/depth. Tune proportions here.
 - Symmetry: bodice and skirt outlines are built from RIGHT-side points; left side = `mirror(p)` (x -> 2*CX - x). Sleeves and pockets are drawn once for the right side; the left copy is the same paths in a group with `transform="matrix(-1 0 0 1 400 0)"`. Left/right can never drift apart.
 - Fill vs outline: each shape is a closed path for fill (no stroke) plus an open path for the outline. The bodice/skirt boundary line only appears when waist.seam is true (drawn by the waist_seam group).
@@ -25,7 +25,7 @@ Handoff from planning chat. Read this together with CLAUDE.md (the contracts the
 
 ## Open questions for the group chat
 1. `style` shape is not pinned down in CLAUDE.md. Builder expects `style: { [partName]: { fill: "#hex", pattern: "solid"|"denim"|"plaid"|"floral" } }`; a missing part = white solid. AI lead + frontend must match.
-2. `waist_y` is relative to neckline-to-hem (per contract), so changing skirt length moves the waist. If it feels wrong, propose measuring against a fixed torso length.
+2. RESOLVED: `waist_y` is now a fixed scale, 0 = empire line (y 175), 0.5 = natural waist, 1 = dropped waist (y 250): `waistY = 175 + waist_y * 75`. Skirt length no longer moves the waist. Backend default in `schemas.py` (0.4), Gemini prompts and test labels must switch to the new meaning too.
 
 ## Known fixes already made
 - Duplicate `fill` attribute on filled+stroked shapes (would break Illustrator import).

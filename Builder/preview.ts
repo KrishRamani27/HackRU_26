@@ -58,7 +58,9 @@ push("buttons_3", { details: { buttons: 3 } });
 push("buttons_8", { details: { buttons: 8 } });
 push("waist_no_seam", { waist: { seam: false } });
 
-// Proportions (2)
+// Proportions (4)
+push("waist_empire", { proportions: { waist_y: 0 } });
+push("waist_dropped", { proportions: { waist_y: 1 } });
 push("shoulders_narrow", { proportions: { shoulder_width: 0 }, sleeves: { type: "fitted", length: "short" } });
 push("shoulders_wide", { proportions: { shoulder_width: 1 }, sleeves: { type: "fitted", length: "short" } });
 
