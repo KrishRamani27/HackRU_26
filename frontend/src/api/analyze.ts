@@ -19,7 +19,7 @@ function toAiMode(header: string | null): AiMode {
 }
 
 /** FastAPI errors are `{detail: string}` or `{detail: [{msg}, ...]}`. */
-async function readDetail(response: Response): Promise<string | null> {
+export async function readDetail(response: Response): Promise<string | null> {
   try {
     const body = await response.json();
     if (typeof body?.detail === "string") return body.detail;

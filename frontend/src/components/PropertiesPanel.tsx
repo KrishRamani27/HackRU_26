@@ -18,6 +18,7 @@ import {
   type EditAction,
 } from "../state/specSchema";
 import { ChipGroup, ColorSwatch, RangeField, Section } from "./Controls";
+import { SavePartBar } from "./SavePartBar";
 import { tee } from "./garmentPaths";
 
 interface Props {
@@ -30,6 +31,9 @@ interface Props {
   onEdit: (action: EditAction, coalesce?: string) => void;
   /** A drag or typing session ended. */
   onCommit: () => void;
+  /** Saves the selected part's settings to the library under this name. */
+  onSavePart: (part: PartName, name: string) => Promise<void>;
+  onOpenLibrary: () => void;
 }
 
 // Which section holds the controls for each canvas part. The bodice has no
@@ -75,7 +79,7 @@ const unitDisplay = (v: number) => v.toFixed(2);
 // Avoid float noise like 0.30000000000000004 reaching the spec.
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
-export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommit }: Props) {
+export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommit, onSavePart, onOpenLibrary }: Props) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const flashTimer = useRef<number>(0);
 
@@ -115,6 +119,7 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
       <div className="panel__body" ref={bodyRef}>
         {spec ? (
           <>
+            {selection && <SavePartBar key={selection.part} part={selection.part} onSave={onSavePart} onOpenLibrary={onOpenLibrary} />}
             <Section name="neckline" title="Neckline">
               <ChipGroup
                 label="Type"

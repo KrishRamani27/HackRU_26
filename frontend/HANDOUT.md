@@ -10,12 +10,14 @@ This is the part of FlatSketch you see in the browser. You give it a photo of a 
 4. **It analyzes automatically.** As soon as a good file is picked, the picture goes to the backend. The middle sheet says "Analyzing your sketch" while it waits.
 5. **The flat appears.** The backend sends back a short list of settings (neckline type, sleeve type, skirt length and so on). Our drawing code turns those settings into a clean, symmetrical flat on the paper sheet. A tag tells you whether this is a demo result or a real AI result (see section 3).
 6. **Edit it.** Every control in the right panel changes one setting, and the drawing redraws right away.
-7. **Undo and redo.** Made a mistake? Press Ctrl+Z, or click the undo arrow at the top. Ctrl+Shift+Z or Ctrl+Y (or the redo arrow) brings the change back. It remembers the last 50 changes. Dragging a slider counts as one change, not one per pixel, so a single undo puts the slider back where the drag started.
-8. **Click a part of the dress.** Click the bodice, a sleeve, the skirt and so on. The part glows, its name shows at the bottom of the sheet ("Selected: Bodice"), and the right panel scrolls to the matching controls and flashes them briefly. Click empty space or press Escape to let go. You can also Tab to a part and press Enter.
-9. **Zoom.** Zoom buttons at the top of the sheet go from 50% to 300%, and there is a "fit" button.
-10. **View sample.** On the empty sheet there is a "View sample" button. It loads a ready made dress from the builder so you can try the controls without uploading anything or running the backend. It is labeled as a sample that was not generated from a sketch, and "Hide sample" takes you back to the empty sheet. The sample is fully editable too.
-11. **Export.** Once something is on the sheet, the Export button at the top turns on. Click it and pick SVG or PNG from the small menu. The file downloads with a name taken from the title, like `untitled-garment.svg`, and a short "Exported" message appears.
-12. **Starting over.** Uploading a new sketch, opening the sample, or removing your sketch replaces the current design, and any edits and undo history are gone. Nothing is saved anywhere yet.
+7. **Save a part to the library.** Click a part of the dress. A bar appears at the top of the right panel with a "Save to library" button. Give the part a name and press Enter. It saves that part's settings (and its color and pattern) to the backend, so you can reuse it in any design.
+8. **Reuse a saved part.** Open the "Library" tab at the top of the left panel. You see your saved parts as cards. Click a card to apply it to the design on the sheet. Filter chips at the top narrow the cards by part type, and the little trash icon on a card deletes it after a confirmation. Applying a part counts as one change, so one undo reverts it.
+9. **Undo and redo.** Made a mistake? Press Ctrl+Z, or click the undo arrow at the top. Ctrl+Shift+Z or Ctrl+Y (or the redo arrow) brings the change back. It remembers the last 50 changes. Dragging a slider counts as one change, not one per pixel, so a single undo puts the slider back where the drag started.
+10. **Click a part of the dress.** Click the bodice, a sleeve, the skirt and so on. The part glows, its name shows at the bottom of the sheet ("Selected: Bodice"), and the right panel scrolls to the matching controls and flashes them briefly. Click empty space or press Escape to let go. You can also Tab to a part and press Enter.
+11. **Zoom.** Zoom buttons at the top of the sheet go from 50% to 300%, and there is a "fit" button.
+12. **View sample.** On the empty sheet there is a "View sample" button. It loads a ready made dress from the builder so you can try the controls without uploading anything or running the backend. It is labeled as a sample that was not generated from a sketch, and "Hide sample" takes you back to the empty sheet. The sample is fully editable too.
+13. **Export.** Once something is on the sheet, the Export button at the top turns on. Click it and pick SVG or PNG from the small menu. The file downloads with a name taken from the title, like `untitled-garment.svg`, and a short "Exported" message appears.
+14. **Starting over.** Uploading a new sketch, opening the sample, or removing your sketch replaces the current design, and any edits and undo history are gone. Saved parts in the library are not affected. Whole designs are not saved anywhere yet.
 
 ## 2. The layout
 
@@ -24,7 +26,7 @@ The screen has a thin dark strip on the left, a top bar, and three panels.
 **Dark strip on the left (navigation rail)**
 * A hanger logo.
 * "Workbench", which is the page you are on.
-* "Library", greyed out because it is not built.
+* "Library", still greyed out. The library lives in a tab inside the left panel instead.
 
 **Top bar**
 * A small "Atelier / Workbench" line, then the project name "Untitled garment" in big letters with a "Draft" tag. The name is fixed for now, you cannot rename it.
@@ -33,9 +35,10 @@ The screen has a thin dark strip on the left, a top bar, and three panels.
 * The "Upload sketch" button.
 * The "Export" button with a small menu: SVG or PNG. It is greyed out until a sketch result or the sample is on the sheet.
 
-**Panel 01, Sketch (left)**
-* The drop zone, or the preview once you have a file.
-* Error messages about the file.
+**Panel 01, Sketch and Library (left)**
+* Two tabs at the top: "Sketch" and "Library". The Library tab shows a small count of saved parts.
+* Sketch tab: the drop zone, or the preview once you have a file, and error messages about the file.
+* Library tab: filter chips by part type, then a grid of saved part cards. Each card shows a small preview, the name, the part type, a short summary of its settings, and its color and fabric. Empty library says "Save parts from your designs to reuse them."
 * A short "Sketch guidance" list: front view with the garment centered, dark lines on a plain light background, shot flat without heavy shadows.
 
 **Panel 02, Canvas (middle)**
@@ -45,6 +48,7 @@ The screen has a thin dark strip on the left, a top bar, and three panels.
 
 **Panel 03, Properties (right)**
 * All the controls, grouped under small uppercase labels. Before anything is loaded it says "Nothing to edit yet".
+* When a part is selected on the sheet, a bar at the very top shows its name and the "Save to library" button.
 
 The status tag at the top of the canvas can say: "Placeholder, nothing loaded yet", "Sample", "Demo result", "AI result", "Result, AI mode unknown", "Analyzing", or "Error".
 
@@ -77,6 +81,13 @@ To make parts clickable, the drawing has to be placed directly into the page ins
 
 ### Click to select
 Once the drawing is in the page, the code works out which named group you clicked. Thin parts (the collar line, the waist seam, button dots, side seam pockets) are hard to hit, so each gets an invisible wider copy that catches clicks. The glow, the Tab focus, and the selected highlight exist only on the live page. They are never written into the drawing text. That matters later: when export is built, it must save the builder's text, not what is on screen, so no highlight ends up in an exported file.
+
+### The component library
+A saved part has four pieces, agreed in the project guide: a `name`, a `part_type` (neckline, sleeves, waist, skirt, details or proportions), `spec_settings` (just the settings of that one section, such as sleeve type and length), and a `style` (one color and one pattern). The backend adds an `id` and a date. The app talks to three backend routes: `GET /parts` to list, `POST /parts` to save and `DELETE /parts/{id}` to delete. It does not use the `/custom-parts` routes, which are for manual drawing.
+
+The parts you click on the sheet (collar, bodice, left sleeve and so on) are not the same list as the six library types, so `libraryModel.ts` maps them: collar is neckline, bodice is proportions, either sleeve is sleeves, waist seam is waist, skirt is skirt, and pockets or buttons are details (saving pockets stores only the pockets setting, saving buttons stores only the buttons setting).
+
+Applying a card turns the saved part into a batch of the same edit actions the controls use (for example set `sleeves.type` to `puff`, then the fill and pattern). They go through the one reducer together, so undo reverts the whole thing in one step, and invalid values are ignored like any other edit. A sleeve style is put on both sleeves. The small card previews are drawn by `buildFlat` too: a plain dress with the saved part applied, cropped to the area that part changes.
 
 ### Export
 The Export button does not copy what is on the screen. It asks `buildFlat` for a fresh drawing of the current settings and saves that text. That is why the selection glow, hover outline and focus rings can never end up in a file. The SVG gets an XML line at the top and keeps `xmlns`, `width` and `height` on the first tag, which Illustrator needs. The eight named groups, the fills and the fabric patterns are kept exactly as the builder wrote them. Before saving, a safety check refuses to write the file if it finds any code, any style leftovers, or any on screen only marker. The PNG is the same drawing at 2x size (800 by 1200) on a white background, made by the builder's own `svgToPng` helper.
@@ -158,15 +169,20 @@ Everything is in `frontend/`. The drawing code is not ours: it lives in `Builder
 
 **`src/api/`**
 * `analyze.ts`: sends the sketch to `/analyze`, reads the AI mode header, and turns failures into friendly messages.
+* `parts.ts`: the library requests (list, save, delete) and their friendly error messages.
 
 **`src/hooks/`**
 * `useSketchUpload.ts`: checks the file (type and 5 MB), makes the preview, reads the picture size.
 * `useUndoShortcuts.ts`: listens for Ctrl+Z, Ctrl+Shift+Z and Ctrl+Y. It ignores them while you are typing in a text box, so the notes box keeps its own normal undo.
+* `useLibrary.ts`: loads the saved parts once, then keeps the list in step with saves and deletes.
 * `useAnalysis.ts`: sends each good sketch once, cancels old requests, and loads the answer into the reducer.
 
 **`src/state/`**
 * `specSchema.ts`: the allowed values for every setting, the edit action shape, the check for a valid edit, the part names, which parts the builder fills, and the style tidy up.
 * `specReducer.ts`: the one place that holds the design and applies edits.
+
+**`src/library/`**
+* `libraryModel.ts`: what a saved part is, how canvas parts map to library types, how a saved part becomes edit actions, and how the card previews are drawn.
 
 **`src/export/`**
 * `exportFlat.ts`: makes the download. Builds the SVG file or the 2x PNG from the builder's drawing text and names the file from the title.
@@ -178,7 +194,10 @@ Everything is in `frontend/`. The drawing code is not ours: it lives in `Builder
 * `TopBar.tsx`: the header with the title, status, Upload button and the Export menu.
 * `ExportMenu.tsx`: the Export button, its SVG or PNG dropdown, and the short "Exported" message.
 * `NavRail.tsx`: the dark strip on the left.
-* `UploadPanel.tsx`: the Sketch panel.
+* `LeftPanel.tsx`: the left panel frame with the "Sketch" and "Library" tabs.
+* `UploadPanel.tsx`: the content of the Sketch tab.
+* `LibraryPanel.tsx`: the content of the Library tab: filter chips, the card grid, loading, error and empty states, and the delete confirmation.
+* `SavePartBar.tsx`: the "Save to library" bar that appears when a part is selected.
 * `CanvasStage.tsx`: the Canvas panel, with zoom, tags, empty, loading and error screens, and the selected label.
 * `InlineFlat.tsx`: puts the cleaned drawing in the page and handles clicking, keyboard, and highlighting parts.
 * `PropertiesPanel.tsx`: the Properties panel and the scroll and flash when a part is selected.
@@ -219,8 +238,9 @@ You can try the sample with only the frontend running. Uploading a sketch needs 
 
 **Not built yet**
 * **Opening an export in Illustrator itself.** The SVG was checked as valid XML and rendered in a browser, and it has the named layers, fills and patterns. Nobody has opened it in Illustrator yet, so test one before promising it.
-* **Saving.** Nothing is saved. A refresh loses everything. The backend can save designs and parts, but the frontend does not use that yet.
-* **Library.** The nav item is greyed out, and saved parts are not built.
+* **Saving designs.** Whole designs are not saved. A refresh loses the current design. Only library parts are saved, because the frontend does not use the backend's design routes yet.
+* **Library limits.** Everyone who uses the same backend shares one library, because there are no user accounts. It shows the 100 newest parts. You cannot rename a saved part. The "Library" item in the dark strip is still greyed out.
+* **Library and the builder.** A color or pattern saved on the collar or the waist seam is stored and applied, but the builder does not draw those, so you will not see it. The card previews use a plain white dress as the base.
 * **Layers panel.** The project guide mentions one. We have click to select instead.
 * **AI suggestions, voice, and the verify loop.** The backend has routes for them. The frontend does not use them.
 * **Renaming the project.** The name "Untitled garment" and the "Draft" tag are fixed.

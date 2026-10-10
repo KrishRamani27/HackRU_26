@@ -6,11 +6,16 @@ import { exportFlat, type ExportFormat } from "./export/exportFlat";
 import { NavRail } from "./components/NavRail";
 import { TopBar } from "./components/TopBar";
 import { UploadPanel } from "./components/UploadPanel";
+import { LeftPanel, type LeftTab } from "./components/LeftPanel";
+import { LibraryPanel } from "./components/LibraryPanel";
 import { CanvasStage } from "./components/CanvasStage";
 import { PropertiesPanel } from "./components/PropertiesPanel";
 import { CanvasCrash, ErrorBoundary, PanelCrash } from "./components/ErrorBoundary";
 import { ACCEPT_ATTR, useSketchUpload } from "./hooks/useSketchUpload";
 import { useAnalysis } from "./hooks/useAnalysis";
+import { useLibrary } from "./hooks/useLibrary";
+import { describeError } from "./api/parts";
+import { buildSavedPart, editsFor, type SavedPart } from "./library/libraryModel";
 import { useUndoShortcuts } from "./hooks/useUndoShortcuts";
 import { initialSpecState, specReducer } from "./state/specReducer";
 import type { EditAction } from "./state/specSchema";
@@ -45,6 +50,14 @@ export default function App() {
 
   // The one current design spec. Every change goes through this reducer.
   const [design, dispatch] = useReducer(specReducer, initialSpecState);
+
+  const [leftTab, setLeftTab] = useState<LeftTab>("sketch");
+  const library = useLibrary();
+  const { ensureLoaded: ensureLibraryLoaded } = library;
+  // The library is fetched the first time its tab is opened.
+  useEffect(() => {
+    if (leftTab === "library") ensureLibraryLoaded();
+  }, [leftTab, ensureLibraryLoaded]);
 
   const sketchFile = sketch.state.status === "ready" ? sketch.state.file : null;
   const analysis = useAnalysis(sketchFile, dispatch, initialAnalysisStatus());
@@ -102,6 +115,31 @@ export default function App() {
     (action: EditAction, coalesce?: string) => dispatch({ type: "apply", actions: [action], coalesce }),
     [],
   );
+  // Library: save the selected part, apply a saved part (one batch of edit actions, so one undo
+  // reverts it), or delete one.
+  const savePart = useCallback(
+    async (part: PartName, name: string) => {
+      if (!design.spec) throw new Error("There is nothing to save yet.");
+      try {
+        await library.save(buildSavedPart(design.spec, part, name));
+      } catch (err) {
+        throw new Error(describeError(err, "Couldn’t save this part."));
+      }
+    },
+    [design.spec, library.save],
+  );
+  const applyPart = useCallback((saved: SavedPart) => dispatch({ type: "apply", actions: editsFor(saved) }), []);
+  const deleteSavedPart = useCallback(
+    async (saved: SavedPart) => {
+      try {
+        await library.remove(saved.id);
+      } catch (err) {
+        throw new Error(describeError(err, "Couldn’t delete this part."));
+      }
+    },
+    [library.remove],
+  );
+
   const commitEdit = useCallback(() => dispatch({ type: "commit" }), []);
 
   // Undo and redo step through the spec history kept by the reducer.
@@ -118,7 +156,10 @@ export default function App() {
   const browse = () => inputRef.current?.click();
   const onInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) void sketch.accept(file);
+    if (file) {
+      setLeftTab("sketch");
+      void sketch.accept(file);
+    }
     e.target.value = "";
   };
 
@@ -148,12 +189,28 @@ export default function App() {
           status={canvas.status === "ready" && canvas.source === "analysis" ? aiStatus(canvas.aiMode) : null}
         />
         <div className="workspace">
-          <UploadPanel
-            state={sketch.state}
-            onBrowse={browse}
-            onFile={(f) => void sketch.accept(f)}
-            onClear={sketch.clear}
-          />
+          <LeftPanel
+            tab={leftTab}
+            onTabChange={setLeftTab}
+            libraryCount={library.state.status === "ready" ? library.state.parts.length : null}
+          >
+            {leftTab === "sketch" ? (
+              <UploadPanel
+                state={sketch.state}
+                onBrowse={browse}
+                onFile={(f) => void sketch.accept(f)}
+                onClear={sketch.clear}
+              />
+            ) : (
+              <LibraryPanel
+                state={library.state}
+                onReload={() => void library.load()}
+                canApply={canvas.status === "ready"}
+                onApply={applyPart}
+                onDelete={deleteSavedPart}
+              />
+            )}
+          </LeftPanel>
           <ErrorBoundary resetKey={design.spec} fallback={(reset, error) => <CanvasCrash error={error} onRetry={reset} />}>
           <CanvasStage
             state={canvas}
@@ -173,6 +230,8 @@ export default function App() {
             selection={canvas.status === "ready" ? selection : null}
             onEdit={applyEdit}
             onCommit={commitEdit}
+            onSavePart={savePart}
+            onOpenLibrary={() => setLeftTab("library")}
           />
           </ErrorBoundary>
         </div>
