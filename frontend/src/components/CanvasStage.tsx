@@ -189,46 +189,49 @@ export function CanvasStage({ state, hasSketch, onChooseSample, onHideSample, on
               Hide sample
             </button>
           )}
-          <DrawTools
-            tool={tool}
-            onToolChange={onToolChange}
-            shape={shape}
-            onShapeChange={setShape}
-            eraserMode={eraserMode}
-            onEraserModeChange={setEraserMode}
-            enabled={hasArt}
-            canDraw={canDraw}
-          />
-          <div className="zoom" role="group" aria-label="Zoom">
-            <button
-              type="button"
-              className="icon-btn"
-              aria-label="Zoom out"
-              disabled={!hasArt || zoomIndex === 0}
-              onClick={() => setZoomIndex((i) => Math.max(0, i - 1))}
-            >
-              <ZoomOutIcon />
-            </button>
-            <output className="zoom__value" aria-live="polite">{Math.round(zoom * 100)}%</output>
-            <button
-              type="button"
-              className="icon-btn"
-              aria-label="Zoom in"
-              disabled={!hasArt || zoomIndex === ZOOM_STEPS.length - 1}
-              onClick={() => setZoomIndex((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))}
-            >
-              <ZoomInIcon />
-            </button>
-            <button
-              type="button"
-              className="icon-btn"
-              aria-label="Fit to canvas"
-              disabled={!hasArt || zoomIndex === FIT_INDEX}
-              onClick={() => setZoomIndex(FIT_INDEX)}
-            >
-              <FitIcon />
-            </button>
-          </div>
+        </div>
+      </div>
+      {/* Second row: the drawing tools on the left, zoom on the right. */}
+      <div className="stage__toolrow">
+        <DrawTools
+          tool={tool}
+          onToolChange={onToolChange}
+          shape={shape}
+          onShapeChange={setShape}
+          eraserMode={eraserMode}
+          onEraserModeChange={setEraserMode}
+          enabled={hasArt}
+          canDraw={canDraw}
+        />
+        <div className="zoom" role="group" aria-label="Zoom">
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Zoom out"
+            disabled={!hasArt || zoomIndex === 0}
+            onClick={() => setZoomIndex((i) => Math.max(0, i - 1))}
+          >
+            <ZoomOutIcon />
+          </button>
+          <output className="zoom__value" aria-live="polite">{Math.round(zoom * 100)}%</output>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Zoom in"
+            disabled={!hasArt || zoomIndex === ZOOM_STEPS.length - 1}
+            onClick={() => setZoomIndex((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))}
+          >
+            <ZoomInIcon />
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Fit to canvas"
+            disabled={!hasArt || zoomIndex === FIT_INDEX}
+            onClick={() => setZoomIndex(FIT_INDEX)}
+          >
+            <FitIcon />
+          </button>
         </div>
       </div>
 

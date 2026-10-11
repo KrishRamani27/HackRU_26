@@ -1,0 +1,76 @@
+{
+  "model": "gemini-3.6-flash",
+  "prompt_version": "v10-detailed",
+  "garment_type": "dress",
+  "neckline": {
+    "type": "v",
+    "depth": 0.7
+  },
+  "collar": {
+    "type": "none"
+  },
+  "sleeves": {
+    "type": "none",
+    "length": "short",
+    "cuff": "none",
+    "shoulder": "set_in"
+  },
+  "waist": {
+    "seam": true,
+    "style": "empire"
+  },
+  "skirt": {
+    "silhouette": "a_line",
+    "length": "floor",
+    "fullness": "plain",
+    "hem": "plain",
+    "panels": "none"
+  },
+  "details": {
+    "pockets": "none",
+    "buttons": 0,
+    "placket": "none",
+    "darts": false,
+    "bow": "none",
+    "trim": "none"
+  },
+  "proportions": {
+    "shoulder_width": 0.3,
+    "waist_y": 0.2
+  },
+  "style": {
+    "collar_neckline": {
+      "fill": "#121214",
+      "pattern": "solid"
+    },
+    "bodice": {
+      "fill": "#121214",
+      "pattern": "solid"
+    },
+    "left_sleeve": {
+      "fill": "#121214",
+      "pattern": "solid"
+    },
+    "right_sleeve": {
+      "fill": "#121214",
+      "pattern": "solid"
+    },
+    "waist_seam": {
+      "fill": "#121214",
+      "pattern": "solid"
+    },
+    "skirt": {
+      "fill": "#121214",
+      "pattern": "solid"
+    },
+    "pockets": {
+      "fill": "#121214",
+      "pattern": "solid"
+    },
+    "buttons": {
+      "fill": "#121214",
+      "pattern": "solid"
+    }
+  },
+  "notes": "Black satin slip gown with a deep V-neckline, accent straps visible in the neck opening, an empire waist seam, and a floor-length skirt."
+}
