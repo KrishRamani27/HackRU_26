@@ -5,7 +5,7 @@ import type { AiMode } from "../types";
 import { FOLLOWER_PARTS, PART_NAMES, isValidEdit, normalizeStyles, sameStyle, type EditAction } from "./specSchema";
 
 /** Where the current spec came from. Drives the labels on the canvas. */
-export type SpecSource = { source: "analysis"; aiMode: AiMode } | { source: "sample" };
+export type SpecSource = { source: "analysis"; aiMode: AiMode } | { source: "sample" } | { source: "saved" };
 
 /** How many undo steps are kept. Older ones are dropped. */
 export const MAX_HISTORY = 50;
@@ -45,14 +45,14 @@ export interface SpecState {
   openKey: string | null;
 }
 
-/** What can change on a drawn element. The id, type, points and layer order are not editable here. group_id is how elements are grouped. */
-export type ElementPatch = Partial<Pick<CustomElement, "name" | "stroke" | "stroke_width" | "closed" | "fill" | "pattern" | "group_id">> & {
+/** What can change on a drawn element. The id, type and points are not editable here; layer order changes only through the reorder action. group_id is how elements are grouped. */
+export type ElementPatch = Partial<Pick<CustomElement, "name" | "stroke" | "stroke_width" | "closed" | "fill" | "pattern" | "group_id" | "visible">> & {
   transform?: Partial<CustomElement["transform"]>;
 };
 
 export type SpecAction =
   /** Replace the whole spec (new /analyze result, or the sample). Starts a fresh history. */
-  | { type: "load"; spec: DesignSpec; meta: SpecSource }
+  | { type: "load"; spec: DesignSpec; meta: SpecSource; customElements?: CustomElement[] }
   /**
    * Apply edit actions, in order. Invalid ones are ignored, as the backend would reject them.
    * Pass `coalesce` (a control's name) for edits that arrive in a stream, like a slider drag:
@@ -80,6 +80,11 @@ export type SpecAction =
   | { type: "updateMany"; changes: { id: string; patch: ElementPatch }[]; coalesce?: string }
   /** Removes several drawn elements. One undo step. */
   | { type: "deleteMany"; ids: string[] }
+  /**
+   * Moves a drawn element, or a whole group (pass all its ids), one step up or down in the stacking order
+   * by rewriting layer_order. Groups stay together. A no-op at the top or bottom. One undo step.
+   */
+  | { type: "reorder"; ids: string[]; direction: "up" | "down" }
   /** Adds ready made elements (a copy from the library). All or nothing, one undo step. */
   | { type: "insert"; elements: CustomElement[] }
   /** Makes a collar or waistband that has its own style follow the bodice again. One undo step. */
@@ -176,7 +181,7 @@ function followBodice(spec: DesignSpec, detached: PartName[]): DesignSpec {
   return changed ? { ...spec, style } : spec;
 }
 
-const EDITABLE = ["name", "stroke", "stroke_width", "closed", "fill", "pattern", "group_id"] as const;
+const EDITABLE = ["name", "stroke", "stroke_width", "closed", "fill", "pattern", "group_id", "visible"] as const;
 const ELEMENT_ID = /^[a-zA-Z0-9_-]{1,64}$/;
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const FABRICS = ["solid", "denim", "plaid", "floral"];
@@ -236,7 +241,7 @@ export function specReducer(state: SpecState, action: SpecAction): SpecState {
   switch (action.type) {
     case "load": {
       const spec = normalizeStyles(action.spec);
-      return { ...initialSpecState, spec, detached: detachedAtLoad(spec), meta: action.meta };
+      return { ...initialSpecState, spec, customElements: action.customElements ?? [], detached: detachedAtLoad(spec), meta: action.meta };
     }
 
     case "apply": {
@@ -318,6 +323,31 @@ export function specReducer(state: SpecState, action: SpecAction): SpecState {
       const gone = new Set(action.ids);
       if (!state.spec || !state.customElements.some((e) => gone.has(e.id))) return state;
       return commitElements(state, state.customElements.filter((e) => !gone.has(e.id)), null);
+    }
+
+    case "reorder": {
+      if (!state.spec || action.ids.length === 0) return state;
+      const first = state.customElements.find((e) => e.id === action.ids[0]);
+      if (!first) return state;
+      // Stack from bottom to top; a group counts as one unit, placed where its lowest member is.
+      const sorted = state.customElements
+        .map((e, i) => ({ e, i }))
+        .sort((a, b) => a.e.layer_order - b.e.layer_order || a.i - b.i)
+        .map(({ e }) => e);
+      const units: string[][] = [];
+      const byGroup = new Map<string, string[]>();
+      for (const e of sorted) {
+        if (!e.group_id) { units.push([e.id]); continue; }
+        let unit = byGroup.get(e.group_id);
+        if (!unit) { unit = []; byGroup.set(e.group_id, unit); units.push(unit); }
+        unit.push(e.id);
+      }
+      const at = units.findIndex((u) => u.includes(first.id));
+      const to = action.direction === "up" ? at + 1 : at - 1;
+      if (at < 0 || to < 0 || to >= units.length) return state;
+      [units[at], units[to]] = [units[to], units[at]];
+      const layer = new Map(units.flat().map((id, i): [string, number] => [id, i]));
+      return commitElements(state, state.customElements.map((e) => ({ ...e, layer_order: layer.get(e.id) ?? e.layer_order })), null);
     }
 
     case "insert": {

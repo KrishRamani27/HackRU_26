@@ -117,6 +117,13 @@ function applySelection(svg: SVGSVGElement, selected: PartName | null, selectedE
   }
 }
 
+/** Hides dress parts on the live canvas only. The markup string (and so the export) is never touched. */
+function applyHidden(svg: SVGSVGElement, hidden: readonly PartName[]) {
+  for (const group of svg.querySelectorAll("[data-part]")) {
+    group.toggleAttribute("data-hidden", hidden.includes(group.getAttribute("data-part") as PartName));
+  }
+}
+
 /** Keeps each drawn line's accessible name in step with its name, which is not part of the builder's markup. */
 function applyNames(svg: SVGSVGElement, elements: readonly CustomElement[]) {
   const byId = new Map(elements.map((e) => [e.id, e.name]));
@@ -167,14 +174,16 @@ interface Props {
   onMoveElements: (moves: { id: string; x: number; y: number }[]) => void;
   /** The drag ended, so the next change starts a new undo step. */
   onMoveEnd: () => void;
+  /** Dress parts hidden on the canvas (still in the export). */
+  hiddenParts: readonly PartName[];
 }
 
 export function InlineFlat({
-  markup, label, selected, onSelect, elements, selectedElements, onSelectElements, onMoveElements, onMoveEnd,
+  markup, label, selected, onSelect, elements, selectedElements, onSelectElements, onMoveElements, onMoveEnd, hiddenParts,
 }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
-  const latest = useRef({ selected, onSelect, elements, selectedElements, onSelectElements, onMoveElements, onMoveEnd });
-  latest.current = { selected, onSelect, elements, selectedElements, onSelectElements, onMoveElements, onMoveEnd };
+  const latest = useRef({ selected, onSelect, elements, selectedElements, onSelectElements, onMoveElements, onMoveEnd, hiddenParts });
+  latest.current = { selected, onSelect, elements, selectedElements, onSelectElements, onMoveElements, onMoveEnd, hiddenParts };
   const drag = useRef<Drag | null>(null);
   const swallowClick = useRef(false);
 
@@ -191,6 +200,7 @@ export function InlineFlat({
     // An edit can remove the selected part (e.g. pockets → none); then drop the selection.
     if (current.selected && !topLevelParts(svg).some((g) => g.id === current.selected)) current.onSelect(null);
     else applySelection(svg, current.selected, current.selectedElements);
+    applyHidden(svg, current.hiddenParts);
     host.replaceChildren(svg);
   }, [markup, label]);
 
@@ -199,7 +209,8 @@ export function InlineFlat({
     if (!svg) return;
     applySelection(svg as SVGSVGElement, selected, selectedElements);
     applyNames(svg as SVGSVGElement, elements);
-  }, [selected, selectedElements, elements]);
+    applyHidden(svg as SVGSVGElement, hiddenParts);
+  }, [selected, selectedElements, elements, hiddenParts]);
 
   const currentSvg = () => hostRef.current?.querySelector("svg") ?? null;
 

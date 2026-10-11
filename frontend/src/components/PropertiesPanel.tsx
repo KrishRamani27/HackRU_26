@@ -20,6 +20,7 @@ import {
 } from "../state/specSchema";
 import { ChipGroup, ColorSwatch, RangeField, Section } from "./Controls";
 import { SavePartBar } from "./SavePartBar";
+import { LayersSection, type LayersProps } from "./LayersSection";
 import { tee } from "./garmentPaths";
 
 interface Props {
@@ -39,6 +40,7 @@ interface Props {
   following: readonly PartName[];
   /** Hands a collar or waistband with its own style back to the bodice's color and pattern. */
   onMatchBodice: (part: PartName) => void;
+  layers: LayersProps;
 }
 
 // Which section holds the controls for each canvas part. The bodice has no
@@ -84,7 +86,7 @@ const unitDisplay = (v: number) => v.toFixed(2);
 // Avoid float noise like 0.30000000000000004 reaching the spec.
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
-export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommit, onSavePart, onOpenLibrary, following, onMatchBodice }: Props) {
+export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommit, onSavePart, onOpenLibrary, following, onMatchBodice, layers }: Props) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const flashTimer = useRef<number>(0);
 
@@ -124,6 +126,7 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
       <div className="panel__body" ref={bodyRef}>
         {spec ? (
           <>
+            <LayersSection {...layers} />
             {selection && <SavePartBar key={selection.part} label={PART_LABELS[selection.part]} onSave={(name) => onSavePart(selection.part, name)} onOpenLibrary={onOpenLibrary} />}
             <Section name="neckline" title="Neckline">
               <ChipGroup

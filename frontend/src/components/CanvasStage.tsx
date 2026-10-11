@@ -9,6 +9,8 @@ import { expandGroups } from "../draw/groups";
 import { DrawLayer } from "./DrawLayer";
 import { AlertIcon, CheckIcon, CursorIcon, EyeIcon, FitIcon, PenIcon, UploadIcon, ZoomInIcon, ZoomOutIcon } from "./Icons";
 import { InlineFlat } from "./InlineFlat";
+import { SelectionBox } from "./SelectionBox";
+import type { TransformPatch } from "../draw/transform";
 import { LoadingNote } from "./LoadingNote";
 import { PlaceholderFlat } from "./PlaceholderFlat";
 
@@ -28,6 +30,10 @@ interface Props {
   onSelectElements: (ids: string[]) => void;
   onMoveElements: (moves: { id: string; x: number; y: number }[]) => void;
   onMoveEnd: () => void;
+  /** Resize or rotate: new transform values per element. Called repeatedly during one drag. */
+  onTransformElements: (changes: Map<string, TransformPatch>) => void;
+  /** Dress parts hidden on the canvas only. */
+  hiddenParts: readonly PartName[];
   /** The active tool. With the pen, dragging on the flat draws a freehand stroke. */
   tool: CanvasTool;
   onToolChange: (tool: CanvasTool) => void;
@@ -46,7 +52,7 @@ const FIT_INDEX = 2;
 const SAMPLE_LABEL = "Sample preview—not generated from a sketch";
 const MOCK_LABEL = "Demo result (mock AI)—not real sketch recognition";
 
-export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUpload, onRetry, selectedPart, onSelectPart, elements, selectedElements, onSelectElements, onMoveElements, onMoveEnd, tool, onToolChange, canDraw, onStroke, toolbarExtra }: Props) {
+export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUpload, onRetry, selectedPart, onSelectPart, elements, selectedElements, onSelectElements, onMoveElements, onMoveEnd, onTransformElements, hiddenParts, tool, onToolChange, canDraw, onStroke, toolbarExtra }: Props) {
   const [zoomIndex, setZoomIndex] = useState(FIT_INDEX);
   const sampling = state.status === "ready" && state.source === "sample";
   const hasArt = state.status === "ready";
@@ -117,7 +123,9 @@ export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUp
   const context = state.status === "ready"
     ? state.source === "sample"
       ? { label: "Sample", tone: "sample" }
-      : state.aiMode === "mock"
+      : state.source === "saved"
+        ? { label: "Saved design", tone: "neutral" }
+        : state.aiMode === "mock"
         ? { label: "Demo result", tone: "sample" }
         : state.aiMode === "gemini"
           ? { label: "AI result", tone: "live" }
@@ -232,9 +240,11 @@ export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUp
               label={
                 state.source === "sample"
                   ? "Sample technical flat of a dress. Not generated from a sketch. Select a part to edit it."
-                  : state.aiMode === "mock"
-                    ? "Demo technical flat from the backend's mock AI. Not recognized from the sketch. Select a part to edit it."
-                    : "Generated technical flat. Select a part to edit it."
+                  : state.source === "saved"
+                    ? "Saved technical flat of a dress. Select a part to edit it."
+                      : state.aiMode === "mock"
+                      ? "Demo technical flat from the backend's mock AI. Not recognized from the sketch. Select a part to edit it."
+                      : "Generated technical flat. Select a part to edit it."
               }
               selected={selectedPart}
               onSelect={onSelectPart}
@@ -243,7 +253,17 @@ export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUp
               onSelectElements={onSelectElements}
               onMoveElements={onMoveElements}
               onMoveEnd={onMoveEnd}
+              hiddenParts={hiddenParts}
             />
+            {tool === "select" && selectedElements.length > 0 && (
+              <SelectionBox
+                elements={elements}
+                selectedElements={selectedElements}
+                zoom={zoom}
+                onTransform={onTransformElements}
+                onTransformEnd={onMoveEnd}
+              />
+            )}
             {tool === "pen" && <DrawLayer onStroke={onStroke} />}
             </div>
             {tool === "pen" ? (
