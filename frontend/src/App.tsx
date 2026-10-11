@@ -27,7 +27,7 @@ import { cloneElements, instantiateDrawing } from "./draw/drawings";
 import { initialSpecState, specReducer } from "./state/specReducer";
 import { FOLLOWER_PARTS, type EditAction } from "./state/specSchema";
 import type { AiMode, AnalysisStatus, CanvasState } from "./types";
-import { TryOnPill, wearOnMannequin } from "./tryon"; // TRY-ON (optional feature, see src/tryon/README.md)
+import { TryOnControls, useTryOn } from "./tryon"; // TRY-ON (optional feature, see src/tryon/README.md)
 
 /**
  * Dev-only: preview canvas states with ?canvas=loading or ?canvas=error.
@@ -71,7 +71,7 @@ export default function App() {
   const analysis = useAnalysis(sketchFile, dispatch, initialAnalysisStatus());
 
   // TRY-ON: when on, the canvas shows the flat on a figure. Export is not affected.
-  const [tryOn, setTryOn] = useState(false);
+  const tryOn = useTryOn();
 
   // The flat is rebuilt from the spec on every change.
   const flat = useMemo(() => {
@@ -79,11 +79,11 @@ export default function App() {
     try {
       // Hand drawn elements are drawn on top of the dress. They are not part of the spec.
       const svg = buildFlat(design.spec, design.customElements);
-      return { svg: tryOn ? wearOnMannequin(svg, design.spec.proportions.shoulder_width) : svg }; // TRY-ON
+      return { svg: tryOn.wear(svg, design.spec.proportions.shoulder_width) }; // TRY-ON
     } catch {
       return { svg: null };
     }
-  }, [design.spec, design.customElements, tryOn]);
+  }, [design.spec, design.customElements, tryOn.wear]);
 
   let canvas: CanvasState;
   if (analysis.status.status === "loading") {
@@ -360,7 +360,7 @@ export default function App() {
             onToolChange={setTool}
             canDraw={design.customElements.length < MAX_ELEMENTS}
             onStroke={drawStroke}
-            toolbarExtra={<TryOnPill on={tryOn} onToggle={() => setTryOn((v) => !v)} disabled={canvas.status !== "ready"} />} // TRY-ON
+            toolbarExtra={<TryOnControls tryOn={tryOn} shoulderWidth={design.spec?.proportions.shoulder_width} disabled={canvas.status !== "ready"} />} // TRY-ON
           />
           </ErrorBoundary>
           <ErrorBoundary resetKey={design.spec} fallback={(reset, error) => <PanelCrash error={error} onRetry={reset} />}>

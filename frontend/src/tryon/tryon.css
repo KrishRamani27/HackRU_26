@@ -56,3 +56,109 @@
 
 /* The figure is scenery: clicks go through it to the canvas, never to a dress part. */
 .flat-inline #mannequin { pointer-events: none; }
+
+/* ---------- Figure settings: the button next to the pill, and its panel ---------- */
+
+.tryon { position: relative; display: inline-flex; align-items: center; gap: 6px; }
+
+.tryon-gear {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+.tryon-gear:hover { border-color: var(--accent-line); background: #fff; color: var(--accent); }
+.tryon-gear:focus-visible { outline: none; box-shadow: var(--focus); }
+.tryon-gear[aria-expanded="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-hover); }
+
+.tryon-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 30;
+  width: 296px;
+  max-height: min(72vh, 620px);
+  overflow-y: auto;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sheet);
+  text-align: left;
+  animation: tryon-panel-in 140ms ease;
+}
+@keyframes tryon-panel-in {
+  from { opacity: 0; transform: translateY(-4px); }
+}
+
+.tryon-panel__head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
+.tryon-panel__title { margin: 0; font-family: var(--font-display); font-size: 18px; font-weight: 500; color: var(--ink); }
+.tryon-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tryon-link:hover:not(:disabled) { color: var(--accent-hover); text-decoration: underline; }
+.tryon-link:disabled { color: var(--ink-3); cursor: default; }
+
+.tryon-group { display: flex; flex-direction: column; gap: 9px; padding-top: 12px; }
+.tryon-group + .tryon-group { margin-top: 12px; border-top: 1px dashed var(--line); }
+.tryon-group__title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.tryon-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.tryon-chip {
+  min-height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+.tryon-chip:hover:not([aria-pressed="true"]) { border-color: var(--ink-2); background: #fff; }
+.tryon-chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: #fff; }
+.tryon-chip:focus-visible, .tryon-swatch:focus-visible { outline: none; box-shadow: var(--focus); }
+
+.tryon-slider { display: flex; flex-direction: column; gap: 2px; }
+.tryon-slider__row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.tryon-slider__label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.tryon-slider__value { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--accent); }
+.tryon-range { width: 100%; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.tryon-note { margin: 2px 0 0; font-size: 12px; line-height: 1.45; color: var(--ink-3); }
+
+.tryon-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.tryon-swatch {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid rgb(34 29 25 / 0.18);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+.tryon-swatch:hover { transform: scale(1.1); }
+.tryon-swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
+
+/* Long hair is drawn over the dress; like the rest of the figure it never takes clicks. */
+.flat-inline #mannequin_over { pointer-events: none; }
