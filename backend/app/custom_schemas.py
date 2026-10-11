@@ -10,6 +10,7 @@ MAX_ELEMENTS = 200
 MAX_POINTS = 5000
 Number = Annotated[float, Field(allow_inf_nan=False, ge=-10000, le=10000)]
 Color = Annotated[str, Field(pattern=r"^#[0-9a-fA-F]{6}$")]
+ElementID = Annotated[str, Field(min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")]
 PartName = Literal["collar_neckline", "bodice", "left_sleeve", "right_sleeve",
                    "waist_seam", "skirt", "pockets", "buttons"]
 Pattern = Literal["solid", "denim", "plaid", "floral"]
@@ -24,8 +25,8 @@ class ElementTransform(Contract):
 
 
 class CustomElement(Contract):
-    id: str = Field(default_factory=lambda: str(uuid4()), min_length=1, max_length=64,
-                    pattern=r"^[a-zA-Z0-9_-]+$")
+    id: ElementID = Field(default_factory=lambda: str(uuid4()))
+    group_id: ElementID | None = None
     name: str = Field(min_length=1, max_length=120)
     type: Literal["stroke"] = "stroke"
     parent_part: PartName | None = None
@@ -53,7 +54,8 @@ class CustomElement(Contract):
 
 
 class CustomElementPatch(Contract):
-    # Explicit null clears fill/parent_part. Other nulls fail merged validation.
+    # Explicit null clears fill/parent_part/group_id. Other nulls fail merged validation.
+    group_id: ElementID | None = None
     name: str | None = None
     parent_part: PartName | None = None
     points: list[list[Number]] | None = None
@@ -82,7 +84,24 @@ class DesignDocumentWrite(DesignWrite):
 
 class CustomPartWrite(Contract):
     name: str = Field(min_length=1, max_length=120)
-    element: CustomElement
+    elements: list[CustomElement] = Field(min_length=1, max_length=MAX_ELEMENTS)
+
+    @model_validator(mode="before")
+    @classmethod
+    def legacy_single_element(cls, data):
+        if isinstance(data, dict) and "element" in data:
+            if "elements" in data:
+                raise ValueError("Send elements or legacy element, not both")
+            data = dict(data)
+            data["elements"] = [data.pop("element")]
+        return data
+
+    @model_validator(mode="after")
+    def unique_ids(self):
+        ids = [element.id for element in self.elements]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Element IDs must be unique within a custom part")
+        return self
 
 
 class InstantiatePart(Contract):
