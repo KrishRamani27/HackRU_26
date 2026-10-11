@@ -17,33 +17,56 @@
  */
 
 const CX = 200;
-const SKIN = "#eadfd2";
-const EDGE = "#b7a996";
-const BODY = `fill="${SKIN}" stroke="${EDGE}" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round"`;
+const SKIN = "#f2dccb";
+const EDGE = "#c59d85";
+const HAIR = "#3d2b23";
+const BODY = `fill="${SKIN}" stroke="${EDGE}" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"`;
+const CONTOUR = `fill="none" stroke="${EDGE}" stroke-width="0.8" stroke-opacity="0.75" stroke-linecap="round"`;
 
 type Pt = readonly [number, number];
 const f = (n: number) => n.toFixed(1);
 const p = ([x, y]: Pt) => `${f(x)},${f(y)}`;
 const mirror = ([x, y]: Pt): Pt => [2 * CX - x, y];
+const same = (pt: Pt): Pt => pt;
+
+// A smooth curve through a list of points (Catmull-Rom, written as SVG cubic curves).
+// Body shapes are given as a few landmark points and rounded off by this, which is what
+// makes the figure look drawn by hand and not built from straight lines.
+function smooth(points: readonly Pt[], closed: boolean): string {
+  const n = points.length;
+  const at = (i: number) => (closed ? points[((i % n) + n) % n] : points[Math.min(n - 1, Math.max(0, i))]);
+  let d = `M ${p(points[0])}`;
+  for (let i = 0; i < (closed ? n : n - 1); i++) {
+    const [p0, p1, p2, p3] = [at(i - 1), at(i), at(i + 1), at(i + 2)];
+    const c1: Pt = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+    const c2: Pt = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+    d += ` C ${p(c1)} ${p(c2)} ${p(p2)}`;
+  }
+  return closed ? `${d} Z` : d;
+}
 
 // Body half-widths for a dress of the given shoulder width (0 to 1, 0.5 = natural).
 // Builder: shoulder half-width = 50 + 40 * shoulder_width, bust = shoulder - 6, waist = bust - 16,
-// straight-skirt hip = waist + 16. The body sits a little inside each of those.
+// and the waist seam can sit anywhere from y 175 (empire) to y 250 (dropped). The body stays
+// a little inside the dress at every one of those heights.
 function frame(shoulderWidth: number) {
   const sw = Number.isFinite(shoulderWidth) ? Math.min(1, Math.max(0, shoulderWidth)) : 0.5;
   const sh = 50 + 40 * sw;
   return {
-    shoulder: sh - 6,
-    underarm: sh - 14,
-    waist: sh - 30,
-    hip: sh - 20,
+    sh,
+    shoulder: sh - 9,
+    bust: sh - 17,
+    ribs: sh - 27, // y 176, just inside an empire waist seam
+    waist: sh - 33, // y 212, natural waist
+    lowHip: sh - 27, // y 250, just inside a dropped waist seam
+    hip: sh - 22, // y 276, fullest part
     armBase: [CX + sh - 3, 116] as Pt, // where the builder anchors a sleeve
   };
 }
 type Frame = ReturnType<typeof frame>;
 
 // One arm, right side. The centre line starts where the builder anchors a sleeve and runs
-// down the arm; `across` is the half width at each distance along it.
+// down the arm; `across` is how far a point sits to the outside (+) or inside (-) of it.
 const ARM_ANGLE = (20 * Math.PI) / 180;
 const DOWN: Pt = [Math.sin(ARM_ANGLE), Math.cos(ARM_ANGLE)];
 const OUT: Pt = [Math.cos(ARM_ANGLE), -Math.sin(ARM_ANGLE)];
@@ -51,70 +74,99 @@ const OUT: Pt = [Math.cos(ARM_ANGLE), -Math.sin(ARM_ANGLE)];
 function arm(b: Frame, side: (pt: Pt) => Pt): string {
   const along = (s: number, across: number): Pt =>
     side([b.armBase[0] + DOWN[0] * s + OUT[0] * across, b.armBase[1] + DOWN[1] * s + OUT[1] * across]);
-  // shoulder cap, upper arm, elbow, wrist, then a tapered hand
-  return (
-    `<path d="M ${p(along(-30, 9))} Q ${p(along(-16, 13))} ${p(along(0, 12))} ` +
-    `L ${p(along(105, 10.5))} L ${p(along(205, 7.5))} L ${p(along(228, 7))} ` +
-    `Q ${p(along(243, 6))} ${p(along(242, 0))} Q ${p(along(243, -5))} ${p(along(228, -5))} ` +
-    `L ${p(along(205, -7.5))} L ${p(along(105, -10.5))} L ${p(along(0, -12))} ` +
-    `Q ${p(along(-16, -13))} ${p(along(-30, -9))} Z" ${BODY}/>`
-  );
+  const outline = [
+    along(-30, 0), along(-18, 10), along(4, 12), // shoulder cap
+    along(55, 10.5), along(104, 9), // upper arm down to the elbow
+    along(132, 9), along(170, 7.2), along(202, 5.2), // forearm to the wrist
+    along(216, 6.5), along(232, 5.5), along(246, 1.5), // back of the hand to the fingertips
+    along(240, -3), along(222, -4.5), along(202, -5.2), // palm side back to the wrist
+    along(170, -7.2), along(132, -9), along(104, -9), // inner forearm, elbow
+    along(55, -10.5), along(4, -12), along(-18, -10), // inner upper arm
+  ];
+  return `<path d="${smooth(outline, true)}" ${BODY}/>`;
 }
 
 function leg(b: Frame, side: (pt: Pt) => Pt): string {
-  // Drawn for a hip half-width of 50, then squeezed or stretched sideways to this body's hips.
-  // The top of the leg matches the hips exactly; from the knee down the change is limited, so
-  // a narrow dress does not give stick-thin legs.
-  const atHip = b.hip / 50;
-  const below = Math.min(1.12, Math.max(0.82, atHip));
-  const q = ([x, y]: Pt) => {
-    const t = Math.min(1, Math.max(0, (y - 262) / 130));
-    return p(side([CX + (x - CX) * (atHip + (below - atHip) * t), y]));
+  // Landmarks are distances out from the centre line for hips 48 wide. The top of the leg is
+  // scaled to match this body's hips exactly; from the knee down the change is limited, so a
+  // narrow dress does not give stick-thin legs.
+  const atHip = b.hip / 48;
+  const below = Math.min(1.12, Math.max(0.84, atHip));
+  const at = (x: number, y: number): Pt => {
+    const t = Math.min(1, Math.max(0, (y - 276) / 110));
+    return side([CX + x * (atHip + (below - atHip) * t), y]);
   };
-  return (
-    `<path d="M ${q([250, 262])} C ${q([252, 318])} ${q([241, 360])} ${q([237, 392])} ` + // outer thigh to knee
-    `C ${q([240, 432])} ${q([236, 484])} ${q([224, 548])} ` + // calf to ankle
-    `L ${q([229, 578])} Q ${q([223, 590])} ${q([212, 584])} L ${q([212, 548])} ` + // foot
-    `C ${q([214, 484])} ${q([214, 432])} ${q([211, 392])} ` + // inner calf up to knee
-    `C ${q([212, 350])} ${q([206, 312])} ${q([201, 286])} Z" ${BODY}/>`
-  );
+  const outline = [
+    at(36, 248), at(48, 277), at(48, 304), at(45, 345), at(41, 388), // outer thigh to the knee
+    at(40.5, 415), at(41, 445), at(37, 495), at(30, 538), at(27.5, 553), // calf to the ankle
+    at(30, 566), at(30.5, 579), at(26, 589), at(19, 589.5), at(16.5, 578), // foot, toes down
+    at(17, 553), at(18, 538), at(19.5, 495), at(20.5, 445), // inner ankle and calf
+    at(19, 415), at(18, 388), at(9, 345), at(2.5, 306), at(1, 288), // inner knee and thigh
+    at(18, 262),
+  ];
+  const knee = `M ${p(at(24, 392))} Q ${p(at(30, 397))} ${p(at(36, 392))}`;
+  return `<path d="${smooth(outline, true)}" ${BODY}/><path d="${knee}" ${CONTOUR}/>`;
 }
 
 function torso(b: Frame): string {
-  // Right side from the neck down to the hip; the left side is the same points mirrored.
-  const neckTop: Pt = [208, 44];
-  const neckBase: Pt = [209, 63];
-  // The builder's shoulder seam drops 0.28 per px out from the neck; the body stays just under it.
-  const shoulder: Pt = [CX + b.shoulder, 70 + 0.28 * (b.shoulder - 26) + 5];
-  const underarm: Pt = [CX + b.underarm, 150];
-  const waist: Pt = [CX + b.waist, 212];
-  const hip: Pt = [CX + b.hip, 262];
-  const slope: Pt = [CX + 26, 72]; // neck curving out to the shoulder
-  const ribs: Pt = [CX + b.waist + 9, 186];
-  const flank: Pt = [CX + b.waist + 3, 240];
-  const right = `L ${p(neckBase)} Q ${p(slope)} ${p(shoulder)} L ${p(underarm)} Q ${p(ribs)} ${p(waist)} Q ${p(flank)} ${p(hip)}`;
-  const left =
-    `Q ${p(mirror(flank))} ${p(mirror(waist))} Q ${p(mirror(ribs))} ${p(mirror(underarm))} ` +
-    `L ${p(mirror(shoulder))} Q ${p(mirror(slope))} ${p(mirror(neckBase))} L ${p(mirror(neckTop))}`;
-  // The fill dips below the hips so the tops of the legs join it with no gap. Only the sides
-  // and the neck get an outline, so no line is drawn across the thighs.
-  const fill = `M ${p(neckTop)} ${right} Q ${p([CX, 322])} ${p(mirror(hip))} ${left} Z`;
+  // Right side from the neck down to the hip. The builder's shoulder seam drops 0.28 per px
+  // out from the neck (starting 26 out, at y 70); the shoulder stays just under that line.
+  const seam = (x: number) => 70 + 0.28 * (x - 26);
+  const right: Pt[] = [
+    [CX + 6.5, 44], [CX + 7, 58], [CX + 14, 67], [CX + 30, seam(30) + 3], // neck out to the shoulder
+    [CX + b.shoulder, seam(b.shoulder) + 4], // shoulder point
+    [CX + b.bust + 3, 112], [CX + b.bust, 138], [CX + b.ribs + 5, 160], // side of the bust
+    [CX + b.ribs, 176], [CX + b.waist, 212], [CX + b.lowHip, 250], [CX + b.hip, 276], // waist in, hips out
+  ];
+  const left = right.map(mirror).reverse();
+  // The fill dips below the hips so the tops of the legs join it with no gap. Only the two
+  // sides get an outline, so no line is drawn across the thighs.
+  const fill = `${smooth(right, false)} Q ${p([CX, 318])} ${p(left[0])} ${smooth(left, false).replace(/^M [^ ]+/, "")} Z`;
+  const collarbone = (side: (pt: Pt) => Pt) =>
+    `M ${p(side([CX + 5, 79]))} Q ${p(side([CX + 20, 75.5]))} ${p(side([CX + 38, 78]))}`;
   return (
     `<path d="${fill}" fill="${SKIN}" stroke="none"/>` +
-    `<path d="M ${p(neckTop)} ${right} M ${p(mirror(hip))} ${left}" fill="none" stroke="${EDGE}" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round"/>`
+    `<path d="${smooth(right, false)} ${smooth(left, false)}" fill="none" stroke="${EDGE}" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"/>` +
+    `<path d="${collarbone(same)} ${collarbone(mirror)}" ${CONTOUR}/>`
   );
+}
+
+// Chin-length hair. The back is drawn before the head and shows around it; the front is
+// drawn on top as a side-swept hairline.
+function hairBack(): string {
+  const right: Pt[] = [[CX, 3], [CX + 13, 6], [CX + 21, 18], [CX + 22, 34], [CX + 21, 48], [CX + 16, 60], [CX + 9, 61], [CX, 57]];
+  const outline = [...right, ...right.slice(1, -1).map(mirror).reverse()];
+  return `<path d="${smooth(outline, true)}" fill="${HAIR}" stroke="none"/>`;
 }
 
 function head(): string {
-  const [cy, rx, ry] = [29, 15, 20];
+  // Oval face that narrows to the chin.
+  const right: Pt[] = [[CX, 8], [CX + 10, 11], [CX + 14.5, 22], [CX + 14, 33], [CX + 9.5, 44], [CX, 50]];
+  const outline = [...right, ...right.slice(1, -1).map(mirror).reverse()];
+  // A light touch of a face: closed eyes, the side of the nose, lips.
+  const eye = (side: (pt: Pt) => Pt) => `M ${p(side([CX + 3.4, 28.4]))} Q ${p(side([CX + 6.4, 30]))} ${p(side([CX + 9.4, 28.2]))}`;
+  const nose = `M ${p([CX + 0.3, 33])} Q ${p([CX + 1.5, 35.6])} ${p([CX - 0.4, 36.2])}`;
+  const lips = `M ${p([CX - 3.4, 40.6])} Q ${p([CX, 39.2])} ${p([CX + 3.4, 40.6])} Q ${p([CX, 43])} ${p([CX - 3.4, 40.6])} Z`;
   return (
-    `<path d="M ${f(CX - rx)},${cy} A ${rx} ${ry} 0 1 0 ${f(CX + rx)},${cy} ` +
-    `A ${rx} ${ry} 0 1 0 ${f(CX - rx)},${cy} Z" ${BODY}/>`
+    `<path d="${smooth(outline, true)}" ${BODY}/>` +
+    `<path d="${eye(same)} ${eye(mirror)}" fill="none" stroke="${HAIR}" stroke-width="0.9" stroke-linecap="round"/>` +
+    `<path d="${nose}" ${CONTOUR}/>` +
+    `<path d="${lips}" fill="#c9756c" stroke="none"/>`
   );
 }
 
+function hairFront(): string {
+  // From the left temple over the crown to the right temple, then back along a hairline
+  // that parts off-centre and sweeps across the forehead.
+  const outline: Pt[] = [
+    [CX - 15.5, 30], [CX - 17, 18], [CX - 10, 6], [CX + 2, 4], [CX + 13, 8], [CX + 17, 19], [CX + 15.5, 30],
+    [CX + 13, 22], [CX + 7, 16], [CX - 3, 13.5], [CX - 9, 17], [CX - 13, 23],
+  ];
+  return `<path d="${smooth(outline, true)}" fill="${HAIR}" stroke="none"/>`;
+}
+
 function shadow(): string {
-  const [cy, rx, ry] = [589, 62, 5];
+  const [cy, rx, ry] = [591, 58, 4.5];
   return (
     `<path d="M ${f(CX - rx)},${cy} A ${rx} ${ry} 0 1 0 ${f(CX + rx)},${cy} ` +
     `A ${rx} ${ry} 0 1 0 ${f(CX - rx)},${cy} Z" fill="#221d19" fill-opacity="0.08" stroke="none"/>`
@@ -123,12 +175,14 @@ function shadow(): string {
 
 /**
  * The figure on its own, as one SVG group, sized for a dress of the given shoulder width.
- * Drawn back to front: shadow, arms, legs, torso, head.
+ * Drawn back to front: shadow, back of the hair, arms, legs, torso, head, front of the hair.
  */
 export function mannequinMarkup(shoulderWidth = 0.5): string {
   const b = frame(shoulderWidth);
-  const same = (pt: Pt) => pt;
-  return `<g id="mannequin">${shadow()}${arm(b, mirror)}${arm(b, same)}${leg(b, mirror)}${leg(b, same)}${torso(b)}${head()}</g>`;
+  return (
+    `<g id="mannequin">${shadow()}${hairBack()}${arm(b, mirror)}${arm(b, same)}` +
+    `${leg(b, mirror)}${leg(b, same)}${torso(b)}${head()}${hairFront()}</g>`
+  );
 }
 
 /**
