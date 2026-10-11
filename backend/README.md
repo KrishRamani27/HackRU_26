@@ -65,7 +65,7 @@ key is not a private user identity. Add real user authentication before public p
 | `POST /analyze` | Multipart file `sketch` | Design spec directly |
 | `POST /verify` | Multipart files `sketch`, `flat`, text `spec` (JSON) | Array of edit actions |
 | `POST /command` | JSON `{text, spec}` | Array of edit actions |
-| `POST /suggestions` | JSON `{spec, goal?}` | `{suggestions: [{explanation, actions}], end_goal}` |
+| `POST /suggestions` | JSON `{spec}` (`goal` is accepted but ignored) | `{suggestions: [{explanation, actions}], end_goal}`: up to 3 suggestions, one edit action each |
 | `POST /assets` | Multipart file `image` | Asset record with `id` and relative `url` |
 | `GET /assets/{id}` | None | Image bytes |
 | `POST /designs` | JSON `{name, spec, sketch_asset_id?, custom_elements?}` | Saved design, ID, version |
@@ -132,7 +132,7 @@ Optionally set `GEMINI_FALLBACK_MODEL`. The backend waits 2 seconds and tries th
 once when the main model answers 503 or 429, or still times out or answers 504 after
 one retry. Each attempt has a 30-second timeout.
 Mock analysis always returns the same sample spec. Mock verify and command return `[]`.
-Mock suggestions return no suggested edits. AI responses carry `X-AI-Mode` so the UI can
+Mock suggestions return three fixed sample edits, each labelled `MOCK`. AI responses carry `X-AI-Mode` so the UI can
 show a demo badge. Real AI errors never silently return a mock result.
 
 The Gemini SDK uses structured responses, followed by backend validation.

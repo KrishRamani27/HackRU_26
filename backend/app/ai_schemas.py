@@ -92,10 +92,13 @@ class GeminiEditResult(BaseModel):
 
 
 class GeminiSuggestion(BaseModel):
-    explanation: str
-    actions: list[GeminiEditAction]
+    # One change to one field. ai.py turns it into {"op": "set", path, value} and checks
+    # it against the strict contract; a suggestion that fails is dropped.
+    path: str
+    value: str | int | float | bool
+    reason: str = Field(description="One sentence about proportion, balance or cohesion")
 
 
 class GeminiSuggestions(BaseModel):
     suggestions: list[GeminiSuggestion]
-    end_goal: str
+    end_goal: str = Field(description="One sentence: the overall direction of these suggestions")
