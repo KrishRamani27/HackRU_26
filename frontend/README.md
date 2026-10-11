@@ -1,36 +1,114 @@
 # Frontend: Flat Workbench
 
-React + Vite + TypeScript workbench for viewing and editing fashion technical flats.
+React + Vite + TypeScript app for FlatSketch. A student uploads a photo of a hand drawn dress, the backend reads it into a design spec, the builder (`Builder/buildFlat.ts`) draws a clean technical flat from that spec, and the student edits it with controls or by clicking parts of the dress. The flat can be exported as SVG (for Illustrator) or PNG.
 
-## Run (PowerShell)
+The idea of the whole project: the AI decides **what** the dress is, our code decides **how** to draw it. The frontend never draws garments itself. `buildFlat` does, and the frontend only holds the spec, edits it, and shows the result.
+
+For a plain language walkthrough (for teammates and judges), read [HANDOUT.md](HANDOUT.md).
+
+## Run
+
+You need the backend running for uploads. The sample works without it.
 
 ```powershell
-cd frontend
+# Frontend (from frontend/)
 npm.cmd install
-npm.cmd run dev        # http://localhost:5173
+npm.cmd run dev          # http://localhost:5173
+
+# Backend (from backend/, needs Python 3.12 or newer; see backend/README.md)
+python -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.lock
+Copy-Item .env.example .env
+.venv\Scripts\python -m uvicorn app.main:app --reload     # http://localhost:8000
 ```
 
-Other scripts: `npm.cmd run build`, `npm.cmd run preview`, `npm.cmd run typecheck`.
+Scripts: `npm.cmd run build` (type check plus production build), `npm.cmd run preview`, `npm.cmd run typecheck`. The backend defaults to mock AI, so no keys are needed. Never commit `backend/.env`.
 
-## Current scope
+The backend address defaults to `http://localhost:8000`. Set `VITE_API_URL` to change it. There are no keys in the frontend, because anything in the bundle is public.
 
-- **Upload and analyze:** a valid sketch (PNG, JPG or WebP, up to 5 MB) is sent once to `POST /analyze` (`VITE_API_URL`, default `http://localhost:8000`). The returned DesignSpec is drawn with `Builder/buildFlat`. If `X-AI-Mode` is `mock`, the result is labeled as a demo, not real sketch recognition. No API key is sent.
-- **Editing:** the properties panel edits the current spec. One reducer (`src/state/specReducer.ts`) holds it and applies `{ op: "set", path, value }` edit actions; invalid actions are ignored using the same rules as the backend (`src/state/specSchema.ts`). Every change redraws the flat with `buildFlat`. Edits stay in the browser; nothing is saved or sent.
-- **Part selection:** the flat is drawn inline (not in an `<img>`) so its parts can be clicked. The SVG is sanitized first (`src/flat/sanitizeSvg.ts`): a new tree is built from allowlisted elements, attributes and value formats, so scripts, event handlers, styles, links and external references cannot survive. Hover, click, keyboard (Tab, Enter or Space) and Escape or an empty-canvas click to deselect are handled in `src/components/InlineFlat.tsx`. Selecting a part scrolls the properties panel to its section and briefly highlights it and its fabric row.
-- **Why export must use that string:** selection and hover styling exist only as CSS and attributes on the live DOM copy. The builder's markup string (`buildFlat(spec)`) is never modified, so export must serialize that string, never the on-screen DOM.
-- **Undo and redo:** the reducer keeps up to 50 earlier specs (`past`) and the undone ones (`future`). Ctrl+Z undoes, Ctrl+Shift+Z or Ctrl+Y redoes (ignored while typing in a text box), and the top bar has undo and redo buttons. Edits that stream in from one control (slider drag, color picker, typing notes) pass a `coalesce` key and merge into one step until the control is released (`commit`). Re-choosing the current value adds no step.
-- **Component library:** the left panel has "Sketch" and "Library" tabs. Selecting a canvas part shows a "Save to library" bar in the properties panel; the Library tab lists saved parts (cards with a `buildFlat` preview, part type filter chips, delete with confirm). It uses the saved-part contract `{ name, part_type, spec_settings, style }` and the backend routes `GET/POST /parts` and `DELETE /parts/{id}` (not `/custom-parts`). Mapping and apply logic: `src/library/libraryModel.ts`; requests: `src/api/parts.ts`. Applying a card dispatches its edit actions as one `apply`, so one undo reverts it.
-- **Trim follows the bodice:** the builder fills the collar band and the waistband (6px strips), so all 8 parts are in `FILLED_PARTS`. By default `collar_neckline` and `waist_seam` copy the bodice's fill and pattern (`FOLLOWER_PARTS`, `followBodice` in `src/state/specReducer.ts`) and keep following until an edit sets a color or pattern on that part, which adds it to `detached`. `detached` is stored in every history snapshot, so undo and redo restore it. The `follow` action (the "Match bodice" button, shown only on a detached follower) removes a part from `detached` and copies the bodice style onto it, as one undo step. At load, a follower that already differs from the bodice counts as detached.
-- Loading a new sketch or opening the sample replaces the current spec and starts a fresh history.
-- **Export:** the Export button (disabled until something is loaded) downloads SVG or PNG. It is built from a fresh `buildFlat(spec)` string, never the on-screen DOM (`src/export/exportFlat.ts`). SVG keeps xmlns, width, height, the named part groups, fills and patterns. PNG is 2x on white, via `Builder/svgToPng`. The file name comes from the project title, e.g. `untitled-garment.svg`.
-- `CanvasState` in `src/types.ts` holds only UI state. Builder SVG is rendered through an `<img>`, so no script inside it can run.
+Dev only: `?canvas=loading` and `?canvas=error` on the dev URL preview those canvas states.
 
-## Sample preview
+## What it does
 
-The empty canvas has a **View sample** button. It loads the Builder's `mockSpec` into the same editable spec, always labeled "Sample preview—not generated from a sketch". It is editable like any other spec, never enables Export, and has nothing to do with uploaded sketches.
+* **Upload and analyze.** A PNG, JPG or WebP up to 5 MB (the backend's default limit) is checked in the browser, previewed, then sent once to `POST /analyze` as form data with the field `sketch`. The returned `DesignSpec` goes into the spec reducer. Too big or wrong type files are rejected before anything is sent.
+* **Mock or real AI.** The backend's `X-AI-Mode` response header decides the label. `mock` is shown as "Demo result (mock AI), not real sketch recognition". `gemini` is "AI result". Anything else is "AI mode unknown".
+* **View sample.** Loads the Builder's `mockSpec` into the same editable spec, labeled as not generated from a sketch. It needs no backend. Hide sample returns to the empty canvas.
+* **Edit.** The properties panel has one control per `DesignSpec` field: neckline (type, depth), sleeves (type, length), waist seam, skirt (silhouette, length), details (pockets, buttons), proportions (shoulder width, waist height), color and pattern for each of the 8 parts, and notes. Every change redraws the flat with `buildFlat`.
+* **Click to select a part.** The flat is drawn inline so its named groups can be clicked. Hover shows a soft outline, click selects, and the panel scrolls to and briefly highlights that part's section and fabric row. Escape or a click on empty canvas deselects. Parts are also reachable with Tab, then Enter or Space. A "Selected" label shows at the bottom of the sheet.
+* **Undo and redo.** Ctrl+Z, Ctrl+Shift+Z or Ctrl+Y (Cmd on a Mac), plus buttons in the top bar. Up to 50 steps. A slider or color picker drag, or a stretch of typing in the notes box, is one step. The shortcuts are ignored inside text boxes so the notes box keeps its own undo.
+* **Collar and waistband follow the bodice.** The builder fills these as 6px strips. By default they copy the bodice's color and pattern and keep following it. Setting a color or pattern on one gives it its own style. A "Match bodice" button then appears in its row and hands it back to the bodice, as one undo step.
+* **Component library.** The left panel has "Sketch" and "Library" tabs (the dark side strip drives the same tabs). Select a part and use "Save to library" to store its settings and style. The Library tab shows saved parts as swatch cards with a `buildFlat` preview, part type filter chips, click to apply, and delete with a confirmation. Applying is one undo step.
+* **Export.** The Export button (enabled once a design is on the canvas, including the sample) downloads SVG or PNG. The file name comes from the project title, for example `untitled-garment.svg`. A short "Exported" message confirms it.
+* **Loading and errors.** While analyzing it says "Reading your sketch…" with a thin progress line. After about 4 seconds it softly rotates reassurance lines. Every failure has a clear title, a message, and "Try again". Two error boundaries (canvas, properties panel) turn an unexpected rendering error into a message instead of a white screen.
 
-## Previewing states (dev only)
+## How it fits together
 
-- `http://localhost:5173/?canvas=loading`: canvas loading state
-- `http://localhost:5173/?canvas=error`: canvas error state
-- To see the upload error state, upload a non-image file or one larger than 5 MB.
+```
+upload ─► useSketchUpload ─► useAnalysis ─► POST /analyze ─► DesignSpec
+                                                                │ load
+                                                                ▼
+ controls / library / Match bodice ─► edit actions ─► specReducer (the one spec + history)
+                                                                │ spec
+                                                                ▼
+                                                  Builder/buildFlat(spec) ─► SVG text
+                                                       │                        │
+                                        sanitizeSvg ─► InlineFlat (canvas)      └─► exportFlat (SVG / PNG)
+```
+
+### The spec and edit actions
+
+The spec shape and the edit action `{ op: "set", path, value }` are the shared contracts in `CHATGPT.md`. Types come from `Builder/types.ts`; `src/state/specSchema.ts` holds the allowed values and `isValidEdit`, which applies the same rules as the backend (known path, allowed value, range). Invalid edits are ignored.
+
+`src/state/specReducer.ts` is the single place the current spec lives. Its state is the spec, where it came from, the undo history (`past`, `future`, capped at 50), which trim parts have their own style (`detached`), and an `openKey` used to merge a drag into one step. Actions: `load`, `apply`, `commit`, `undo`, `redo`, `follow`, `clear`. Selection is UI only and lives in `App.tsx`, outside the reducer. Loading a new sketch or opening the sample starts a fresh history.
+
+After every change `normalizeStyles` makes each part's style complete (a fill and a pattern) and safe (a fill must be `#rrggbb`, a pattern must be allowed). `buildFlat` copies fills into SVG attributes without escaping, so this matters.
+
+### Safe inline SVG
+
+`src/flat/sanitizeSvg.ts` rebuilds the builder's SVG as a new tree from an allowlist of elements (`svg`, `g`, `defs`, `path`, `rect`, `circle`, `pattern`), attributes, and value formats. Scripts, event handlers, styles, links, external references and text nodes cannot survive. The root's `xmlns`, `width` and `height` are dropped on purpose because the canvas sizes the SVG. If the builder starts using another element or attribute, add it there deliberately.
+
+`src/components/InlineFlat.tsx` mounts that tree and adds hover, selection, keyboard focus, and invisible wider hit areas for the thin parts (collar line, waist seam, button dots, side seam pockets).
+
+**Export must use the builder's string, never the on-screen SVG.** Selection, hover and focus styling exist only as CSS and attributes on the live DOM copy. The markup string from `buildFlat(spec)` is never modified, so none of it can leak into a file. `src/export/exportFlat.ts` calls `buildFlat` fresh, refuses to write anything containing scripts or on-screen-only markers, adds an XML declaration, and keeps `xmlns`, `width`, `height`, the 8 named groups, fills and patterns. PNG is 2x (800 by 1200) on white, made with `Builder/svgToPng`.
+
+### The library
+
+A saved part is `{ name, part_type, spec_settings, style }`, with `id` and `created_at` added by the backend. `part_type` is one of neckline, sleeves, waist, skirt, details, proportions. The app uses `GET /parts`, `POST /parts` and `DELETE /parts/{id}`, and does not use `/custom-parts` (manual drawing).
+
+Canvas parts map onto library types in `src/library/libraryModel.ts`: collar is neckline, bodice is proportions, either sleeve is sleeves, waist seam is waist, skirt is skirt, pockets and buttons are details (each stores only its own setting). Applying a card turns it into the same edit actions the controls use and dispatches them together, so invalid values are ignored and one undo reverts all of it. A sleeve style is applied to both sleeves. Card previews are drawn by `buildFlat`: a plain dress with the part applied, cropped to the area it changes.
+
+## File map
+
+| Path | What it is |
+| --- | --- |
+| `src/main.tsx`, `src/App.tsx` | Entry point. `App` holds the reducer, runs the analysis, calls `buildFlat`, tracks selection and tabs, and assembles the panels. |
+| `src/types.ts` | Screen state types (canvas, analysis status, AI mode). |
+| `src/styles.css` | All styling. |
+| `src/api/analyze.ts`, `src/api/parts.ts` | Backend requests with friendly error messages. |
+| `src/hooks/useSketchUpload.ts` | File checks, preview, image size. |
+| `src/hooks/useAnalysis.ts` | Sends each good sketch once (also under React StrictMode), cancels stale requests, loads the answer. |
+| `src/hooks/useLibrary.ts` | Loads the saved parts once and keeps them in step with saves and deletes. |
+| `src/hooks/useUndoShortcuts.ts` | Ctrl+Z, Ctrl+Shift+Z, Ctrl+Y. |
+| `src/state/specSchema.ts`, `src/state/specReducer.ts` | Contract rules; the one spec, its history, and the trim follow rules. |
+| `src/flat/sanitizeSvg.ts` | The SVG safety filter. |
+| `src/export/exportFlat.ts` | SVG and PNG download. |
+| `src/library/libraryModel.ts` | Saved part mapping, apply, and previews. |
+| `src/components/` | `TopBar`, `NavRail`, `LeftPanel`, `UploadPanel`, `LibraryPanel`, `CanvasStage`, `InlineFlat`, `PropertiesPanel`, `SavePartBar`, `ExportMenu`, `LoadingNote`, `ErrorBoundary`, `Controls`, `PlaceholderFlat`, `garmentPaths`, `Icons`. |
+
+The drawing code is a teammate's work in `Builder/` at the repo root (`buildFlat.ts`, `mockSpec.ts`, `types.ts`, `svgToPng.ts`). The frontend imports it and must not edit it. `vite.config.ts` allows the dev server to serve that folder.
+
+## Checking changes
+
+There is no automated test suite in the repo. Changes so far were checked with `npm.cmd run build` plus scripted headless-browser runs (real clicks and keystrokes, slow and failing backends, and inspecting downloaded files), which are not committed. If you add tests, the reducer and `libraryModel` are pure and the easiest place to start.
+
+## Known limits
+
+* Gemini mode has not been tested from the frontend. Everything was tested against the backend in mock mode, which returns the same fixed dress for any sketch.
+* Whole designs are not saved, only library parts. A refresh loses the current design. There are no user accounts, so everyone using one backend shares one library, which lists the 100 newest parts. Saved parts cannot be renamed.
+* The SVG export has been checked as valid XML and rendered in a browser, but has not been opened in Adobe Illustrator itself.
+* Floral on the waistband is hard to see because the builder's band is 6px tall. Side seam pockets are a line, so they take no color. The waistband only exists while the waist seam is on.
+* If the backend enables its shared `BACKEND_API_KEY`, the app shows "Backend needs an API key", because it does not send one.
+* The 5 MB upload limit mirrors the backend default. If the backend limit changes, change `MAX_BYTES` in `src/hooks/useSketchUpload.ts`.
+* Dress only, front view only. Desktop first: it stacks the panels on small screens but is not tuned for phones.
+* The loading reassurance lines ("Finding the neckline…") are only reassurance, not real progress.
+* Not used yet: the backend's `/verify`, `/command` and `/suggestions` routes (verify loop, voice, AI suggestions), and saving designs.
