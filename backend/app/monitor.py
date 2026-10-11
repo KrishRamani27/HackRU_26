@@ -71,6 +71,13 @@ class AIWarnings(logging.Handler):
         message = record.getMessage()
         if "Retrying once." in message:
             current["retry_used"] = True
+        elif "Trying fallback model" in message and isinstance(record.args, tuple):
+            # ai.py now supports a second model. Record the one actually attempted,
+            # even if that attempt fails or its reply is invalid.
+            current["model"] = str(record.args[-1])[:100]
+            current["retry_used"] = True
+        elif "Gemini fallback model" in message and isinstance(record.args, tuple):
+            current["model"] = str(record.args[0])[:100]
         elif "Gemini request failed" in message or "Gemini returned an invalid contract" in message:
             current["failure_status"] = classify(message)
 

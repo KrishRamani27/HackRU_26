@@ -267,3 +267,47 @@ def test_timescale_ddl_includes_partition_key_compatible_aggregates():
     assert all("time_bucket" in statement and "materialized_only = false" in statement for statement in views)
     assert sum("add_continuous_aggregate_policy" in statement for statement in statements) == 3
     assert {column.name for column in AICall.__table__.primary_key} == {"id", "timestamp"}
+
+
+def test_fallback_model_metadata(monitor):
+    with monitor.track("/analyze") as call:
+        monitor.invoke(lambda: None)
+        logging.getLogger("app.ai").warning(
+            "Gemini model %s failed (%s): %s. Trying fallback model %s.",
+            "primary", "ClientError", "429 quota", "fallback")
+        call["spec"] = DesignSpec().model_dump()
+    with monitor.sessions() as session:
+        row = session.scalar(select(AICall))
+        assert row.model == "fallback" and row.retry_used and row.status == "ok"
+
+
+def test_historical_explicit_metadata_beats_filename_inference(monitor):
+    results = monitor.data_dir / "results"
+    results.mkdir(parents=True)
+    spec = {"model": "recorded-model", "prompt_version": "v10-detailed",
+            **DesignSpec().model_dump()}
+    (results / "test1__20261010-190217.json").write_text(json.dumps(spec))
+    assert import_history(monitor)["imported"] == 1
+    with monitor.sessions() as session:
+        row = session.scalar(select(AICall))
+        assert row.model == "recorded-model" and row.prompt_version == "v10-detailed"
+        assert row.version_basis == "prompt_version recorded in result"
+        assert "model" not in row.spec and "prompt_version" not in row.spec
+
+
+def test_restart_does_not_import_already_logged_live_call(monitor):
+    results = monitor.data_dir / "results"
+    results.mkdir(parents=True)
+    spec = DesignSpec().model_dump()
+    with monitor.sessions() as session:
+        session.add(AICall(
+            timestamp=datetime(2026, 10, 10, 23, 2, 12, tzinfo=timezone.utc),
+            route="/analyze", model="live-model", prompt_version="v10-detailed",
+            image_filename="test1.jpg", spec=spec, response_time_ms=5000,
+            status="ok", retry_used=False, source="live", gemini_attempted=True))
+        session.commit()
+    (results / "test1__20261010-190217.json").write_text(json.dumps(
+        {"model": "live-model", "prompt_version": "v10-detailed", **spec}))
+    assert import_history(monitor) == {"imported": 0, "skipped": 1}
+    with monitor.sessions() as session:
+        assert len(session.scalars(select(AICall)).all()) == 1

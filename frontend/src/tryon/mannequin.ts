@@ -37,6 +37,14 @@ const f = (n: number) => String(Number(n.toFixed(1)));
 const p = ([x, y]: Pt) => `${f(x)},${f(y)}`;
 const mirror: Side = ([x, y]) => [2 * CX - x, y];
 const same: Side = (pt) => pt;
+// The head, face and hair are laid out on a small reference head (top y 8, chin y 50, 29 wide)
+// and enlarged by this, so the figure is about nine and a half heads tall like a fashion
+// drawing. A smaller head makes the body look stretched and unnatural. The top of the head
+// goes a little above the canvas, which the on-screen canvas allows.
+const HEAD_X = 1.5;
+const HEAD_Y = 60 / 42;
+const CHIN = 52;
+const onHead: Side = ([x, y]) => [CX + (x - CX) * HEAD_X, CHIN + (y - 50) * HEAD_Y];
 /** A list of right-side points made into a closed outline by adding the mirrored left side. */
 const bothSides = (right: readonly Pt[]) => [...right, ...right.slice(1, -1).map(mirror).reverse()];
 
@@ -80,7 +88,7 @@ function build(shoulderWidth: number, o: FigureOptions) {
   return {
     yTorso,
     yLeg,
-    neck: 6.5 * o.neck,
+    neck: 8.6 * o.neck,
     shoulder,
     shoulderY: yTorso(SHOULDER_LINE + 0.28 * (sh - 9 - 26) + 4), // just under the builder's shoulder seam
     bust: (sh - 17) * o.bust,
@@ -121,8 +129,8 @@ function arm(b: Body, side: Side): string {
     a(-37, -3), a(-33, 5), a(-23, 10.5), a(4, 12), // shoulder cap, rounding out from the shoulder point
     a(55, 10.5), a(104, 9), // upper arm down to the elbow
     a(132, 9), a(170, 7.2), a(202, 5.2), // forearm to the wrist
-    a(216, 6.5), a(232, 5.5), a(246, 1.5), // back of the hand to the fingertips
-    a(240, -3), a(222, -4.5), a(202, -5.2), // palm side back to the wrist
+    a(214, 6.8), a(230, 6), a(248, 1.5), // back of the hand to the fingertips
+    a(243, -3), a(228, -5), a(221, -9.5), a(213, -8.5), a(202, -5.2), // palm side, thumb, back to the wrist
     a(170, -7.2), a(132, -9), a(104, -9), // inner forearm, elbow
     a(55, -10.5), a(4, -12), a(-20, -11), // inner upper arm
   ]);
@@ -145,7 +153,7 @@ function leg(b: Body, side: Side): string {
   return smooth([
     at(36, 248), at(48, 277), at(48, 304), at(45, 345), at(41, 388), // outer thigh to the knee
     at(40.5, 415), at(41, 445), at(37, 495), at(30, 538), at(27.5, 553), // calf to the ankle
-    at(30, 566), at(30.5, 579), at(26, 589), at(19, 589.5), at(16.5, 578), // foot, toes down
+    at(31, 567), at(32.5, 580), at(28.5, 589.5), at(21, 591), at(15.5, 588.5), at(14.5, 577), // foot, toes down
     at(17, 553), at(18, 538), at(19.5, 495), at(20.5, 445), // inner ankle and calf
     at(19, 415), at(18, 388), at(9, 345), at(2.5, 306), at(1, 288), // inner knee and thigh
     at(18, 262),
@@ -157,8 +165,8 @@ function torso(b: Body): string {
   const hipY = y(HIP_LINE);
   return smooth(
     bothSides([
-      [CX, 42], [CX + b.neck, 44], [CX + b.neck + 0.5, 58], // neck
-      [CX + b.neck + 7, 67], [CX + Math.max(b.neck + 12, b.shoulder * 0.5), b.shoulderY - 9], // slope out to the shoulder
+      [CX, 46], [CX + b.neck, 48], [CX + b.neck + 0.5, 60], // neck
+      [CX + b.neck + 6, 68], [CX + Math.max(b.neck + 13, b.shoulder * 0.52), b.shoulderY - 8.5], // slope out to the shoulder
       [CX + b.shoulder, b.shoulderY],
       [CX + b.bust + 3, y(112)], [CX + b.bust, y(138)], [CX + b.ribs + 5, y(160)], // side of the bust
       [CX + b.ribs, y(176)], [CX + b.waist, y(212)], [CX + b.lowHip, y(250)], [CX + b.hip, hipY], // waist in, hips out
@@ -169,7 +177,8 @@ function torso(b: Body): string {
 
 function head(): string {
   // Oval face that narrows to the chin.
-  return smooth(bothSides([[CX, 8], [CX + 10, 11], [CX + 14.5, 22], [CX + 14, 33], [CX + 9.5, 44], [CX, 50]]));
+  const right: Pt[] = [[CX, 8], [CX + 10, 11], [CX + 14.5, 22], [CX + 14, 33], [CX + 9.5, 44], [CX, 50]];
+  return smooth(bothSides(right.map(onHead)));
 }
 
 // ---------- 3. Hair ----------
@@ -183,16 +192,16 @@ function hairBack(style: HairStyle, color: string): string {
     const curls: Pt[] = [];
     for (let deg = 155; deg <= 385; deg += 23) {
       const r = (deg * Math.PI) / 180;
-      curls.push([CX + 19 * Math.cos(r), 27 + 21 * Math.sin(r)]);
+      curls.push(onHead([CX + 19 * Math.cos(r), 27 + 21 * Math.sin(r)]));
     }
-    return curls.map((c) => circle(c, 9.5, color)).join("") + circle([CX, 22], 17, color);
+    return curls.map((c) => circle(c, 14, color)).join("") + circle(onHead([CX, 22]), 25, color);
   }
   const shapes: Record<Exclude<HairStyle, "curly">, Pt[]> = {
     bob: [[CX, 3], [CX + 13, 6], [CX + 21, 18], [CX + 22, 34], [CX + 21, 48], [CX + 16, 60], [CX + 9, 61], [CX, 57]],
     long: [[CX, 3], [CX + 13, 6], [CX + 21, 18], [CX + 23, 36], [CX + 24, 58], [CX + 27, 84], [CX + 24, 104], [CX, 108]],
     short: [[CX, 4], [CX + 12, 6.5], [CX + 17.5, 17], [CX + 17, 30], [CX + 13, 40], [CX, 44]],
   };
-  return `<path d="${smooth(bothSides(shapes[style]))}" fill="${color}" stroke="none"/>`;
+  return `<path d="${smooth(bothSides(shapes[style].map(onHead)))}" fill="${color}" stroke="none"/>`;
 }
 
 /** The hairline, drawn over the top of the head: parted off-centre and swept across. */
@@ -201,10 +210,10 @@ function hairFront(style: HairStyle, color: string): string {
     [CX - 15.5, 30], [CX - 17, 18], [CX - 10, 6], [CX + 2, 4], [CX + 13, 8], [CX + 17, 19], [CX + 15.5, 30],
     [CX + 13, 22], [CX + 7, 16], [CX - 3, 13.5], [CX - 9, 17], [CX - 13, 23],
   ];
-  const base = `<path d="${smooth(hairline)}" fill="${color}" stroke="none"/>`;
+  const base = `<path d="${smooth(hairline.map(onHead))}" fill="${color}" stroke="none"/>`;
   if (style !== "curly") return base;
   const top: Pt[] = [[CX - 11, 12], [CX - 3, 8.5], [CX + 6, 9], [CX + 13, 14]];
-  return base + top.map((c) => circle(c, 6, color)).join("");
+  return base + top.map((c) => circle(onHead(c), 9, color)).join("");
 }
 
 /** Long hair falls in front of the shoulders, so this part is drawn over the dress. */
@@ -212,8 +221,8 @@ function hairOverDress(style: HairStyle, color: string, b: Body): string {
   if (style !== "long") return "";
   const end = b.yTorso(134);
   const strand: Pt[] = [
-    [CX + 15, 34], [CX + 22, 48], [CX + 25, 66], [CX + 31, 92], [CX + 31, end - 14], [CX + 24, end],
-    [CX + 17, end - 12], [CX + 18, 96], [CX + 14.5, 74], [CX + 13.5, 54],
+    [CX + 22, 24], [CX + 31, 44], [CX + 34, 66], [CX + 37, 92], [CX + 36, end - 14], [CX + 29, end],
+    [CX + 22, end - 12], [CX + 23, 96], [CX + 20.5, 74], [CX + 19.5, 48],
   ];
   const lock = (side: Side) => smooth(strand.map(side));
   return `<path d="${lock(same)}" fill="${color}" stroke="none"/><path d="${lock(mirror)}" fill="${color}" stroke="none"/>`;
@@ -221,7 +230,7 @@ function hairOverDress(style: HairStyle, color: string, b: Body): string {
 
 // ---------- 4. Details that make it read as a person ----------
 
-function details(b: Body, edge: string, lips: string): string {
+function details(b: Body, edge: string, lips: string, hair: string): string {
   const y = b.yTorso;
   const line = `fill="none" stroke="${edge}" stroke-width="0.8" stroke-opacity="0.8" stroke-linecap="round"`;
   const pair = (draw: (side: Side) => string) => `${draw(same)} ${draw(mirror)}`;
@@ -236,22 +245,46 @@ function details(b: Body, edge: string, lips: string): string {
   });
   const fingers = pair((s) => {
     const a = onArm(b, s);
-    return `M ${p(a(228, 2.6))} L ${p(a(241, 1.6))} M ${p(a(228, -0.4))} L ${p(a(242, -0.8))}`;
+    return `M ${p(a(230, 3))} L ${p(a(243, 1.8))} M ${p(a(230, 0))} L ${p(a(244, -0.6))} M ${p(a(229, -2.8))} L ${p(a(240, -2.6))}`;
   });
 
-  // Face: closed eyes, the side of the nose, lips. Kept light, like a fashion illustration.
-  const eye = pair((s) => q(s, [CX + 3.4, 28.4], [CX + 6.4, 30], [CX + 9.4, 28.2]));
-  const nose = `M ${p([CX + 0.3, 33])} Q ${p([CX + 1.5, 35.6])} ${p([CX - 0.4, 36.2])}`;
-  const mouth = `M ${p([CX - 3.4, 40.6])} Q ${p([CX, 39.2])} ${p([CX + 3.4, 40.6])} Q ${p([CX, 43])} ${p([CX - 3.4, 40.6])} Z`;
+  // Face, laid out on the reference head: brows, lowered eyes with lashes, the side of the nose,
+  // lips and a little colour on the cheeks. Kept light, like a fashion illustration.
+  const h = (x: number, y: number) => onHead([CX + x, y]);
+  const face = (draw: (sign: number) => string) => `${draw(1)} ${draw(-1)}`;
+  const brow = face((k) => `M ${p(h(k * 3.2, 24.6))} Q ${p(h(k * 6.6, 22.9))} ${p(h(k * 10.4, 24.8))}`);
+  const eye = face((k) => `M ${p(h(k * 3.6, 28.2))} Q ${p(h(k * 6.6, 30.1))} ${p(h(k * 9.8, 27.9))}`);
+  const lash = face((k) => `M ${p(h(k * 9.8, 27.9))} L ${p(h(k * 10.9, 27.2))}`);
+  const nose = `M ${p(h(0.4, 31.5))} Q ${p(h(1.7, 35.2))} ${p(h(-0.5, 36))} M ${p(h(-1.7, 36.3))} Q ${p(h(0, 37))} ${p(h(1.7, 36.3))}`;
+  const upperLip = `M ${p(h(-3.6, 40.4))} Q ${p(h(-1.6, 39))} ${p(h(0, 39.8))} Q ${p(h(1.6, 39))} ${p(h(3.6, 40.4))} Q ${p(h(0, 41))} ${p(h(-3.6, 40.4))} Z`;
+  const lowerLip = `M ${p(h(-3.6, 40.4))} Q ${p(h(0, 41))} ${p(h(3.6, 40.4))} Q ${p(h(0, 43.8))} ${p(h(-3.6, 40.4))} Z`;
+  const cheek = (k: number) => `<circle cx="${f(h(k * 8.6, 34.4)[0])}" cy="${f(h(k * 8.6, 34.4)[1])}" r="4.2" fill="#e0707a" fill-opacity="0.16"/>`;
   // A soft shadow under the chin separates the head from the neck.
-  const chinShadow = `M ${p([CX - b.neck, 49])} Q ${p([CX, 58])} ${p([CX + b.neck, 49])} Q ${p([CX, 53])} ${p([CX - b.neck, 49])} Z`;
+  const chinShadow = `M ${p([CX - b.neck, CHIN - 2])} Q ${p([CX, CHIN + 9])} ${p([CX + b.neck, CHIN - 2])} Q ${p([CX, CHIN + 3])} ${p([CX - b.neck, CHIN - 2])} Z`;
 
   return (
-    `<path d="${chinShadow}" fill="#000000" fill-opacity="0.09" stroke="none"/>` +
+    `<path d="${chinShadow}" fill="#000000" fill-opacity="0.1" stroke="none"/>` +
     `<path d="${collarbone} ${bustLine} ${navel} ${knee} ${fingers} ${nose}" ${line}/>` +
-    `<path d="${eye}" fill="none" stroke="#2a1d18" stroke-width="0.9" stroke-linecap="round"/>` +
-    `<path d="${mouth}" fill="${lips}" stroke="none"/>`
+    `${cheek(1)}${cheek(-1)}` +
+    `<path d="${brow}" fill="none" stroke="${hair}" stroke-width="1.3" stroke-linecap="round"/>` +
+    `<path d="${eye} ${lash}" fill="none" stroke="#2a1d18" stroke-width="1.1" stroke-linecap="round"/>` +
+    `<path d="${upperLip}" fill="${mix(lips, "#5a1f24", 0.25)}" stroke="none"/><path d="${lowerLip}" fill="${lips}" stroke="none"/>`
   );
+}
+
+// Under a top or a skirt the figure wears a plain bodysuit, from the bust to the hips, so
+// the part of the body the garment leaves bare is still dressed.
+function bodysuit(b: Body): string {
+  const y = b.yTorso;
+  const hipY = y(HIP_LINE);
+  const outline = smooth(
+    bothSides([
+      [CX, y(118)], [CX + b.bust * 0.55, y(112)], [CX + b.bust + 2, y(120)], [CX + b.bust, y(138)], [CX + b.ribs + 5, y(160)],
+      [CX + b.ribs, y(176)], [CX + b.waist, y(212)], [CX + b.lowHip, y(250)], [CX + b.hip, hipY],
+      [CX + b.hip - 3, hipY + 12], [CX + b.hip * 0.45, hipY + 22], [CX, hipY + 24],
+    ]),
+  );
+  return `<path d="${outline}" fill="#ece7df" stroke="#b9ad9d" stroke-width="0.9" stroke-linejoin="round"/>`;
 }
 
 function shadow(): string {
@@ -285,7 +318,7 @@ function dressMatrix(b: Body): Matrix {
   return multiply(heightMatrix(b), fit);
 }
 
-function figureParts(shoulderWidth: number, options?: Partial<FigureOptions>) {
+function figureParts(shoulderWidth: number, options?: Partial<FigureOptions>, garment = "dress") {
   const o = cleanFigure(options);
   const b = build(shoulderWidth, o);
   const edge = mix(o.skin, "#3a1f12", 0.3);
@@ -300,14 +333,14 @@ function figureParts(shoulderWidth: number, options?: Partial<FigureOptions>) {
     body: b,
     under:
       `<g id="mannequin"${stand}>${shadow()}${hairBack(o.hair, o.hairColor)}${outlines}${fills}` +
-      `${details(b, edge, lips)}${hairFront(o.hair, o.hairColor)}</g>`,
+      `${details(b, edge, lips, mix(o.hairColor, "#1a1410", 0.35))}${garment === "dress" ? "" : bodysuit(b)}${hairFront(o.hair, o.hairColor)}</g>`,
     over: over ? `<g id="mannequin_over"${stand}>${over}</g>` : "",
   };
 }
 
 /** The figure on its own, as SVG groups, for a dress of the given shoulder width. */
-export function mannequinMarkup(shoulderWidth = 0.5, options?: Partial<FigureOptions>): string {
-  const { under, over } = figureParts(shoulderWidth, options);
+export function mannequinMarkup(shoulderWidth = 0.5, options?: Partial<FigureOptions>, garment = "dress"): string {
+  const { under, over } = figureParts(shoulderWidth, options, garment);
   return under + over;
 }
 
@@ -320,13 +353,14 @@ const DRESS_GROUP =
  * Takes the builder's SVG text and returns it with the figure wearing the dress.
  * Pass the spec's proportions.shoulder_width so the figure fits the dress, and the figure
  * settings if the user has changed any. The dress groups keep their ids and stay clickable.
+ * `garment` is the spec's garment_type: under a top or a skirt the figure wears a bodysuit.
  */
-export function wearOnMannequin(flatSvg: string, shoulderWidth = 0.5, options?: Partial<FigureOptions>): string {
+export function wearOnMannequin(flatSvg: string, shoulderWidth = 0.5, options?: Partial<FigureOptions>, garment = "dress"): string {
   const start = flatSvg.indexOf("</defs>");
   const end = flatSvg.lastIndexOf("</svg>");
   if (start === -1 || end === -1) return flatSvg; // not builder output; leave it alone
   const cut = start + "</defs>".length;
-  const { body, under, over } = figureParts(shoulderWidth, options);
+  const { body, under, over } = figureParts(shoulderWidth, options, garment);
 
   let dress = flatSvg.slice(cut, end);
   const fit = dressMatrix(body);

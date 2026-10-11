@@ -69,7 +69,8 @@ class Styles(Contract):
 
 
 class DesignSpec(Contract):
-    garment_type: Literal["dress"] = "dress"
+    # "top" and "skirt" come from the app's templates. /analyze still only returns "dress".
+    garment_type: Literal["dress", "top", "skirt"] = "dress"
     neckline: Neckline = Field(default_factory=Neckline)
     collar: Collar = Field(default_factory=Collar)
     sleeves: Sleeves = Field(default_factory=Sleeves)

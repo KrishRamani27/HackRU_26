@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { buildFlat, type CustomElement } from "./buildFlat";
 import { mockSpec } from "./mockSpec";
+import { TEMPLATE_SECTIONS, templatesFor } from "./templates";
 import type { DesignSpec, PartName, Pattern } from "./types";
 
 // Dev-only gallery: `npx tsx Builder/preview.ts` writes preview/gallery.html
@@ -19,6 +20,7 @@ function variant(o: Override): DesignSpec {
     skirt: { ...mockSpec.skirt, ...o.skirt },
     details: { ...mockSpec.details, ...o.details },
     proportions: { ...mockSpec.proportions, ...o.proportions },
+    collar: { type: "none", ...o.collar },
     style: { ...mockSpec.style, ...o.style },
   };
 }
@@ -85,6 +87,32 @@ push("contrast_trim", {
   },
 });
 
+// Styles added in spec v10 (25): one flat per new option
+for (const type of ["sweetheart", "off_shoulder", "halter", "high"] as const) {
+  push(`neckline_${type}`, { neckline: { type, depth: 0.45 }, skirt: { silhouette: "a_line" } });
+}
+for (const type of ["shirt", "peter_pan", "band", "mandarin"] as const) {
+  push(`collar_${type}`, { collar: { type }, sleeves: { type: "fitted", length: "short" }, skirt: { silhouette: "a_line" } });
+}
+for (const cuff of ["band", "ruffle", "elastic"] as const) {
+  push(`cuff_${cuff}`, { sleeves: { type: "fitted", length: "elbow", cuff }, skirt: { silhouette: "a_line" } });
+}
+push("shoulder_puff_top", { sleeves: { type: "fitted", length: "short", shoulder: "puff_top" }, skirt: { silhouette: "a_line" } });
+push("shoulder_off", { neckline: { type: "square", depth: 0.4 }, sleeves: { type: "fitted", length: "short", shoulder: "off_shoulder" }, skirt: { silhouette: "a_line" } });
+push("waist_belted", { waist: { style: "belted" }, skirt: { silhouette: "a_line" } });
+for (const fullness of ["gathered", "pleated"] as const) push(`skirt_${fullness}`, { skirt: { silhouette: "a_line", fullness } });
+for (const hem of ["ruffle", "tiered", "slit"] as const) {
+  push(`hem_${hem}`, { skirt: { silhouette: hem === "slit" ? "straight" : "a_line", length: "midi", hem } });
+}
+push("panels_front_seam", { skirt: { silhouette: "a_line", panels: "front_seam" } });
+push("panels_princess", { skirt: { silhouette: "a_line", panels: "princess_seams" } });
+push("placket_full", { details: { buttons: 8, placket: "full" }, skirt: { silhouette: "a_line" } });
+push("darts", { details: { darts: true } });
+push("bow_neckline", { details: { bow: "neckline" }, collar: { type: "peter_pan" }, skirt: { silhouette: "a_line" } });
+push("bow_waist", { details: { bow: "waist" }, skirt: { silhouette: "a_line" } });
+push("trim_piping", { details: { trim: "piping" }, neckline: { type: "scoop", depth: 0.4 }, skirt: { silhouette: "a_line" } });
+push("trim_lace", { details: { trim: "lace" }, skirt: { silhouette: "flared" } });
+
 // Manual drawing (1): hand-drawn custom elements on top of the dress
 const drawn = (el: Partial<CustomElement> & Pick<CustomElement, "id" | "points">): CustomElement => ({
   name: el.id,
@@ -121,6 +149,22 @@ flats.push({
 const outDir = join(dirname(process.argv[1]), "preview");
 mkdirSync(outDir, { recursive: true });
 
+const esc = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+// Section 1: the starter templates, grouped the way the app's Templates gallery groups them.
+let templateCount = 0;
+const templateSections = TEMPLATE_SECTIONS.map(({ key, label }) => {
+  const items = templatesFor(key);
+  templateCount += items.length;
+  const figures = items.map((t) => {
+    const svg = buildFlat(t.spec);
+    writeFileSync(join(outDir, `template_${t.id.replace(/-/g, "_")}.svg`), svg);
+    return `<figure>${svg}<figcaption><b>${esc(t.name)}</b><br><span>${esc(t.note)}</span></figcaption></figure>`;
+  });
+  return `<section id="${key}"><h2>${label} <small>${items.length} templates</small></h2><main>\n${figures.join("\n")}\n</main></section>`;
+});
+
+// Section 2: one flat per builder option, for checking each drawing on its own.
 const cards = flats.map(({ name, spec, elements }) => {
   const svg = buildFlat(spec, elements);
   writeFileSync(join(outDir, `${name}.svg`), svg);
@@ -131,22 +175,36 @@ const html = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Flat builder gallery (${flats.length})</title>
+<title>Flat builder gallery (${templateCount} templates, ${flats.length} option flats)</title>
 <style>
-  body { margin: 24px; font: 13px/1.4 system-ui, sans-serif; background: #f2f2f0; color: #1a1a1a; }
-  main { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+  body { margin: 0 24px 40px; font: 13px/1.4 system-ui, sans-serif; background: #f2f2f0; color: #1a1a1a; }
+  nav { position: sticky; top: 0; z-index: 1; display: flex; gap: 8px; align-items: center; margin: 0 -24px 8px; padding: 12px 24px; background: #f2f2f0; border-bottom: 1px solid #ddd; }
+  nav b { margin-right: 8px; font-size: 15px; }
+  nav a { padding: 6px 14px; border: 1px solid #c9c9c4; border-radius: 999px; background: #fff; color: inherit; text-decoration: none; font-weight: 600; }
+  nav a:hover { border-color: #1a1a1a; }
+  h2 { margin: 28px 0 12px; font-size: 20px; scroll-margin-top: 64px; }
+  h2 small { margin-left: 8px; font-size: 13px; font-weight: 400; color: #666; }
+  section { scroll-margin-top: 64px; }
+  main { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
   figure { margin: 0; padding: 8px; background: #fff; border: 1px solid #ddd; border-radius: 6px; }
   svg { display: block; width: 100%; height: auto; }
-  figcaption { padding-top: 6px; text-align: center; font-family: ui-monospace, monospace; }
+  figcaption { padding-top: 6px; text-align: center; }
+  figcaption span { color: #666; }
+  #options figcaption { font-family: ui-monospace, monospace; }
 </style>
 </head>
 <body>
-<h1>Flat builder gallery: ${flats.length} flats</h1>
-<main>
+<nav>
+  <b>Flat builder gallery</b>
+  ${TEMPLATE_SECTIONS.map(({ key, label }) => `<a href="#${key}">${label} (${templatesFor(key).length})</a>`).join("\n  ")}
+  <a href="#options">Every option (${flats.length})</a>
+</nav>
+${templateSections.join("\n")}
+<section id="options"><h2>Every option <small>${flats.length} flats, one per builder option</small></h2><main>
 ${cards.join("\n")}
-</main>
+</main></section>
 </body>
 </html>
 `;
 writeFileSync(join(outDir, "gallery.html"), html);
-console.log(`Wrote ${flats.length} flats to ${outDir}`);
+console.log(`Wrote ${templateCount} templates and ${flats.length} option flats to ${outDir}`);

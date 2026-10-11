@@ -193,7 +193,9 @@ def test_live_analyze_results_are_saved_for_evaluation(client, monkeypatch, tmp_
     saved = list(results.iterdir())
     assert len(saved) == 1 and saved[0].name.startswith("my_sketch__")
     model = client.app.state.ai.settings.gemini_model
-    assert json.loads(saved[0].read_text()) == {"model": model, **response.json()}
+    from app.ai import PROMPT_VERSION
+    assert json.loads(saved[0].read_text()) == {
+        "model": model, "prompt_version": PROMPT_VERSION, **response.json()}
 
 
 def test_large_images_are_downscaled_for_gemini():
@@ -473,7 +475,8 @@ def test_edit_guide_covers_the_contract():
             else:
                 yield from (value for value in get_args(field.annotation) if isinstance(value, str))
 
-    values = set(allowed_values(DesignSpec)) - {"dress"}
+    # garment_type is locked ("Never set garment_type"), so its values are not in the guide.
+    values = set(allowed_values(DesignSpec)) - {"dress", "top", "skirt"}
     assert len(values) > 20
     for value in values:
         assert f'"{value}"' in EDIT_GUIDE, value
@@ -634,6 +637,13 @@ def test_gemini_spec_matches_strict_contract():
                 same(field.annotation, PartStyle)
                 continue
             other = strict.model_fields[name]
+            if name == "garment_type":
+                # Gemini only ever reads dresses. The saved contract also allows the app's top and
+                # skirt templates, so here Gemini's values must be allowed, not identical.
+                from typing import get_args
+
+                assert set(get_args(field.annotation)) <= set(get_args(other.annotation)), name
+                continue
             if isinstance(field.annotation, type) and issubclass(field.annotation, BaseModel):
                 same(field.annotation, other.annotation)
             else:

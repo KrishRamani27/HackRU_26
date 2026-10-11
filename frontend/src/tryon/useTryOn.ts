@@ -33,7 +33,7 @@ export function useTryOn() {
 
   /** The builder's SVG, with the figure wearing it when try-on is showing. */
   const wear = useCallback(
-    (flatSvg: string, shoulderWidth: number) => (on ? wearOnMannequin(flatSvg, shoulderWidth, figure) : flatSvg),
+    (flatSvg: string, shoulderWidth: number, garment = "dress") => (on ? wearOnMannequin(flatSvg, shoulderWidth, figure, garment) : flatSvg),
     [on, figure],
   );
 

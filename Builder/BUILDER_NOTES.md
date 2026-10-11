@@ -11,7 +11,7 @@ Handoff from planning chat. Read this together with CLAUDE.md (the contracts the
 - `mockSpec.ts`: hand-made spec (crew neck, no sleeves, straight knee skirt, waist seam).
 - `buildFlat.ts`: `buildFlat(spec): string`. Pure function, spec in, SVG string out. No React, no state.
 - `svgToPng.ts`: browser-only helper, SVG string to PNG Blob, for POST /verify.
-- `preview.ts`: dev-only gallery. `npx tsx Builder/preview.ts` writes `Builder/preview/gallery.html` (38 flats) plus one .svg per flat. `Builder/preview/` is generated; keep it out of git.
+- `preview.ts`: dev-only gallery. `npx tsx Builder/preview.ts` writes `Builder/preview/gallery.html` (80 templates in three sections, then 65 option flats) plus one .svg per flat. `Builder/preview/` is generated; keep it out of git.
 - `compare.ts`: dev-only. `npx tsx Builder/compare.ts` writes `Builder/preview/compare.html`: each real test sketch next to the flat built from Gemini's saved `/analyze` result (`AI/results`).
 
 ## How buildFlat works (judge explanation)
@@ -46,6 +46,9 @@ Handoff from planning chat. Read this together with CLAUDE.md (the contracts the
 - Collar and waist seam take a fill: the collar is a 6px band along the neck edge (`style.collar_neckline`), the waist seam a 6px waistband below the waist line (`style.waist_seam`). Stitch lines sit inside the bands. Buttons start just below the collar band. With every part the same color the drawing looks the same as before.
 - Manual drawing: `buildFlat(spec, customElements)` draws hand-drawn strokes and closed shapes on top of the dress (contract: `backend/CUSTOM_ELEMENTS.md`). `buildCustomElements(elements)` returns just their markup. Each element is a `<g id="custom_<id>">` inside one `<g id="manual_drawing">`, sorted by `layer_order`, hidden ones skipped. Ids, colors and numbers are validated before going into the SVG; element names are never written.
 - Flared skirt is a bell (full from the waist down, folds starting near the waist), matching the Gemini prompt's "circle or bell skirt". It was a trumpet shape that stayed narrow and flared at the hem. Found by comparing real sketches with their flats.
+- Spec v10 is drawn: necklines sweetheart, off shoulder, halter and high; collars shirt, peter pan, band and mandarin; cuffs band, ruffle and elastic; puffed and off-shoulder sleeve heads; belted waist; gathered and pleated skirts; ruffle, tiered and slit hems; front and princess seams; bodice and full plackets; darts; bows at the neckline or waist; piping and lace trim. `types.ts` now lists these fields (all optional, so older specs still work). Every shape is our own drawing, built from the same layout points as the rest of the dress.
+- Tops and skirts: `garment_type` can be `"top"` or `"skirt"` as well as `"dress"`. A top is the dress drawn down to a hem at the hip (`skirt.length` picks cropped, hip or tunic; `skirt.silhouette` picks straight, swing or peplum). A skirt is the dress without its bodice, sleeves and neckline, and always has a waistband. All eight groups are still present for every garment, so layer names never change.
+- `templates.ts`: 80 starter designs of our own (25 dresses, 27 tops, 28 skirts), each a plain spec. The app's Templates dialog and the preview gallery both read this one list.
 
 ## Next steps (in order)
 1. Run the gallery and check every option looks right.

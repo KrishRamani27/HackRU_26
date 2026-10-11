@@ -1,5 +1,30 @@
 # FlatSketch — team notes and agent instructions
 
+## Latest audit — October 10, 2026
+
+- Current setup and integration gaps are in docs/WORKFLOW_STATUS.md; README.md
+  now links all team guides. Older sections below are implementation history.
+- Fetched origin: local main already matched origin/main. The frontend/ui-shell
+  branch has no commits ahead of main at this check.
+- Frontend builds successfully. Backend verification: 119 tests passed using
+  SQLite/fakes; no Gemini quota spent during the audit.
+- Read-only live checks verified Tiger connectivity, TimescaleDB, ai_calls as a
+  hypertable and all three continuous aggregates. GCS bucket access and enforced
+  public access prevention were verified. Image round-trip testing is still pending.
+- Aryan's local settings use Tiger and GCS, but AI_MODE is mock with no Gemini key.
+  Cloud Run deployment and individual repository/cloud memberships were not verified.
+- Monitor now tracks the actual attempted fallback model, imports explicit model/
+  prompt-version metadata, and avoids reimporting saved JSON for already-logged live calls.
+  AI prompts and ai.py were not changed. Fixed the saved-result metadata test.
+- Export, design saving, grouped drawings and try-on now exist in frontend code.
+  Frontend supports v10 controls, but Builder/types.ts and geometry still need v10
+  support. Do not claim the new geometry is rendered simply because controls exist.
+- Frontend still needs the Monitor UI, AI edit-route wiring and agreed deployed
+  API-key handling. Saving designs does not persist the original sketch asset.
+- frontend/.env.example exposes only the public backend address. Private .env,
+  local data and downloaded credentials remain ignored; the existing lockfile stash
+  is preserved. The draft's accidentally pasted terminal command was removed.
+
 ## How to talk to Aryan
 
 - Keep replies short and use simple English.
@@ -56,7 +81,7 @@
   `skirt.hem`, `skirt.panels`, `details.placket`, `details.darts`, `details.bow`,
   `details.trim`, plus neckline types `sweetheart`, `off_shoulder`, `halter`, `high`.
   They have defaults in `schemas.py`, so older specs still load. **Not yet in
-  `CHATGPT.md`, `Builder/types.ts` or the frontend**: the builder ignores the new
+  `CHATGPT.md` or `Builder/types.ts`**; frontend controls now support them. The builder ignores the new
   fields and draws the new neckline types as a round neck. Values are listed in
   `AI/prompt_versions.md`.
 - `/analyze` can also return up to 3 `accents` (a part and a fill) for contrast-color
@@ -95,7 +120,8 @@ All paths below start at this repository's root.
 | `AI/prompt_versions.md` | Log of analyze prompt versions, reasons and results |
 | `AI/results/` | Saved specs; the backend adds one file per live `/analyze` call |
 | `frontend/` | Frontend teammate's area |
-| `ml/` | AI teammate's area; backend AI adapter currently lives in `backend/app/ai.py` |
+| `AI/` | AI teammate's prompts, labelled examples, saved results and evaluator |
+| `Builder/` | SVG garment geometry, builder types and preview scripts |
 
 `TEAM_HANDOUT.md` was visible in Aryan's screenshot outside the repository, but its
 full contents were not read. `CHATGPT.md` is the project guide inspected so far.
@@ -124,7 +150,8 @@ local files, so no keys are needed. See `backend/README.md` for a fresh setup.
 - Test the Docker build; Docker was not available during the initial implementation.
 - Voice/audio transcription and ElevenLabs remain stretch work.
 
-No live cloud resources were created or deployed. No credentials were added.
+No live cloud resources were created during the initial implementation. Aryan has
+since created Tiger and GCS; see the latest audit above. Cloud Run deployment is pending.
 The current backend is a shared team demo; it does not have individual user accounts.
 
 ## Manual drawing backend update — October 10, 2026
