@@ -13,11 +13,9 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-FIELDS = [
-    "neckline.type", "sleeves.type", "sleeves.length", "waist.seam",
-    "skirt.silhouette", "skirt.length", "details.pockets", "details.buttons",
-]
-MISSING = "<missing>"
+# Shared with the backend monitor; still works when run from any directory.
+sys.path.insert(0, str(HERE.parent / "backend"))
+from app.scoring import FIELDS, MISSING, matches, read, score_spec
 
 
 def labels_dir():
@@ -25,21 +23,6 @@ def labels_dir():
         if (HERE / name).is_dir():
             return HERE / name
     sys.exit("No AI/labels or AI/label folder found")
-
-
-def read(spec, field):
-    """Follow a dotted path such as "skirt.length" into a spec."""
-    for key in field.split("."):
-        if not isinstance(spec, dict) or key not in spec:
-            return MISSING
-        spec = spec[key]
-    return spec
-
-
-def matches(got, wanted):
-    accepted = wanted if isinstance(wanted, list) else [wanted]
-    # Compare types too, so True never counts as the number 1.
-    return any(type(got) is type(value) and got == value for value in accepted)
 
 
 def main():
@@ -60,13 +43,14 @@ def main():
             skipped.append(f"{path.name}: not a design spec")
             continue
         scored += 1
+        scores = score_spec(spec, label)
         for field in FIELDS:
             wanted = read(label, field)
             if wanted == MISSING:  # this label does not judge this field
                 continue
             got = read(spec, field)
             total[field] += 1
-            if matches(got, wanted):
+            if scores["fields"][field]:
                 correct[field] += 1
             else:
                 mismatches.append(f"{image} ({path.name}): {field} got {got!r}, label {wanted!r}")

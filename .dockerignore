@@ -1,0 +1,14 @@
+**
+!Dockerfile
+!backend/
+!backend/requirements.lock
+!backend/app/
+!backend/app/**
+backend/app/**/__pycache__/
+backend/app/**/*.pyc
+!AI/
+!AI/label/
+!AI/label/*.json
+!AI/results/
+!AI/results/*.json
+!AI/prompt_versions.md

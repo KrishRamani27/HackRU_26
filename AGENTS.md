@@ -136,6 +136,34 @@ The current backend is a shared team demo; it does not have individual user acco
 - No Gemini requests are needed for these routes. No frontend, builder or AI prompt files
   were changed. SQLite migration is tested; live Tiger/GCS deployment still needs testing.
 
+## AI quality monitor update — October 10, 2026
+
+- Default model is now gemini-3.8-flash in config.py and .env.example. Existing
+  .env overrides still apply. No API key or connection URL was added.
+- app/monitor.py stores ai_calls and observes existing AI warnings. All four AI
+  routes log one row per invocation, including failures and explicit-retry metadata.
+  app/ai.py was left untouched; prompt version is read from its PROMPT_VERSION.
+  Keep its retry/error warning wording in sync with the monitor observer.
+- app/scoring.py is the shared offline scorer. AI/evaluate.py imports it without
+  changing its CLI or scoring rules. Coordinate this small refactor with Krish.
+- GET /monitor/summary reports speed, weighted accuracy, failures and missed fields.
+  Mock/unattempted requests are excluded from quality charts, not hidden.
+- app/monitor_import.py imports saved results idempotently. AI Studio maps to v1;
+  documented backend files map to v6/v7. Unidentified files stay unknown. No
+  synthetic history or timing data is invented, and no Gemini calls are needed.
+- Tiger uses a timestamp hypertable, three continuous aggregates and refresh policies.
+  SQLite keeps ordinary tables and computes the same summary using SQL.
+- backend/MONITOR.md is the frontend handoff; backend/contracts/monitor.ts provides
+  types. Backend README has Tiger, Mac and historical-import commands.
+- Root Dockerfile/.dockerignore/.gcloudignore package AI labels/results for deployed
+  scoring. Existing backend-only Docker builds remain supported without bundled labels.
+- Imported all 9 saved result files in a separate local smoke-test database; a
+  second import added zero duplicates. Offline scoring still gives 71/72.
+- docs/DEVPOST_DRAFT.md is an unsubmitted draft with a launch checklist. Domain
+  registration needs Aryan's chosen name and account/checkout action.
+- Verification: 88 tests passed with SQLite/fakes. Live Tiger, Docker and Cloud Run
+  are not yet tested. No frontend code changed and no changes were pushed.
+
 ## Rules for future code work
 
 - Keep changes inside the assigned role unless Aryan asks otherwise.

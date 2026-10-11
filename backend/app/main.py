@@ -21,6 +21,8 @@ from .custom_routes import custom_router, locked_design, save_snapshot
 from .database import Asset, Design, Part, Version, database, initialize_database, record
 from .schemas import CommandRequest, DesignSpec, EditAction, SavedPart, SuggestionRequest
 from .storage import Storage
+from .monitor import Monitor, initialize_timescale
+from .monitor_import import import_history
 
 logger = logging.getLogger(__name__)
 Image.MAX_IMAGE_PIXELS = 20_000_000
@@ -35,11 +37,16 @@ def create_app(settings: Settings | None = None):
     @asynccontextmanager
     async def lifespan(app):
         initialize_database(engine)
+        initialize_timescale(engine)
         app.state.storage = Storage(settings)
         app.state.ai = AIService(settings)
+        app.state.monitor = Monitor(settings, sessions, engine)
         try:
+            if settings.monitor_import_history:
+                import_history(app.state.monitor)
             yield
         finally:
+            app.state.monitor.close()
             engine.dispose()
 
     app = FastAPI(title="FlatSketch backend", version="0.1.0", lifespan=lifespan)
@@ -114,26 +121,46 @@ def create_app(settings: Settings | None = None):
     @app.post("/analyze", response_model=DesignSpec, dependencies=protected)
     def analyze(response: Response, sketch: UploadFile = File(...)):
         response.headers["X-AI-Mode"] = settings.ai_mode
-        return app.state.ai.analyze(read_image(sketch), sketch.filename)
+        with app.state.monitor.track("/analyze", sketch.filename) as call:
+            image = read_image(sketch)
+            result = app.state.monitor.invoke(lambda: app.state.ai.analyze(image, sketch.filename))
+            call["spec"] = result.model_dump(mode="json")
+            return result
+
+    @app.get("/monitor/summary", dependencies=protected)
+    def monitor_summary():
+        return app.state.monitor.summary()
 
     @app.post("/verify", response_model=list[EditAction], dependencies=protected)
     def verify(response: Response, sketch: UploadFile = File(...), flat: UploadFile = File(...),
                spec: str = Form(..., max_length=20000)):
         response.headers["X-AI-Mode"] = settings.ai_mode
-        return app.state.ai.edits(parse_spec(spec),
-                                  "Compare original sketch (first image) with flat (second image). "
-                                  "Return only corrections that better match the sketch.",
-                                  [read_image(sketch), read_image(flat)])
+        with app.state.monitor.track("/verify", sketch.filename) as call:
+            parsed = parse_spec(spec)
+            images = [read_image(sketch), read_image(flat)]
+            result = app.state.monitor.invoke(lambda: app.state.ai.edits(
+                parsed, "Compare original sketch (first image) with flat (second image). "
+                "Return only corrections that better match the sketch.", images))
+            call["spec"] = parsed.model_dump(mode="json")
+            return result
 
     @app.post("/command", response_model=list[EditAction], dependencies=protected)
     def command(body: CommandRequest, response: Response):
         response.headers["X-AI-Mode"] = settings.ai_mode
-        return app.state.ai.edits(body.spec, f"Apply this student command: {body.text}")
+        with app.state.monitor.track("/command") as call:
+            result = app.state.monitor.invoke(
+                lambda: app.state.ai.edits(body.spec, f"Apply this student command: {body.text}"))
+            call["spec"] = body.spec.model_dump(mode="json")
+            return result
 
     @app.post("/suggestions", dependencies=protected)
     def suggestions(body: SuggestionRequest, response: Response):
         response.headers["X-AI-Mode"] = settings.ai_mode
-        return app.state.ai.suggestions(body.spec, body.goal)
+        with app.state.monitor.track("/suggestions") as call:
+            result = app.state.monitor.invoke(
+                lambda: app.state.ai.suggestions(body.spec, body.goal))
+            call["spec"] = result.model_dump(mode="json")
+            return result
 
     @app.post("/assets", status_code=201, dependencies=protected)
     def upload_asset(image: UploadFile = File(...), session=Depends(db_session)):
