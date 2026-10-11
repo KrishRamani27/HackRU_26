@@ -13,6 +13,10 @@ from .schemas import AIEditResult, DesignSpec, Styles, Suggestions, apply_action
 
 logger = logging.getLogger(__name__)
 
+# Name of the current ANALYZE_PROMPT version. Bump it whenever that prompt changes,
+# and add a matching entry to AI/prompt_versions.md.
+PROMPT_VERSION = "v8-accents"
+
 MAX_IMAGE_SIDE = 1536  # longest side sent to Gemini, in pixels
 MAX_ACCENTS = 3  # contrast-color parts accepted from one /analyze reply
 THINKING_LEVEL = "low"  # less model thinking means faster replies

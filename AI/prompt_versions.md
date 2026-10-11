@@ -11,27 +11,44 @@ Note on labels: the `test2` label was widened on October 10 to accept `a_line` o
 `flared` for the skirt silhouette and `knee` or `midi` for the length. All scores below
 use the current labels.
 
+## Version names
+
+Each analyze prompt version has a short name. The current one is stored in
+`PROMPT_VERSION` in `backend/app/ai.py`:
+
+```python
+PROMPT_VERSION = "v8-accents"
+```
+
+**Whenever `ANALYZE_PROMPT` changes, bump `PROMPT_VERSION` and add an entry here with
+the same name.** This covers the prompt text and anything that changes what Gemini is
+asked to return for `/analyze`, such as a new field in `GeminiDesignSpec`. Use the next
+number and one or two words for the change, for example `v9-neckline-layers`.
+
+`PROMPT_VERSION` covers the analyze prompt only. The edit prompts further down
+(`EDIT_GUIDE`, `VERIFY_RULES`) are not versioned by it.
+
 ## Summary
 
-| Version | Where it ran | Runs scored | Score | Misses |
-| --- | --- | --- | --- | --- |
-| AI Studio v1 | AI Studio | not recorded | not recorded | not recorded |
-| AI Studio v2 (layering rule) | AI Studio | not recorded | not recorded | not recorded |
-| AI Studio, version unknown | AI Studio | 3 | 24/24 | none |
-| Backend starter prompt | Backend, live | 5 | 39/40 | `test3` neckline |
-| Backend full prompt | Backend, live | 5 | 39/40 | `test3` neckline |
-| Backend full prompt + neckline fix | Backend | 0 | not tested yet | |
-| + new waist_y scale | Backend, live | 2 | 16/16 | none (`test3` not run) |
-| + skirt silhouette definitions | Backend, live | 3 | 23/24 | `test3` neckline (`v`) |
-| + accents | Backend | 0 | not tested yet | |
+| Name | Version | Where it ran | Runs scored | Score | Misses |
+| --- | --- | --- | --- | --- | --- |
+| `v1-aistudio` | AI Studio v1 | AI Studio | not recorded | not recorded | not recorded |
+| `v2-aistudio-layering` | AI Studio v2 (layering rule) | AI Studio | not recorded | not recorded | not recorded |
+| `v1` or `v2`, unknown | AI Studio results in the repository | AI Studio | 3 | 24/24 | none |
+| `v3-backend-starter` | Backend starter prompt | Backend, live | 5 | 39/40 | `test3` neckline |
+| `v4-full-prompt` | Backend full prompt | Backend, live | 5 | 39/40 | `test3` neckline |
+| `v5-neckline` | + neckline fix | Backend | 0 | not tested yet | |
+| `v6-waist-y` | + new waist_y scale | Backend, live | 2 | 16/16 | none (`test3` not run) |
+| `v7-silhouette` | + skirt silhouette definitions | Backend, live | 3 | 23/24 | `test3` neckline (`v`) |
+| `v8-accents` (current) | + accents | Backend | 0 | not tested yet | |
 
-## AI Studio v1
+## v1-aistudio: AI Studio v1
 
 - **Prompt:** written and run in Google AI Studio. The text is not saved in this
   repository. _Paste it here._
 - **Results:** not recorded here. _Add them if you still have them._
 
-## AI Studio v2: layering rule
+## v2-aistudio-layering: AI Studio v2 with the layering rule
 
 - **What changed:** added a rule for sketches with visible layers.
 - **Why:** _add the reason and the sketch that showed the problem._
@@ -44,7 +61,7 @@ use the current labels.
 setup, before the backend prompt work. They score 24/24. The repository does not say
 whether v1 or v2 produced them. _Confirm which one and move this line under it._
 
-## Backend starter prompt
+## v3-backend-starter: Backend starter prompt
 
 - **Where:** `backend/app/ai.py`, before the full prompt.
 - **Prompt:** the system prompt `SYSTEM` plus one task line:
@@ -61,7 +78,7 @@ whether v1 or v2 produced them. _Confirm which one and move this line under it._
 - **Caveat:** these runs were printed during testing, not saved to `AI/results/`, and
   the settings changed between them (thinking level, image size, single main style).
 
-## Backend full prompt
+## v4-full-prompt: Backend full prompt
 
 - **Where:** `ANALYZE_PROMPT` in `backend/app/ai.py`.
 - **What changed:**
@@ -83,9 +100,9 @@ whether v1 or v2 produced them. _Confirm which one and move this line under it._
 - **Takeaway:** same score as the starter prompt, but the answers stopped changing
   between runs. The layering rule alone did not fix the `test3` neckline.
 
-## Backend full prompt + neckline fix
+## v5-neckline: Backend full prompt + neckline fix
 
-- **Where:** `ANALYZE_PROMPT` in `backend/app/ai.py` (current version).
+- **Where:** `ANALYZE_PROMPT` in `backend/app/ai.py`.
 - **What changed:** one added rule:
   "neckline.type describes the neckline edge of the outermost dress. If a high-neck
   layer of a different color sits underneath, ignore it for neckline.type and mention
@@ -97,9 +114,9 @@ whether v1 or v2 produced them. _Confirm which one and move this line under it._
 - **To test:** run `/analyze` on the three sketches. The backend now saves each live
   result to `AI/results/<image>__<time>.json`. Then run `python AI/evaluate.py`.
 
-## Backend full prompt + new waist_y scale
+## v6-waist-y: Backend full prompt + new waist_y scale
 
-- **Where:** `ANALYZE_PROMPT` in `backend/app/ai.py` (current version).
+- **Where:** `ANALYZE_PROMPT` in `backend/app/ai.py`.
 - **What changed:** the `proportions.waist_y` explanation. Old: 0 = neckline, 1 = hem,
   measured against the dress length. New: 0 = empire line just under the bust,
   0.5 = natural waist, 1 = dropped waist at the hip, independent of skirt length.
@@ -111,9 +128,9 @@ whether v1 or v2 produced them. _Confirm which one and move this line under it._
   the new scale, and both score 8/8 on the labelled fields. `test3` has not been run,
   so the neckline fix is still untested. `waist_y` is not one of the 8 scored fields.
 
-## Backend full prompt + skirt silhouette definitions
+## v7-silhouette: Backend full prompt + skirt silhouette definitions
 
-- **Where:** `ANALYZE_PROMPT` in `backend/app/ai.py` (current version).
+- **Where:** `ANALYZE_PROMPT` in `backend/app/ai.py`.
 - **What changed:** the three `skirt.silhouette` definitions.
   - `straight`: falls nearly straight down from the waist with little or no widening.
   - `a_line`: widens gently and evenly from waist to hem, even if the skirt is gathered
@@ -139,7 +156,7 @@ whether v1 or v2 produced them. _Confirm which one and move this line under it._
 - **What to check:** `test2` should now return `a_line`, and `test1` (a very full
   floor-length skirt) should stay `flared`.
 
-## Backend full prompt + accents
+## v8-accents: Backend full prompt + accents (current)
 
 - **Where:** `ANALYZE_PROMPT` and `spread_style` in `backend/app/ai.py`;
   `GeminiAccent` in `backend/app/ai_schemas.py` (current version).
