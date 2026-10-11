@@ -59,6 +59,9 @@ It detects terminal timeout/quota/invalid errors and explicit retries without
 changing app/ai.py. If Krish changes these warning messages, update the observer.
 SDK-internal retries are not counted.
 
+Explicit fallback-model attempts now count as retry_used, and the row's model
+reflects the fallback actually attempted, including failed or invalid replies.
+
 app/scoring.py is the shared scorer; AI/evaluate.py imports it with the same CLI
 and matching rules as before. Tell Krish about this small refactor before pushing.
 No prompts, Gemini response schemas or frontend files changed.
@@ -89,6 +92,11 @@ Ask Krish before adding mappings. Filename times use MONITOR_HISTORY_TIMEZONE
 (New York by default). Undated files use modification time as a marked estimate.
 Historical model is "unknown-historical"; retry=false means unavailable, not
 proof no retry happened. Timestamp/version evidence is stored on each row.
+
+New result files with explicit model/prompt_version metadata use that evidence
+before filename inference. Their metadata is stripped from the stored dress spec.
+On restart, saved results matching an already-logged live call are skipped to avoid
+counting that call twice; the import ledger remembers that decision.
 
 ## Tiger features
 

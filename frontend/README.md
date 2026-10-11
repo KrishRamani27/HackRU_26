@@ -136,4 +136,8 @@ There is no automated test suite in the repo. Changes so far were checked with `
 * The 5 MB upload limit mirrors the backend default. If the backend limit changes, change `MAX_BYTES` in `src/hooks/useSketchUpload.ts`.
 * Dress only, front view only. Desktop first: it stacks the panels on small screens but is not tuned for phones.
 * The loading reassurance lines ("Finding the neckline…") are only reassurance, not real progress.
-* Not used yet: the backend's `/verify`, `/command` and `/suggestions` routes (verify loop, voice, AI suggestions), and saving designs.
+* Not used yet: the backend's verify, command, suggestions and monitor summary routes.
+  Saved designs are connected through useDesignFile; original sketch assets are not.
+
+Latest cross-team setup and gaps: [Current project status](../docs/WORKFLOW_STATUS.md).
+frontend/.env.example contains only the public backend address.

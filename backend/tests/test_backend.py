@@ -193,7 +193,9 @@ def test_live_analyze_results_are_saved_for_evaluation(client, monkeypatch, tmp_
     saved = list(results.iterdir())
     assert len(saved) == 1 and saved[0].name.startswith("my_sketch__")
     model = client.app.state.ai.settings.gemini_model
-    assert json.loads(saved[0].read_text()) == {"model": model, **response.json()}
+    from app.ai import PROMPT_VERSION
+    assert json.loads(saved[0].read_text()) == {
+        "model": model, "prompt_version": PROMPT_VERSION, **response.json()}
 
 
 def test_large_images_are_downscaled_for_gemini():
