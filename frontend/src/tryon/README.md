@@ -1,7 +1,7 @@
 # Try it on (optional feature)
 
-A pill in the canvas toolbar, "Try it on". Click it and the dress is shown on a simple
-fashion figure, so you can see where the neckline, waist and hem sit on a body. Click
+A pill in the canvas toolbar, "Try it on". Click it and the dress is shown on a drawn
+fashion figure (a woman with chin-length hair and a lightly drawn face), so you can see where the neckline, waist and hem sit on a body. Click
 again to go back to the plain flat.
 
 Everything for this feature is in this folder, so it can be deleted in one go if the
@@ -37,6 +37,11 @@ arms hang on the same 20° line the builder uses for sleeves, so sleeves sit ove
 
 The builder makes the whole dress wider or narrower with `proportions.shoulder_width`,
 so the figure takes that number and sizes itself to fit inside the dress.
+
+The figure is drawn by our own code as vector shapes, not from a photo. Each body part is
+a short list of landmark points that `smooth()` rounds into curves. A photo would not work
+here: the arms and legs have to sit exactly where the builder puts sleeves and hems, the
+sanitizer does not allow images, and a stock photo is someone else's property.
 
 The figure only uses SVG elements and attributes that `flat/sanitizeSvg.ts` already
 allows, so the sanitizer needed no changes.
