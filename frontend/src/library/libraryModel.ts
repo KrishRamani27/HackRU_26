@@ -6,7 +6,7 @@ import type { DesignSpec, PartName, Pattern } from "../../../Builder/types";
 import { buildFlat } from "../../../Builder/buildFlat";
 import { mockSpec } from "../../../Builder/mockSpec";
 import { initialSpecState, specReducer } from "../state/specReducer";
-import { DEFAULT_STYLE, isValidEdit, specValue, stylePath, type EditAction } from "../state/specSchema";
+import { DEFAULT_STYLE, isShown, isValidEdit, specValue, stylePath, type EditAction } from "../state/specSchema";
 
 export const PART_TYPES = ["neckline", "sleeves", "waist", "skirt", "details", "proportions"] as const;
 export type LibraryPartType = (typeof PART_TYPES)[number];
@@ -42,7 +42,9 @@ const SOURCE: Record<PartName, { type: LibraryPartType; keys: readonly string[] 
   waist_seam: { type: "waist", keys: ["seam", "style"] },
   skirt: { type: "skirt", keys: ["silhouette", "length", "fullness", "hem", "panels"] },
   pockets: { type: "details", keys: ["pockets"] },
-  buttons: { type: "details", keys: ["buttons"] },
+  // The details part types are reached through these two canvas parts. The backend's details model also holds the
+  // front placket, darts, bow and trim, so they travel with the buttons (there is no canvas part of their own).
+  buttons: { type: "details", keys: ["buttons", "placket", "darts", "bow", "trim"] },
 };
 
 /** Which canvas parts a saved part's style is applied to. */
@@ -62,7 +64,9 @@ export function buildSavedPart(spec: DesignSpec, part: PartName, name: string): 
   const { type, keys } = SOURCE[part];
   const spec_settings: SavedPartInput["spec_settings"] = {};
   // specValue fills in the backend's default for a field the spec doesn't have (older specs, the sample).
-  for (const key of keys) spec_settings[key] = specValue(spec, `${type}.${key}`);
+  // Only settings the panel has a control for (SHOWN_CONTROLS) are saved with a part, so a card never lists a
+  // setting the builder can't draw.
+  for (const key of keys) if (isShown(`${type}.${key}`)) spec_settings[key] = specValue(spec, `${type}.${key}`);
   const style = { ...DEFAULT_STYLE, ...spec.style[part] };
   return { name: name.trim(), part_type: type, spec_settings, style: { fill: style.fill, pattern: style.pattern } };
 }
@@ -114,7 +118,7 @@ export function previewSrc(saved: SavedPartInput): string | null {
 
 /** "puff · elbow", "a line · knee": a short readable summary of the saved settings. */
 export function settingsSummary(saved: SavedPartInput): string {
-  return Object.values(saved.spec_settings)
-    .map((v) => (typeof v === "boolean" ? (v ? "seam" : "no seam") : String(v).replace(/_/g, " ")))
+  return Object.entries(saved.spec_settings)
+    .map(([k, v]) => (typeof v === "boolean" ? (v ? k : `no ${k}`) : String(v).replace(/_/g, " ")))
     .join(" · ");
 }

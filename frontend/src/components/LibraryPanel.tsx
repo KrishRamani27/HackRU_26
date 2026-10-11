@@ -11,6 +11,7 @@ import {
   type SavedPart,
 } from "../library/libraryModel";
 import { ChipGroup } from "./Controls";
+import { PART_TYPES_NOT_FOR_GARMENT, type GarmentKind } from "../state/specSchema";
 import { AlertIcon, TrashIcon } from "./Icons";
 
 type Filter = "all" | "drawings" | LibraryPartType;
@@ -34,6 +35,8 @@ interface CardProps {
   extra?: ReactNode;
   preview: string | null;
   canApply: boolean;
+  /** Why it can't be applied to this design, shown as a tooltip when the card is disabled. */
+  disabledReason?: string;
   confirming: boolean;
   busy: boolean;
   error: string | null;
@@ -46,11 +49,11 @@ interface CardProps {
 
 /** One saved item, laid out like a fabric swatch card: hairline border, lots of white space. */
 function LibraryCard({
-  name, typeLabel, meta, extra, preview, canApply, confirming, busy, error, applyLabel, onApply, onAskDelete, onKeep, onConfirmDelete,
+  name, typeLabel, meta, extra, preview, canApply, disabledReason, confirming, busy, error, applyLabel, onApply, onAskDelete, onKeep, onConfirmDelete,
 }: CardProps) {
   return (
     <li className="pcard">
-      <button type="button" className="pcard__main" disabled={!canApply || busy} onClick={onApply} aria-label={applyLabel}>
+      <button type="button" className="pcard__main" disabled={!canApply || busy} onClick={onApply} aria-label={applyLabel} title={!canApply ? disabledReason : undefined}>
         <span className="pcard__preview">
           {preview ? <img src={preview} alt="" /> : <span className="pcard__nopreview">No preview</span>}
         </span>
@@ -89,6 +92,8 @@ interface Props {
   onReloadDrawings: () => void;
   /** False until a design is on the canvas: there is nothing to apply a part to. */
   canApply: boolean;
+  /** The (locked) garment type of the open design: a skirt has no neckline or sleeves to apply a part to. */
+  garment: GarmentKind;
   onApply: (part: SavedPart) => void;
   /** Adds an independent copy of a saved drawing to the design. Returns a message if it couldn't. */
   onApplyDrawing: (drawing: SavedDrawing) => string | null;
@@ -100,7 +105,7 @@ type Item = { kind: "part"; part: SavedPart; time: number } | { kind: "drawing";
 
 /** The Library tab: filter chips and a grid of saved dress parts and drawings. */
 export function LibraryPanel({
-  state, onReload, drawings, onReloadDrawings, canApply, onApply, onApplyDrawing, onDelete, onDeleteDrawing,
+  state, onReload, drawings, onReloadDrawings, canApply, garment, onApply, onApplyDrawing, onDelete, onDeleteDrawing,
 }: Props) {
   const [filter, setFilter] = useState<Filter>("all");
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -220,7 +225,8 @@ export function LibraryPanel({
               <PartItem
                 key={item.part.id}
                 part={item.part}
-                canApply={canApply}
+                canApply={canApply && !PART_TYPES_NOT_FOR_GARMENT[garment].includes(item.part.part_type)}
+                disabledReason={canApply ? `A ${garment} has no ${PART_TYPE_LABELS[item.part.part_type].toLowerCase()} to apply this to.` : undefined}
                 confirming={confirmId === item.part.id}
                 busy={busyId === item.part.id}
                 error={cardError?.id === item.part.id ? cardError.message : null}
@@ -255,7 +261,7 @@ export function LibraryPanel({
   );
 }
 
-type ItemHandlers = Pick<CardProps, "canApply" | "confirming" | "busy" | "error" | "onApply" | "onAskDelete" | "onKeep" | "onConfirmDelete">;
+type ItemHandlers = Pick<CardProps, "canApply" | "disabledReason" | "confirming" | "busy" | "error" | "onApply" | "onAskDelete" | "onKeep" | "onConfirmDelete">;
 
 function PartItem({ part, ...rest }: ItemHandlers & { part: SavedPart }) {
   const preview = useMemo(() => previewSrc(part), [part]);

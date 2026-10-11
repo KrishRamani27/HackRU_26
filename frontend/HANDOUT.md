@@ -18,9 +18,9 @@ This is the part of FlatSketch you see in the browser. You give it a photo of a 
 11b. **Select several, group them, save them.** With the Select tool, hold Shift and click to add or remove lines, or drag a box on empty canvas to select every line inside it. Dragging moves all selected lines together, and Delete removes them all, each as one undo step. With several selected, the right panel shows only stroke color, stroke width, Group or Ungroup, and Delete. Group ties the lines together, so clicking any one selects the whole group. When a line or group is selected, the "Save to library" bar appears. A group is saved as one item. In the Library tab the "Drawings" chip shows saved drawings with a small preview and name. Click a card to add a copy to your design (one undo step), or use the trash icon to delete it after a confirmation.
 11c. **Resize, rotate and layers.** When a line, a group or several lines are selected, a thin box in the accent color appears with a small square handle on each corner and a round handle above the top edge. Drag a corner to resize (the opposite corner stays put, and Shift keeps the proportions). Drag the round handle to rotate around the middle of the selection (Shift snaps to 15 degrees). A single line also has Scale X, Scale Y and Rotation boxes in the right panel for exact numbers. Each drag is one undo step, and the box and handles never appear in an exported file. The right panel also has a Layers list you can fold away. It shows your drawn lines on top (a group is one row you can open), then the eight dress parts. Click a row to select it. The eye hides a line, which also leaves it out of the export, or hides a dress part on the screen only, so the export still has it. The up and down arrows change what is drawn on top of what, and a double click on a line name renames it.
 12. **Zoom.** Zoom buttons at the top of the sheet go from 50% to 300%, and there is a "fit" button.
-13. **View sample.** On the empty sheet there is a "View sample" button. It loads a ready made dress from the builder so you can try the controls without uploading anything or running the backend. It is labeled as a sample that was not generated from a sketch, and "Hide sample" takes you back to the empty sheet. The sample is fully editable too.
+13. **Samples.** On the empty sheet, and under the upload box in the Sketch tab, there is a "Samples" dropdown with four ready made dresses: Little black dress (black, scoop neck, sleeveless, knee length), Denim day dress (denim, crew neck, short sleeves, patch pockets, buttons), Garden party (green bodice, V neck, flared floral skirt) and Plaid midi (plaid skirt, contrast collar and waistband, long sleeves). You can try the controls without uploading anything or running the backend. A sample is labeled as not generated from a sketch, is a new unsaved design with a fresh undo history, and "Hide sample" takes you back to the empty sheet. Every sample is fully editable, and editing one never changes the preset. If you have unsaved changes, choosing a sample asks first. The samples only use settings the builder draws today.
 14. **Export.** Once something is on the sheet, the Export button at the top turns on. Click it and pick SVG or PNG from the small menu. The file downloads with a name taken from the title, like `untitled-garment.svg`, and a short "Exported" message appears.
-14b. **Save and open whole designs.** Click Save design in the top bar, or press Ctrl+S. The first save creates the design on the backend. After that each save updates it. The word Saved shows briefly, and the Unsaved changes dot goes away. Click Open to see your saved designs with their names and when they were last updated, and click one to load it, drawn lines and groups included, with a fresh undo history. If you have unsaved changes it asks before replacing them. If someone else saved the same design in the meantime, your save is refused with the message "This design changed somewhere else. Reload to get the latest." and nothing is overwritten. Reload brings in their version and replaces your edits.
+14b. **Save and open whole designs.** Click Save design in the top bar, or press Ctrl+S. The first save creates the design on the backend. After that each save updates it. The word Saved shows briefly, and the Unsaved changes dot goes away. Uploading a new sketch, opening the sample or choosing New design always starts a new design, so saving it never overwrites the design you saved before. Only a design you opened with Open keeps its identity, so saving it updates that same design. Click Open to see your saved designs with their names and when they were last updated, and click one to load it, drawn lines and groups included, with a fresh undo history. If you have unsaved changes it asks before replacing them. If someone else saved the same design in the meantime, your save is refused with the message "This design changed somewhere else. Reload to get the latest." and nothing is overwritten. Reload brings in their version and replaces your edits.
 15. **Starting over.** Uploading a new sketch, opening the sample, or removing your sketch replaces the current design, and any edits and undo history are gone. Saved parts in the library are not affected. If you have unsaved changes, opening a saved design, uploading a new sketch, opening the sample, hiding the sample or removing your sketch all ask first (Replace or Keep editing). Keep editing changes nothing.
 
 ## 2. The layout
@@ -33,7 +33,7 @@ The screen has a thin dark strip on the left, a top bar, and three panels.
 * "Workbench" and "Library". Each one switches the left panel (Workbench shows the Sketch tab, Library shows the Library tab), and the one for the open tab is lit. They stay in step with the tabs inside the left panel.
 
 **Top bar**
-* A small "Atelier / Workbench" line, then the project name "Untitled garment" in big letters with a "Draft" tag. Click the name to rename it. The name is used when you save the design and in the file names of exports. Next to it, a dot and the words "Unsaved changes" show when you have edited since the last save. On the right there are Open and Save design buttons.
+* A small "Atelier / Workbench" line, then the project name "Untitled garment" in big letters with a "Not saved yet" tag (it changes to "Saved design" once the design has been saved or opened from the backend). Click the name to rename it. The name is used when you save the design and in the file names of exports. Next to it, a dot and the words "Unsaved changes" show when you have edited since the last save. On the right there are New design, Open and Save design buttons. New design empties the canvas, the sketch, the drawings and the undo history, puts the title back to "Untitled garment", and forgets which saved design you were on, so the next save creates a new one. It asks first if you have unsaved changes. For a design that was never saved, only the dot shows (the tag already says it is not saved); for a saved one the dot comes with the words "Unsaved changes".
 * A status note that only appears after an analysis: "Mock AI mode", "Gemini", or "AI mode unknown".
 * Undo and redo arrow buttons. They are greyed out when there is nothing to undo or redo.
 * The "Upload sketch" button.
@@ -123,15 +123,15 @@ We checked this by measuring the picture before and after each change: every col
 
 | Control | What it changes |
 | --- | --- |
-| Neckline, Type | Crew, V, Scoop, Square, Sweetheart, Off shoulder, Halter, or High (`neckline.type`). The builder only draws the first four so far; the others are drawn like a scoop. |
-| Neckline, Collar | None, Shirt, Peter Pan, Band, or Mandarin (`collar.type`) |
+| Neckline, Type | Crew, V, Scoop, Square, Sweetheart, Off shoulder, Halter, or High (`neckline.type`) |
 | Neckline, Depth | Slider from 0 to 1, shallow to deep (`neckline.depth`) |
+| Neckline, Collar | None, Shirt, Peter Pan, Band, or Mandarin (`collar.type`) |
 | Sleeves, Type | None, Cap, Puff, or Fitted (`sleeves.type`) |
 | Sleeves, Length | Slider with three stops: Short, Elbow, Long (`sleeves.length`). Greyed out while sleeves are None, because length does not apply then. |
 | Sleeves, Cuff | None, Band, Ruffle, or Elastic (`sleeves.cuff`) |
 | Sleeves, Shoulder | Set in, Puff top, or Off shoulder (`sleeves.shoulder`) |
 | Waist, Waist seam | Seam or No seam, whether the waist line is drawn (`waist.seam`) |
-| Waist, Waist style | Natural, Empire, Dropped, or Belted (`waist.style`) |
+| Waist, Waist style | Natural or Belted, which makes the waistband taller (`waist.style`). Empire and Dropped exist in the backend but look the same as Natural, so they have no button. |
 | Skirt, Silhouette | Straight, A line, or Flared (`skirt.silhouette`) |
 | Skirt, Length | Slider with four stops: Mini, Knee, Midi, Floor (`skirt.length`) |
 | Skirt, Fullness | Plain, Gathered, or Pleated (`skirt.fullness`) |
@@ -148,9 +148,9 @@ We checked this by measuring the picture before and after each change: every col
 | Fabric & color, one row per part | A color swatch and four pattern chips (Solid, Denim, Plaid, Floral) for each of the 8 parts (`style.<part>.fill` and `style.<part>.pattern`). The collar and waist seam rows say "Follows the bodice until you set a color or pattern here" until you style them yourself. |
 | Notes | A free text box up to 4000 characters (`notes`). It is for anything the settings cannot express, and it does not change the drawing. |
 
-Two things you cannot edit: the garment type (it is always a dress), and anything the builder does not draw (see limits).
+Two things you cannot edit: the garment type (it comes with the design and is locked), and anything the builder does not draw (see limits).
 
-The controls added in the backend's v10 update (the four extra necklines, collar, cuff, shoulder, waist style, fullness, hem, panels, placket, darts, bow and trim) are saved and sent to the backend like any other setting, and the flat builder draws all of them, so choosing one changes the picture straight away.
+The panel only shows controls for settings the flat builder draws, and only the ones that apply to the garment that is open. A design is a dress, a top or a skirt (the Templates button has all three). A top has everything a dress has, and its Skirt section is called Lower part, because it shapes where the top ends. A skirt has no neckline, collar, sleeve, waist seam or dart controls, no collar, bodice or sleeve rows under Fabric & color and in the Layers list, and no neckline bow. In the library, a skirt cannot take a neckline or sleeve part (those cards are greyed out). Settings the panel has no button for are never lost: a sketch result that includes them keeps them, and they are saved with the design. The only such case today is Empire and Dropped waist styles, which look the same as Natural, so they have no button (a small note appears if a design has one). When the builder learns to draw something new, its button is switched on by one line in the list called `SHOWN_CONTROLS` in `src/state/specSchema.ts`.
 
 Sliders always show their current value next to the label. The selected chip is filled with the accent color (a deep terracotta).
 
@@ -245,7 +245,7 @@ Everything is in `frontend/`. The drawing code is not ours: it lives in `Builder
 
 **Used from `Builder/` (a teammate's work)**
 * `buildFlat.ts`: settings in, drawing out.
-* `mockSpec.ts`: the ready made dress used for "View sample".
+* `mockSpec.ts`: the builder team's ready made dress. The app no longer uses it; the four samples live in `src/samples.ts` in the frontend.
 * `types.ts`: the shared definition of the settings.
 
 ## 7. How to run it

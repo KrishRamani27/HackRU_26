@@ -20,6 +20,8 @@ interface Props {
   onReload: () => void;
   onDismiss: () => void;
   onOpenDesign: () => void;
+  /** Starts an empty, unsaved design. */
+  onNewDesign: () => void;
   onUpload: () => void;
   exportEnabled: boolean;
   onExport: (format: ExportFormat) => Promise<string>;
@@ -82,7 +84,7 @@ function ProjectName({ name, editable, onRename }: { name: string; editable: boo
 }
 
 export function TopBar({
-  projectName, designOpen, onRename, saved, dirty, saveStatus, notice, onSave, onReload, onDismiss, onOpenDesign,
+  projectName, designOpen, onRename, saved, dirty, saveStatus, notice, onSave, onReload, onDismiss, onOpenDesign, onNewDesign,
   onUpload, exportEnabled, onExport, canUndo, canRedo, onUndo, onRedo, status,
 }: Props) {
   const saving = saveStatus.kind === "saving";
@@ -92,11 +94,12 @@ export function TopBar({
         <span className="topbar__crumb">Atelier <span aria-hidden="true">/</span> Workbench</span>
         <div className="topbar__title-row">
           <ProjectName name={projectName} editable={designOpen} onRename={onRename} />
-          <span className="chip">{saved ? "Saved design" : "Draft"}</span>
+          {designOpen && <span className="chip">{saved ? "Saved design" : "Not saved yet"}</span>}
           {dirty && (
-            <span className="unsaved" role="status">
+            <span className="unsaved" role="status" title="Unsaved changes">
               <i className="unsaved__dot" aria-hidden="true" />
-              Unsaved changes
+              {/* A design that was never saved already says "Not saved yet", so only the dot shows there. */}
+              <span className={saved ? "" : "visually-hidden"}>Unsaved changes</span>
             </span>
           )}
         </div>
@@ -141,6 +144,9 @@ export function TopBar({
         <button type="button" className="btn btn--ghost" onClick={onUpload} aria-label="Upload sketch">
           <UploadIcon />
           <span>Upload sketch</span>
+        </button>
+        <button type="button" className="btn btn--ghost" onClick={onNewDesign}>
+          <span>New design</span>
         </button>
         <button type="button" className="btn btn--ghost" onClick={onOpenDesign} aria-haspopup="dialog">
           <span>Open</span>
