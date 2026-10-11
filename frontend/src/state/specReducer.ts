@@ -5,7 +5,7 @@ import type { AiMode } from "../types";
 import { FOLLOWER_PARTS, PART_NAMES, isValidEdit, normalizeStyles, sameStyle, type EditAction } from "./specSchema";
 
 /** Where the current spec came from. Drives the labels on the canvas. */
-export type SpecSource = { source: "analysis"; aiMode: AiMode } | { source: "sample" };
+export type SpecSource = { source: "analysis"; aiMode: AiMode } | { source: "sample" } | { source: "saved" };
 
 /** How many undo steps are kept. Older ones are dropped. */
 export const MAX_HISTORY = 50;
@@ -52,7 +52,7 @@ export type ElementPatch = Partial<Pick<CustomElement, "name" | "stroke" | "stro
 
 export type SpecAction =
   /** Replace the whole spec (new /analyze result, or the sample). Starts a fresh history. */
-  | { type: "load"; spec: DesignSpec; meta: SpecSource }
+  | { type: "load"; spec: DesignSpec; meta: SpecSource; customElements?: CustomElement[] }
   /**
    * Apply edit actions, in order. Invalid ones are ignored, as the backend would reject them.
    * Pass `coalesce` (a control's name) for edits that arrive in a stream, like a slider drag:
@@ -241,7 +241,7 @@ export function specReducer(state: SpecState, action: SpecAction): SpecState {
   switch (action.type) {
     case "load": {
       const spec = normalizeStyles(action.spec);
-      return { ...initialSpecState, spec, detached: detachedAtLoad(spec), meta: action.meta };
+      return { ...initialSpecState, spec, customElements: action.customElements ?? [], detached: detachedAtLoad(spec), meta: action.meta };
     }
 
     case "apply": {

@@ -20,7 +20,8 @@ This is the part of FlatSketch you see in the browser. You give it a photo of a 
 12. **Zoom.** Zoom buttons at the top of the sheet go from 50% to 300%, and there is a "fit" button.
 13. **View sample.** On the empty sheet there is a "View sample" button. It loads a ready made dress from the builder so you can try the controls without uploading anything or running the backend. It is labeled as a sample that was not generated from a sketch, and "Hide sample" takes you back to the empty sheet. The sample is fully editable too.
 14. **Export.** Once something is on the sheet, the Export button at the top turns on. Click it and pick SVG or PNG from the small menu. The file downloads with a name taken from the title, like `untitled-garment.svg`, and a short "Exported" message appears.
-15. **Starting over.** Uploading a new sketch, opening the sample, or removing your sketch replaces the current design, and any edits and undo history are gone. Saved parts in the library are not affected. Whole designs are not saved anywhere yet.
+14b. **Save and open whole designs.** Click Save design in the top bar, or press Ctrl+S. The first save creates the design on the backend. After that each save updates it. The word Saved shows briefly, and the Unsaved changes dot goes away. Click Open to see your saved designs with their names and when they were last updated, and click one to load it, drawn lines and groups included, with a fresh undo history. If you have unsaved changes it asks before replacing them. If someone else saved the same design in the meantime, your save is refused with the message "This design changed somewhere else. Reload to get the latest." and nothing is overwritten. Reload brings in their version and replaces your edits.
+15. **Starting over.** Uploading a new sketch, opening the sample, or removing your sketch replaces the current design, and any edits and undo history are gone. Saved parts in the library are not affected. If you have unsaved changes, opening a saved design asks first, and uploading a new sketch or opening the sample does not (save first with Ctrl+S).
 
 ## 2. The layout
 
@@ -32,7 +33,7 @@ The screen has a thin dark strip on the left, a top bar, and three panels.
 * "Workbench" and "Library". Each one switches the left panel (Workbench shows the Sketch tab, Library shows the Library tab), and the one for the open tab is lit. They stay in step with the tabs inside the left panel.
 
 **Top bar**
-* A small "Atelier / Workbench" line, then the project name "Untitled garment" in big letters with a "Draft" tag. The name is fixed for now, you cannot rename it.
+* A small "Atelier / Workbench" line, then the project name "Untitled garment" in big letters with a "Draft" tag. Click the name to rename it. The name is used when you save the design and in the file names of exports. Next to it, a dot and the words "Unsaved changes" show when you have edited since the last save. On the right there are Open and Save design buttons.
 * A status note that only appears after an analysis: "Mock AI mode", "Gemini", or "AI mode unknown".
 * Undo and redo arrow buttons. They are greyed out when there is nothing to undo or redo.
 * The "Upload sketch" button.
@@ -260,12 +261,11 @@ You can try the sample with only the frontend running. Uploading a sketch needs 
 
 **Not built yet**
 * **Opening an export in Illustrator itself.** The SVG was checked as valid XML and rendered in a browser, and it has the named layers, fills and patterns. Nobody has opened it in Illustrator yet, so test one before promising it.
-* **Saving designs.** Whole designs are not saved. A refresh loses the current design, including any lines you drew. Only library parts are saved, because the frontend does not use the backend's design routes yet.
+* **Saving designs.** Designs are saved to the shared backend with no accounts, so everyone using the same backend sees the same list (the 50 newest). There is no way yet to delete a saved design, see its older versions, or save the uploaded sketch picture with it. A design you never saved is lost on refresh.
 * **Library limits.** Everyone who uses the same backend shares one library, because there are no user accounts. It shows the 100 newest parts. You cannot rename a saved part.
 * **Library previews.** The card previews use a plain white dress as the base. Applying a saved collar or waist seam style gives that part its own style, so it stops following the bodice.
 * **Layers panel.** The project guide mentions one. We have click to select instead.
 * **AI suggestions, voice, and the verify loop.** The backend has routes for them. The frontend does not use them.
-* **Renaming the project.** The name "Untitled garment" and the "Draft" tag are fixed.
 
 **Things that behave in a limited way**
 * **Gemini mode is untested from the frontend.** Everything was tested against the backend in mock mode. The code reads the header and handles real mode, but we have not seen it work with a real Gemini key.

@@ -20,6 +20,7 @@ export type CanvasState =
   | { status: "loading" }
   | { status: "ready"; source: "analysis"; svgMarkup: string; aiMode: AiMode }
   | { status: "ready"; source: "sample"; svgMarkup: string }
+  | { status: "ready"; source: "saved"; svgMarkup: string }
   | { status: "error"; message: string; title?: string };
 
 /** Progress of the /analyze request. The resulting spec itself lives in the spec reducer. */

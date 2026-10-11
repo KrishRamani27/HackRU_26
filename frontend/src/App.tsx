@@ -16,6 +16,8 @@ import { ACCEPT_ATTR, useSketchUpload } from "./hooks/useSketchUpload";
 import { useAnalysis } from "./hooks/useAnalysis";
 import { useLibrary } from "./hooks/useLibrary";
 import { describeError } from "./api/parts";
+import { useDesignFile } from "./hooks/useDesignFile";
+import { OpenDialog } from "./components/OpenDialog";
 import { buildSavedPart, editsFor, type SavedPart } from "./library/libraryModel";
 import { isTyping, useUndoShortcuts } from "./hooks/useUndoShortcuts";
 import { ElementPanel } from "./components/ElementPanel";
@@ -50,8 +52,6 @@ function aiStatus(mode: AiMode) {
   if (mode === "gemini") return "Gemini";
   return "AI mode unknown";
 }
-
-const PROJECT_NAME = "Untitled garment";
 
 export default function App() {
   const sketch = useSketchUpload();
@@ -97,6 +97,8 @@ export default function App() {
     };
   } else if (design.meta.source === "sample") {
     canvas = { status: "ready", source: "sample", svgMarkup: flat.svg };
+  } else if (design.meta.source === "saved") {
+    canvas = { status: "ready", source: "saved", svgMarkup: flat.svg };
   } else {
     canvas = { status: "ready", source: "analysis", svgMarkup: flat.svg, aiMode: design.meta.aiMode };
   }
@@ -139,14 +141,18 @@ export default function App() {
     .map((id) => design.customElements.find((e) => e.id === id))
     .filter((e): e is CustomElement => !!e);
 
+  // Saving and opening whole designs (POST and PUT /designs, with the version check).
+  const file = useDesignFile(design, dispatch);
+  const [openingDesign, setOpeningDesign] = useState(false);
+
   // Export uses a fresh buildFlat string for the current spec, never the on-screen SVG,
   // so selection and hover styling cannot get into the file.
   const exportCurrent = useCallback(
     async (format: ExportFormat) => {
       if (!design.spec) throw new Error("There is nothing to export yet.");
-      return exportFlat(buildFlat(design.spec, design.customElements), PROJECT_NAME, format);
+      return exportFlat(buildFlat(design.spec, design.customElements), file.name, format);
     },
-    [design.spec, design.customElements],
+    [design.spec, design.customElements, file.name],
   );
 
   // The pen tool. Only usable while a flat is on the canvas; a new design starts back on Select.
@@ -338,7 +344,17 @@ export default function App() {
       <NavRail tab={leftTab} onTabChange={setLeftTab} />
       <div className="shell">
         <TopBar
-          projectName={PROJECT_NAME}
+          projectName={file.name}
+          designOpen={canvas.status === "ready"}
+          onRename={file.setName}
+          saved={file.saved}
+          dirty={canvas.status === "ready" && file.dirty}
+          saveStatus={file.status}
+          notice={file.notice}
+          onSave={() => void file.save()}
+          onReload={() => void file.reload()}
+          onDismiss={file.dismiss}
+          onOpenDesign={() => setOpeningDesign(true)}
           onUpload={browse}
           exportEnabled={canvas.status === "ready"}
           onExport={exportCurrent}
@@ -443,6 +459,9 @@ export default function App() {
           </ErrorBoundary>
         </div>
       </div>
+      {openingDesign && (
+        <OpenDialog dirty={file.dirty} onClose={() => setOpeningDesign(false)} onOpen={file.openSaved} />
+      )}
     </div>
   );
 }

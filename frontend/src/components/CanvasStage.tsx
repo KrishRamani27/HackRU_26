@@ -121,7 +121,9 @@ export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUp
   const context = state.status === "ready"
     ? state.source === "sample"
       ? { label: "Sample", tone: "sample" }
-      : state.aiMode === "mock"
+      : state.source === "saved"
+        ? { label: "Saved design", tone: "neutral" }
+        : state.aiMode === "mock"
         ? { label: "Demo result", tone: "sample" }
         : state.aiMode === "gemini"
           ? { label: "AI result", tone: "live" }
@@ -235,9 +237,11 @@ export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUp
               label={
                 state.source === "sample"
                   ? "Sample technical flat of a dress. Not generated from a sketch. Select a part to edit it."
-                  : state.aiMode === "mock"
-                    ? "Demo technical flat from the backend's mock AI. Not recognized from the sketch. Select a part to edit it."
-                    : "Generated technical flat. Select a part to edit it."
+                  : state.source === "saved"
+                    ? "Saved technical flat of a dress. Select a part to edit it."
+                      : state.aiMode === "mock"
+                      ? "Demo technical flat from the backend's mock AI. Not recognized from the sketch. Select a part to edit it."
+                      : "Generated technical flat. Select a part to edit it."
               }
               selected={selectedPart}
               onSelect={onSelectPart}
