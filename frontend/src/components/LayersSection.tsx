@@ -70,10 +70,15 @@ function stackRows(elements: readonly CustomElement[]): { key: string; members: 
   return rows;
 }
 
-/** The collapsible Layers list: drawn elements and groups on top, then the eight dress parts. */
-export function LayersSection(p: LayersProps) {
+/**
+ * The Layers list: drawn elements and groups on top, then the dress parts. Collapsible under its own heading,
+ * or `bare` (always open, no heading) when it fills the Properties panel's Layers tab.
+ */
+export function LayersSection({ bare = false, ...p }: LayersProps & { bare?: boolean }) {
   const headingId = useId();
-  const { open, expanded } = useView();
+  const view$ = useView();
+  const expanded = view$.expanded;
+  const open = bare || view$.open;
   const rows = stackRows(p.elements);
 
   const toggleOpen = () => {
@@ -91,18 +96,20 @@ export function LayersSection(p: LayersProps) {
   };
 
   return (
-    <section className="prop-section layers" data-section="layers" aria-labelledby={headingId}>
-      <h3 id={headingId} className="eyebrow layers__heading">
-        <button type="button" className="layers__toggle" aria-expanded={open} aria-controls={`${headingId}-body`} onClick={toggleOpen}>
-          <ChevronDownIcon width={14} height={14} className={open ? "" : "is-closed"} />
-          <span>Layers</span>
-          <span className="layers__count">{p.elements.length + PARTS_FOR[p.garment].length}</span>
-        </button>
+    <section className={`prop-section layers${bare ? " layers--bare" : ""}`} data-section="layers" aria-labelledby={headingId}>
+      <h3 id={headingId} className={bare ? "visually-hidden" : "eyebrow layers__heading"}>
+        {bare ? "Layers" : (
+          <button type="button" className="layers__toggle" aria-expanded={open} aria-controls={`${headingId}-body`} onClick={toggleOpen}>
+            <ChevronDownIcon width={14} height={14} className={open ? "" : "is-closed"} />
+            <span>Layers</span>
+            <span className="layers__count">{p.elements.length + PARTS_FOR[p.garment].length}</span>
+          </button>
+        )}
       </h3>
       {open && (
         <div id={`${headingId}-body`} className="layers__body">
           {rows.length === 0 ? (
-            <p className="field__hint">Nothing drawn yet. Lines you draw with the pen are listed here, top layer first.</p>
+            <p className="field__hint">Nothing drawn yet. Lines and shapes you draw are listed here, top layer first.</p>
           ) : (
             <ul className="layers__list" aria-label="Drawn elements, top layer first">
               {rows.map((row, index) => {
