@@ -1,8 +1,9 @@
 {
     "garment_type": "dress",
     "neckline": { "type": "v" },
-    "sleeves": { "type": "fitted", "length": "short" },
-    "waist": { "seam": true },
-    "skirt": { "silhouette": ["a_line", "flared"], "length": ["knee", "midi"] },
-    "details": { "pockets": "none", "buttons": 8 }
+    "collar": { "type": "shirt" },
+    "sleeves": { "type": "fitted", "length": "short", "cuff": ["none", "band"], "shoulder": "set_in" },
+    "waist": { "seam": true, "style": "natural" },
+    "skirt": { "silhouette": "a_line", "length": ["knee", "midi"], "fullness": "gathered", "hem": "plain" },
+    "details": { "pockets": "none", "buttons": 8, "placket": "full", "darts": true, "bow": "none", "trim": "none" }
 }
