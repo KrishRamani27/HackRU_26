@@ -150,7 +150,7 @@ We checked this by measuring the picture before and after each change: every col
 
 Two things you cannot edit: the garment type (it is always a dress), and anything the builder does not draw (see limits).
 
-The controls added in the backend's v10 update (the four extra necklines, collar, cuff, shoulder, waist style, fullness, hem, panels, placket, darts, bow and trim) are saved and sent to the backend like any other setting, but the flat builder does not draw them yet, so choosing them does not change the picture until the builder is updated.
+The controls added in the backend's v10 update (the four extra necklines, collar, cuff, shoulder, waist style, fullness, hem, panels, placket, darts, bow and trim) are saved and sent to the backend like any other setting, and the flat builder draws all of them, so choosing one changes the picture straight away.
 
 Sliders always show their current value next to the label. The selected chip is filled with the accent color (a deep terracotta).
 

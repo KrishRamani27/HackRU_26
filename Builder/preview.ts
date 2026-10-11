@@ -19,6 +19,7 @@ function variant(o: Override): DesignSpec {
     skirt: { ...mockSpec.skirt, ...o.skirt },
     details: { ...mockSpec.details, ...o.details },
     proportions: { ...mockSpec.proportions, ...o.proportions },
+    collar: { type: "none", ...o.collar },
     style: { ...mockSpec.style, ...o.style },
   };
 }
@@ -84,6 +85,32 @@ push("contrast_trim", {
     buttons: { fill: "#ffffff", pattern: "solid" },
   },
 });
+
+// Styles added in spec v10 (25): one flat per new option
+for (const type of ["sweetheart", "off_shoulder", "halter", "high"] as const) {
+  push(`neckline_${type}`, { neckline: { type, depth: 0.45 }, skirt: { silhouette: "a_line" } });
+}
+for (const type of ["shirt", "peter_pan", "band", "mandarin"] as const) {
+  push(`collar_${type}`, { collar: { type }, sleeves: { type: "fitted", length: "short" }, skirt: { silhouette: "a_line" } });
+}
+for (const cuff of ["band", "ruffle", "elastic"] as const) {
+  push(`cuff_${cuff}`, { sleeves: { type: "fitted", length: "elbow", cuff }, skirt: { silhouette: "a_line" } });
+}
+push("shoulder_puff_top", { sleeves: { type: "fitted", length: "short", shoulder: "puff_top" }, skirt: { silhouette: "a_line" } });
+push("shoulder_off", { neckline: { type: "square", depth: 0.4 }, sleeves: { type: "fitted", length: "short", shoulder: "off_shoulder" }, skirt: { silhouette: "a_line" } });
+push("waist_belted", { waist: { style: "belted" }, skirt: { silhouette: "a_line" } });
+for (const fullness of ["gathered", "pleated"] as const) push(`skirt_${fullness}`, { skirt: { silhouette: "a_line", fullness } });
+for (const hem of ["ruffle", "tiered", "slit"] as const) {
+  push(`hem_${hem}`, { skirt: { silhouette: hem === "slit" ? "straight" : "a_line", length: "midi", hem } });
+}
+push("panels_front_seam", { skirt: { silhouette: "a_line", panels: "front_seam" } });
+push("panels_princess", { skirt: { silhouette: "a_line", panels: "princess_seams" } });
+push("placket_full", { details: { buttons: 8, placket: "full" }, skirt: { silhouette: "a_line" } });
+push("darts", { details: { darts: true } });
+push("bow_neckline", { details: { bow: "neckline" }, collar: { type: "peter_pan" }, skirt: { silhouette: "a_line" } });
+push("bow_waist", { details: { bow: "waist" }, skirt: { silhouette: "a_line" } });
+push("trim_piping", { details: { trim: "piping" }, neckline: { type: "scoop", depth: 0.4 }, skirt: { silhouette: "a_line" } });
+push("trim_lace", { details: { trim: "lace" }, skirt: { silhouette: "flared" } });
 
 // Manual drawing (1): hand-drawn custom elements on top of the dress
 const drawn = (el: Partial<CustomElement> & Pick<CustomElement, "id" | "points">): CustomElement => ({
