@@ -1,8 +1,9 @@
 {
     "garment_type": "dress",
     "neckline": { "type": "scoop" },
-    "sleeves": { "type": "puff", "length": "long" },
-    "waist": { "seam": true },
-    "skirt": { "silhouette": "flared", "length": "floor" },
-    "details": { "pockets": "none", "buttons": 0 }
+    "collar": { "type": "none" },
+    "sleeves": { "type": "puff", "length": "long", "cuff": ["band", "none"], "shoulder": ["puff_top", "set_in"] },
+    "waist": { "seam": true, "style": "natural" },
+    "skirt": { "silhouette": "flared", "length": "floor", "fullness": "gathered", "hem": ["ruffle", "tiered"] },
+    "details": { "pockets": "none", "buttons": 0, "placket": "none", "darts": [true, false], "bow": "none", "trim": "none" }
 }

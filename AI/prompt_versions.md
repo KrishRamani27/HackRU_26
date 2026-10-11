@@ -28,6 +28,33 @@ number and one or two words for the change, for example `v11-neckline-layers`.
 `PROMPT_VERSION` covers the analyze prompt only. The edit prompts further down
 (`EDIT_GUIDE`, `VERIFY_RULES`) are not versioned by it.
 
+## Version timeline
+
+Each live `/analyze` result saved in `AI/results/` now records its own
+`prompt_version`. Older result files do not, so `AI/evaluate.py` reads this table and
+gives each of them the last version that started before the time in its file name.
+Times are local (Eastern), October 10, 2026. **Add a row when you bump
+`PROMPT_VERSION`.**
+
+| In use from | Version | How we know |
+| --- | --- | --- |
+| 2026-10-10 18:04 | `v5-neckline` | Commit `f4a892a` at 18:04. No results were saved under this version |
+| 2026-10-10 18:46 | `v6-waist-y` | Commit `769efcf` at 18:46. Runs at 19:02 and 19:03 |
+| 2026-10-10 19:05 | `v7-silhouette` | Edited between the 19:03 run and the 19:10 run; committed later with `v8` |
+| 2026-10-10 19:36 | `v8-accents` | Commit `962d220` at 19:36. Runs at 19:39 and 22:23 |
+| 2026-10-10 22:29 | `v9-collar-accent` | Commit `b9519e7` at 22:29. Run at 22:32 |
+| 2026-10-10 23:00 | `v10-detailed` | Edited between 22:44 and the first run with detail fields at 23:13; committed at 23:18 |
+
+Limits of this table:
+
+- A commit time is when the prompt was committed, not when the server loaded it. Each
+  boundary falls in a gap with no saved results, so the existing files are not affected.
+- It assumes the running server had reloaded the prompt that was on disk.
+- Results saved before 18:04 would be `unknown`. None exist: `v3` and `v4` runs were
+  printed, not saved.
+- `test1.json`, `test2.json` and `test3.json` have no time in their name. They are the
+  AI Studio results and are grouped as `aistudio (v1 or v2)`.
+
 ## Summary
 
 | Name | Version | Where it ran | Runs scored | Score | Misses |
@@ -181,8 +208,8 @@ whether v1 or v2 produced them. _Confirm which one and move this line under it._
     describe "a contrasting black high-neck turtleneck yoke/underlayer". This led to
     `v9-collar-accent`.
   - `test1`: no accents, one floral style on all parts, as expected.
-  - `test2` was not run. A `test1` run saved at 7:39 PM (also 8/8, no accents) may be
-    from `v7-silhouette` or this version.
+  - `test2` was not run. A `test1` run saved at 7:39 PM (also 8/8, no accents) is
+    counted under this version: the accents change was committed at 7:36 PM.
 - **Builder note:** when this version was written, the builder drew `collar_neckline`
   and `waist_seam` without a fill. It now fills both as 6 px bands, so an accent on
   either part does show on the flat.

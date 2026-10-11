@@ -234,13 +234,18 @@ def shrink(image):
 
 
 def save_result(name, spec, model):
-    """Save one live /analyze spec as AI/results/<image>__<time>.json, with the model that made it."""
+    """Save one live /analyze spec as AI/results/<image>__<time>.json.
+
+    The file also records the model that answered and the prompt version, so
+    AI/evaluate.py can group results by version.
+    """
     if not RESULTS_DIR.is_dir():  # for example inside Docker, where AI/ is not copied
         return
     image = re.sub(r"[^A-Za-z0-9_-]", "_", Path(name or "").stem) or "sketch"
     path = RESULTS_DIR / f"{image}__{datetime.now():%Y%m%d-%H%M%S}.json"
     try:
-        path.write_text(json.dumps({"model": model, **spec.model_dump()}, indent=2))
+        record = {"model": model, "prompt_version": PROMPT_VERSION, **spec.model_dump()}
+        path.write_text(json.dumps(record, indent=2))
     except OSError as exc:
         logger.warning("Could not save analyze result (%s)", type(exc).__name__)
 
