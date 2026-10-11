@@ -11,6 +11,7 @@ export interface DesignInput {
   spec: DesignSpec;
   /** Always sent in full (an empty list clears them on the server; leaving it out would keep the old ones). */
   custom_elements: CustomElement[];
+  sketch_asset_id: string | null;
 }
 
 export interface SavedDesign {
@@ -21,6 +22,7 @@ export interface SavedDesign {
   version: number;
   created_at: string;
   updated_at: string;
+  sketch_asset_id?: string | null;
 }
 
 /** The design on the server has a newer version than the one this page last saw or loaded (HTTP 409). */

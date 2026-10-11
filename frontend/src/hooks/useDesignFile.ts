@@ -3,6 +3,7 @@ import type { DesignSpec } from "../../../Builder/types";
 import type { CustomElement } from "../../../Builder/buildFlat";
 import { ConflictError, createDesign, getDesign, updateDesign, type SavedDesign } from "../api/designs";
 import { describeError } from "../api/parts";
+import { uploadSketch } from "../api/assets";
 import { MAX_ELEMENTS } from "../draw/strokes";
 import { validElement, type SpecAction, type SpecState } from "../state/specReducer";
 
@@ -42,11 +43,11 @@ function looksLikeSpec(spec: unknown): spec is DesignSpec {
  */
 export function useDesignFile(design: SpecState, dispatch: Dispatch<SpecAction>) {
   const [name, setNameState] = useState(DEFAULT_NAME);
-  const [file, setFile] = useState<{ id: string; version: number } | null>(null);
+  const [file, setFile] = useState<{ id: string; version: number; assetId: string | null } | null>(null);
   const [base, setBase] = useState<Base | null>(null);
   const [status, setStatus] = useState<SaveStatus>({ kind: "idle" });
   const [notice, setNotice] = useState<string | null>(null);
-  const pendingOpen = useRef<{ id: string; version: number; name: string; skipped: number } | null>(null);
+  const pendingOpen = useRef<{ id: string; version: number; name: string; skipped: number; assetId: string | null } | null>(null);
   const busy = useRef(false);
   const savedTimer = useRef(0);
   // Counts the designs shown so far. A save or reload that finishes after a different design has appeared
@@ -72,7 +73,7 @@ export function useDesignFile(design: SpecState, dispatch: Dispatch<SpecAction>)
       return;
     }
     const n = opened?.name ?? DEFAULT_NAME;
-    setFile(opened ? { id: opened.id, version: opened.version } : null);
+    setFile(opened ? { id: opened.id, version: opened.version, assetId: opened.assetId } : null);
     setNameState(n);
     setNotice(
       opened && opened.skipped > 0
@@ -103,17 +104,21 @@ export function useDesignFile(design: SpecState, dispatch: Dispatch<SpecAction>)
     const spec = d.spec;
     const elements = d.customElements;
     try {
-      const input = { name: n, spec, custom_elements: elements };
+      const assetId = f?.assetId ?? (d.meta?.source === "analysis" && d.meta.sketchFile
+        ? await uploadSketch(d.meta.sketchFile) : null);
+      // A different design may have been opened while its image was uploading.
+      if (gen !== generation.current || latest.current.design.meta !== d.meta) return false;
+      const input = { name: n, spec, custom_elements: elements, sketch_asset_id: assetId };
       const saved = f ? await updateDesign(f.id, input, f.version) : await createDesign(input);
-      if (gen !== generation.current) return true; // saved, but it was the previous design: leave the new one alone
-      setFile({ id: saved.id, version: saved.version });
+      if (gen !== generation.current || latest.current.design.meta !== d.meta) return true;
+      setFile({ id: saved.id, version: saved.version, assetId });
       // The snapshot is what was sent, so anything edited while the save was in flight still counts as unsaved.
       setBase({ spec, elements, name: n, key: keyOf(spec, elements, n) });
       setStatus({ kind: "saved" });
       savedTimer.current = window.setTimeout(() => setStatus({ kind: "idle" }), SAVED_MS);
       return true;
     } catch (err) {
-      if (gen !== generation.current) return false;
+      if (gen !== generation.current || latest.current.design.meta !== d.meta) return false;
       setStatus(err instanceof ConflictError ? { kind: "conflict" } : { kind: "error", message: describeError(err, "Couldn’t save this design.") });
       return false;
     } finally {
@@ -127,7 +132,7 @@ export function useDesignFile(design: SpecState, dispatch: Dispatch<SpecAction>)
       if (!looksLikeSpec(saved.spec)) throw new Error("This saved design doesn’t have a readable spec.");
       const all = Array.isArray(saved.custom_elements) ? saved.custom_elements : [];
       const elements = all.filter(validElement).slice(0, MAX_ELEMENTS);
-      pendingOpen.current = { id: saved.id, version: saved.version, name: saved.name || DEFAULT_NAME, skipped: all.length - elements.length };
+      pendingOpen.current = { id: saved.id, version: saved.version, name: saved.name || DEFAULT_NAME, skipped: all.length - elements.length, assetId: saved.sketch_asset_id ?? null };
       dispatch({ type: "load", spec: saved.spec, customElements: elements, meta: { source: "saved" } });
     },
     [dispatch],

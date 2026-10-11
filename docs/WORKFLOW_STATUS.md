@@ -26,7 +26,7 @@ backend tests. This replaces the earlier snapshot that said export/library were 
 | Frontend | No Monitor page or API client is wired | Use backend/MONITOR.md and backend/contracts/monitor.ts |
 | Frontend + backend | Frontend sends no X-API-Key; Cloud Run requires BACKEND_API_KEY | Agree demo authentication before deployment; do not expose Gemini/Tiger/Google credentials in the frontend |
 | Frontend | Verify, commands and suggestions are not wired | Connect only the features selected for the demo |
-| Frontend | Saved designs do not upload/link the original sketch asset | POST /assets and save sketch_asset_id if sketches should persist |
+| Frontend | Save now uploads/links the original sketch; saved sketch preview on reopen is still missing | Load GET /assets/{id} into the Sketch tab; live GCS upload test still pending |
 | Aryan + AI lead | Aryan's local AI mode is mock, with no Gemini key configured | Add an authorized Gemini key privately and choose AI_MODE=gemini for real analysis |
 | Aryan | Cloud Run deployment, shared runtime identity, budget checks and domain are pending | Follow backend/README.md; do not assume a local login deploys the backend |
 

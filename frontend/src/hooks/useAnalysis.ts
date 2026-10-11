@@ -35,7 +35,7 @@ export function useAnalysis(
       .then(({ spec, aiMode }) => {
         if (controller.signal.aborted) return;
         // Both updates land in one render, so the canvas never shows a gap.
-        dispatch({ type: "load", spec, meta: { source: "analysis", aiMode } });
+        dispatch({ type: "load", spec, meta: { source: "analysis", aiMode, sketchFile: file } });
         setStatus({ status: "idle" });
       })
       .catch((err: unknown) => {
