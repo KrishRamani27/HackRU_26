@@ -3,6 +3,6 @@
     "neckline": { "type": "scoop" },
     "sleeves": { "type": "puff", "length": "short" },
     "waist": { "seam": true },
-    "skirt": { "silhouette": "a_line", "length": "knee" },
+    "skirt": { "silhouette": ["straight", "a_line"], "length": ["knee", "midi"] },
     "details": { "pockets": "none", "buttons": 4 }
 }
