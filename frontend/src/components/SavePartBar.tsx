@@ -1,20 +1,19 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import type { PartName } from "../../../Builder/types";
-import { PART_LABELS } from "../state/specSchema";
 import { BookmarkIcon } from "./Icons";
 
 const MAX_NAME = 120; // the backend's limit
 const MESSAGE_MS = 6000;
 
 interface Props {
-  part: PartName;
-  /** Saves the part with this name. Rejects with a readable message. */
-  onSave: (part: PartName, name: string) => Promise<void>;
+  /** What is being saved, e.g. "Bodice", "Sleeve crease" or "3 drawings". */
+  label: string;
+  /** Saves it with this name. Rejects with a readable message. */
+  onSave: (name: string) => Promise<void>;
   onOpenLibrary: () => void;
 }
 
-/** Shown while a part is selected on the canvas: asks for a name, then saves that part's settings. */
-export function SavePartBar({ part, onSave, onOpenLibrary }: Props) {
+/** Shown while something is selected on the canvas: asks for a name, then saves it to the library. */
+export function SavePartBar({ label, onSave, onOpenLibrary }: Props) {
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
@@ -34,7 +33,7 @@ export function SavePartBar({ part, onSave, onOpenLibrary }: Props) {
     setMessage(null);
     window.clearTimeout(messageTimer.current);
     try {
-      await onSave(part, trimmed);
+      await onSave(trimmed);
       setNaming(false);
       setName("");
       setMessage({ text: `Saved “${trimmed}”`, error: false });
@@ -58,7 +57,7 @@ export function SavePartBar({ part, onSave, onOpenLibrary }: Props) {
       <div className="savebar__row">
         <p className="savebar__title">
           <span className="eyebrow">Selected</span>
-          <span className="savebar__part">{PART_LABELS[part]}</span>
+          <span className="savebar__part">{label}</span>
         </p>
         {!naming && (
           <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setMessage(null); setNaming(true); }}>

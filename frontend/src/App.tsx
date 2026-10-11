@@ -19,7 +19,11 @@ import { describeError } from "./api/parts";
 import { buildSavedPart, editsFor, type SavedPart } from "./library/libraryModel";
 import { isTyping, useUndoShortcuts } from "./hooks/useUndoShortcuts";
 import { ElementPanel } from "./components/ElementPanel";
-import type { ElementPatch } from "./state/specReducer";
+import { MultiPanel } from "./components/MultiPanel";
+import { validElement, type ElementPatch } from "./state/specReducer";
+import type { CustomElement } from "../../Builder/buildFlat";
+import type { SavedDrawing } from "./api/customParts";
+import { cloneElements, instantiateDrawing } from "./draw/drawings";
 import { initialSpecState, specReducer } from "./state/specReducer";
 import { FOLLOWER_PARTS, type EditAction } from "./state/specSchema";
 import type { AiMode, AnalysisStatus, CanvasState } from "./types";
@@ -99,25 +103,31 @@ export default function App() {
   // The nonce changes on every click so re-clicking a part re-highlights its section.
   const [selection, setSelection] = useState<{ part: PartName; nonce: number } | null>(null);
   const nonce = useRef(0);
-  // A hand drawn element can be selected instead of a dress part, never both at once.
-  const [selectedElement, setSelectedElement] = useState<string | null>(null);
+  // Hand drawn elements can be selected (one, several, or a whole group) instead of a dress part,
+  // never both at once.
+  const [selectedElements, setSelectedElements] = useState<string[]>([]);
   const selectPart = useCallback((part: PartName | null) => {
     setSelection(part ? { part, nonce: ++nonce.current } : null);
-    if (part) setSelectedElement(null);
+    if (part) setSelectedElements([]);
   }, []);
-  const selectElement = useCallback((id: string | null) => {
-    setSelectedElement(id);
-    if (id) setSelection(null);
+  const selectElements = useCallback((ids: string[]) => {
+    setSelectedElements(ids);
+    if (ids.length > 0) setSelection(null);
   }, []);
   // A different design (new analysis, sample opened or closed) starts with nothing selected.
   useEffect(() => {
     setSelection(null);
-    setSelectedElement(null);
+    setSelectedElements([]);
   }, [design.meta]);
-  // The selected drawing is gone (deleted, or its stroke was undone): nothing is selected any more.
+  // Drawings that are gone (deleted, or their stroke was undone) are not selected any more.
   useEffect(() => {
-    if (selectedElement && !design.customElements.some((e) => e.id === selectedElement)) setSelectedElement(null);
-  }, [design.customElements, selectedElement]);
+    if (selectedElements.some((id) => !design.customElements.some((e) => e.id === id))) {
+      setSelectedElements((ids) => ids.filter((id) => design.customElements.some((e) => e.id === id)));
+    }
+  }, [design.customElements, selectedElements]);
+  const selectedData = selectedElements
+    .map((id) => design.customElements.find((e) => e.id === id))
+    .filter((e): e is CustomElement => !!e);
 
   // Export uses a fresh buildFlat string for the current spec, never the on-screen SVG,
   // so selection and hover styling cannot get into the file.
@@ -139,24 +149,82 @@ export default function App() {
     (id: string, patch: ElementPatch, coalesce?: string) => dispatch({ type: "update", id, patch, coalesce }),
     [],
   );
-  const moveElement = useCallback(
-    (id: string, x: number, y: number) =>
-      dispatch({ type: "update", id, patch: { transform: { x, y } }, coalesce: `element:${id}:move` }),
+  // Several at once (a multi selection or a group): moving, restyling, grouping and deleting each
+  // happen in one dispatch, so each is one undo step.
+  const moveElements = useCallback(
+    (moves: { id: string; x: number; y: number }[]) =>
+      dispatch({
+        type: "updateMany",
+        changes: moves.map((m) => ({ id: m.id, patch: { transform: { x: m.x, y: m.y } } })),
+        coalesce: `move:${moves.map((m) => m.id).join(",")}`,
+      }),
     [],
   );
-  const deleteElement = useCallback((id: string) => dispatch({ type: "delete", id }), []);
+  const updateSelected = useCallback(
+    (patch: ElementPatch, coalesce: string) =>
+      dispatch({ type: "updateMany", changes: selectedElements.map((id) => ({ id, patch })), coalesce }),
+    [selectedElements],
+  );
+  const deleteSelected = useCallback(() => dispatch({ type: "deleteMany", ids: selectedElements }), [selectedElements]);
+  // Grouping uses the contract's group_id: one new id for every selected element, or null to ungroup.
+  const groupSelected = useCallback(() => {
+    const groupId = newElementId();
+    dispatch({ type: "updateMany", changes: selectedElements.map((id) => ({ id, patch: { group_id: groupId } })) });
+  }, [selectedElements]);
+  const ungroupSelected = useCallback(
+    () => dispatch({ type: "updateMany", changes: selectedElements.map((id) => ({ id, patch: { group_id: null } })) }),
+    [selectedElements],
+  );
 
-  // Delete or Backspace removes the selected drawing, but never while typing in a text box.
+  // Delete or Backspace removes everything selected, but never while typing in a text box.
   useEffect(() => {
-    if (!selectedElement || canvas.status !== "ready") return;
+    if (selectedElements.length === 0 || canvas.status !== "ready") return;
     const onKey = (e: KeyboardEvent) => {
       if ((e.key !== "Delete" && e.key !== "Backspace") || e.ctrlKey || e.metaKey || e.altKey || isTyping(e.target)) return;
       e.preventDefault();
-      dispatch({ type: "delete", id: selectedElement });
+      dispatch({ type: "deleteMany", ids: selectedElements });
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [selectedElement, canvas.status]);
+  }, [selectedElements, canvas.status]);
+
+  // Drawings in the library (/custom-parts). Saving stores a copy of the selected elements, a group
+  // as one item. Using one adds an independent copy: new ids, a new group id for a group, layered
+  // above everything already drawn, as one undo step.
+  const saveDrawing = useCallback(
+    async (name: string) => {
+      try {
+        await library.saveDrawingItem({ name, elements: cloneElements(selectedData) });
+      } catch (err) {
+        throw new Error(describeError(err, "Couldn’t save this drawing."));
+      }
+    },
+    [selectedData, library.saveDrawingItem],
+  );
+  const applyDrawing = useCallback(
+    (saved: SavedDrawing): string | null => {
+      if (!design.spec) return "Open a design first.";
+      if (design.customElements.length + saved.elements.length > MAX_ELEMENTS) {
+        return `A design holds at most ${MAX_ELEMENTS} drawn lines; there isn’t room for ${saved.elements.length} more.`;
+      }
+      const copies = instantiateDrawing(saved.elements, design.customElements, newElementId);
+      if (!copies.every(validElement)) return "This drawing couldn’t be added: it doesn’t match the drawing rules.";
+      dispatch({ type: "insert", elements: copies });
+      selectElements(copies.map((c) => c.id)); // the copy is selected, ready to move
+      return null;
+    },
+    [design.spec, design.customElements, selectElements],
+  );
+  const deleteSavedDrawing = useCallback(
+    async (saved: SavedDrawing) => {
+      try {
+        await library.removeDrawing(saved.id);
+      } catch (err) {
+        throw new Error(describeError(err, "Couldn’t delete this drawing."));
+      }
+    },
+    [library.removeDrawing],
+  );
 
   const applyEdit = useCallback(
     (action: EditAction, coalesce?: string) => dispatch({ type: "apply", actions: [action], coalesce }),
@@ -187,7 +255,6 @@ export default function App() {
     [library.remove],
   );
 
-  const selectedElementData = selectedElement ? design.customElements.find((e) => e.id === selectedElement) ?? null : null;
   const matchBodice = useCallback((part: PartName) => dispatch({ type: "follow", part }), []);
   const commitEdit = useCallback(() => dispatch({ type: "commit" }), []);
 
@@ -241,7 +308,12 @@ export default function App() {
           <LeftPanel
             tab={leftTab}
             onTabChange={setLeftTab}
-            libraryCount={library.state.status === "ready" ? library.state.parts.length : null}
+            libraryCount={
+              library.state.status === "ready" || library.drawings.status === "ready"
+                ? (library.state.status === "ready" ? library.state.parts.length : 0) +
+                  (library.drawings.status === "ready" ? library.drawings.drawings.length : 0)
+                : null
+            }
           >
             {leftTab === "sketch" ? (
               <UploadPanel
@@ -254,9 +326,13 @@ export default function App() {
               <LibraryPanel
                 state={library.state}
                 onReload={() => void library.load()}
+                drawings={library.drawings}
+                onReloadDrawings={() => void library.loadDrawings()}
                 canApply={canvas.status === "ready"}
                 onApply={applyPart}
+                onApplyDrawing={applyDrawing}
                 onDelete={deleteSavedPart}
+                onDeleteDrawing={deleteSavedDrawing}
               />
             )}
           </LeftPanel>
@@ -271,9 +347,9 @@ export default function App() {
             selectedPart={canvas.status === "ready" ? (selection?.part ?? null) : null}
             onSelectPart={selectPart}
             elements={design.customElements}
-            selectedElement={canvas.status === "ready" ? selectedElement : null}
-            onSelectElement={selectElement}
-            onMoveElement={moveElement}
+            selectedElements={canvas.status === "ready" ? selectedElements : []}
+            onSelectElements={selectElements}
+            onMoveElements={moveElements}
             onMoveEnd={commitEdit}
             tool={canvas.status === "ready" ? tool : "select"}
             onToolChange={setTool}
@@ -282,12 +358,25 @@ export default function App() {
           />
           </ErrorBoundary>
           <ErrorBoundary resetKey={design.spec} fallback={(reset, error) => <PanelCrash error={error} onRetry={reset} />}>
-          {canvas.status === "ready" && selectedElementData ? (
+          {canvas.status === "ready" && selectedData.length === 1 ? (
             <ElementPanel
-              element={selectedElementData}
-              onUpdate={(patch, coalesce) => updateElement(selectedElementData.id, patch, coalesce)}
+              element={selectedData[0]}
+              onUpdate={(patch, coalesce) => updateElement(selectedData[0].id, patch, coalesce)}
               onCommit={commitEdit}
-              onDelete={() => deleteElement(selectedElementData.id)}
+              onDelete={deleteSelected}
+              onSave={saveDrawing}
+              onOpenLibrary={() => setLeftTab("library")}
+            />
+          ) : canvas.status === "ready" && selectedData.length > 1 ? (
+            <MultiPanel
+              elements={selectedData}
+              onUpdateAll={updateSelected}
+              onCommit={commitEdit}
+              onGroup={groupSelected}
+              onUngroup={ungroupSelected}
+              onDelete={deleteSelected}
+              onSave={saveDrawing}
+              onOpenLibrary={() => setLeftTab("library")}
             />
           ) : (
           <PropertiesPanel

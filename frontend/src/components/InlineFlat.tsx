@@ -3,6 +3,7 @@ import type { PartName } from "../../../Builder/types";
 import type { CustomElement } from "../../../Builder/buildFlat";
 import { sanitizeSvg } from "../flat/sanitizeSvg";
 import { clientToCanvas, COORD_LIMIT } from "../draw/strokes";
+import { toggleUnit, unitOf } from "../draw/groups";
 import { PART_LABELS, PART_NAMES } from "../state/specSchema";
 
 /*
@@ -103,14 +104,14 @@ function makeInteractive(svg: SVGSVGElement, label: string, elements: readonly C
   for (const [group, element] of elementGroups(svg, elements)) makeElementInteractive(group, element);
 }
 
-function applySelection(svg: SVGSVGElement, selected: PartName | null, selectedElement: string | null) {
+function applySelection(svg: SVGSVGElement, selected: PartName | null, selectedElements: readonly string[]) {
   for (const group of svg.querySelectorAll("[data-part]")) {
     const on = group.getAttribute("data-part") === selected;
     group.toggleAttribute("data-selected", on);
     group.setAttribute("aria-pressed", String(on));
   }
   for (const group of svg.querySelectorAll("[data-element]")) {
-    const on = group.getAttribute("data-element") === selectedElement;
+    const on = selectedElements.includes(group.getAttribute("data-element") ?? "");
     group.toggleAttribute("data-selected", on);
     group.setAttribute("aria-pressed", String(on));
   }
@@ -138,14 +139,17 @@ const clamp = (n: number) => Math.max(-COORD_LIMIT, Math.min(COORD_LIMIT, n));
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 interface Drag {
-  id: string;
+  /** Everything that moves together: the whole selection, or the pressed element's group. */
+  ids: string[];
   pointerId: number;
   /** Where the press began, in canvas units. */
   start: [number, number];
-  /** The element's x and y when the press began. */
-  origin: [number, number];
+  /** Each moving element's x and y when the press began. */
+  origins: Map<string, [number, number]>;
   from: [number, number];
   moved: boolean;
+  /** Pressed on one of several selected elements without Shift: a click (no drag) then picks just that one. */
+  collapseTo: string[] | null;
 }
 
 interface Props {
@@ -156,20 +160,21 @@ interface Props {
   onSelect: (part: PartName | null) => void;
   /** The hand drawn elements, so their groups in the SVG can be made clickable. */
   elements: readonly CustomElement[];
-  selectedElement: string | null;
-  onSelectElement: (id: string | null) => void;
-  /** Moves an element to this translation. Called repeatedly during one drag. */
-  onMoveElement: (id: string, x: number, y: number) => void;
+  /** The selected hand drawn elements (a group is always selected whole). */
+  selectedElements: readonly string[];
+  onSelectElements: (ids: string[]) => void;
+  /** Moves elements to these translations. Called repeatedly during one drag. */
+  onMoveElements: (moves: { id: string; x: number; y: number }[]) => void;
   /** The drag ended, so the next change starts a new undo step. */
   onMoveEnd: () => void;
 }
 
 export function InlineFlat({
-  markup, label, selected, onSelect, elements, selectedElement, onSelectElement, onMoveElement, onMoveEnd,
+  markup, label, selected, onSelect, elements, selectedElements, onSelectElements, onMoveElements, onMoveEnd,
 }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
-  const latest = useRef({ selected, onSelect, elements, selectedElement, onSelectElement, onMoveElement, onMoveEnd });
-  latest.current = { selected, onSelect, elements, selectedElement, onSelectElement, onMoveElement, onMoveEnd };
+  const latest = useRef({ selected, onSelect, elements, selectedElements, onSelectElements, onMoveElements, onMoveEnd });
+  latest.current = { selected, onSelect, elements, selectedElements, onSelectElements, onMoveElements, onMoveEnd };
   const drag = useRef<Drag | null>(null);
   const swallowClick = useRef(false);
 
@@ -185,32 +190,48 @@ export function InlineFlat({
     makeInteractive(svg, label, current.elements);
     // An edit can remove the selected part (e.g. pockets → none); then drop the selection.
     if (current.selected && !topLevelParts(svg).some((g) => g.id === current.selected)) current.onSelect(null);
-    else applySelection(svg, current.selected, current.selectedElement);
+    else applySelection(svg, current.selected, current.selectedElements);
     host.replaceChildren(svg);
   }, [markup, label]);
 
   useLayoutEffect(() => {
     const svg = hostRef.current?.firstElementChild;
     if (!svg) return;
-    applySelection(svg as SVGSVGElement, selected, selectedElement);
+    applySelection(svg as SVGSVGElement, selected, selectedElements);
     applyNames(svg as SVGSVGElement, elements);
-  }, [selected, selectedElement, elements]);
+  }, [selected, selectedElements, elements]);
 
   const currentSvg = () => hostRef.current?.querySelector("svg") ?? null;
 
-  // A press on a hand drawn line selects it, and dragging moves it. The pointer is captured on the
-  // container, not on the line, because the SVG is rebuilt on every move and would drop a capture.
+  // A press on a hand drawn line selects it (and its whole group), Shift adds or removes it, and
+  // dragging moves everything selected together. The pointer is captured on the container, not on the
+  // line, because the SVG is rebuilt on every move and would drop a capture.
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
     swallowClick.current = false;
     if (e.button !== 0) return;
     const id = elementFrom(e.target);
-    const element = id ? latest.current.elements.find((x) => x.id === id) : undefined;
+    const { elements: all, selectedElements: current, onSelectElements: select } = latest.current;
     const svg = currentSvg();
     const start = svg ? clientToCanvas(svg, e.clientX, e.clientY) : null;
-    if (!id || !element || !start) return;
+    if (!id || !all.some((x) => x.id === id) || !start) return; // not on a drawn line: the canvas may start a box
+    e.stopPropagation(); // so the canvas doesn't also start a box selection
     swallowClick.current = true; // the click that follows must not also deselect
-    latest.current.onSelectElement(id);
-    drag.current = { id, pointerId: e.pointerId, start, origin: [element.transform.x, element.transform.y], from: [e.clientX, e.clientY], moved: false };
+    if (e.shiftKey) {
+      select(toggleUnit(current, id, all));
+      return;
+    }
+    const alreadySelected = current.includes(id);
+    const unit = unitOf(id, all);
+    const ids = alreadySelected ? [...current] : unit;
+    if (!alreadySelected) select(unit);
+    const origins = new Map(ids.map((i): [string, [number, number]] => {
+      const t = all.find((x) => x.id === i)!.transform;
+      return [i, [t.x, t.y]];
+    }));
+    drag.current = {
+      ids, pointerId: e.pointerId, start, origins, from: [e.clientX, e.clientY], moved: false,
+      collapseTo: alreadySelected && current.length > unit.length ? unit : null,
+    };
     e.currentTarget.setPointerCapture(e.pointerId);
   };
 
@@ -222,7 +243,12 @@ export function InlineFlat({
     const svg = currentSvg();
     const p = svg ? clientToCanvas(svg, e.clientX, e.clientY) : null;
     if (!p) return;
-    latest.current.onMoveElement(d.id, round2(clamp(d.origin[0] + p[0] - d.start[0])), round2(clamp(d.origin[1] + p[1] - d.start[1])));
+    const dx = p[0] - d.start[0];
+    const dy = p[1] - d.start[1];
+    latest.current.onMoveElements(d.ids.map((id) => {
+      const [ox, oy] = d.origins.get(id)!;
+      return { id, x: round2(clamp(ox + dx)), y: round2(clamp(oy + dy)) };
+    }));
   };
 
   const endDrag = (e: PointerEvent<HTMLDivElement>) => {
@@ -230,6 +256,7 @@ export function InlineFlat({
     if (!d || d.pointerId !== e.pointerId) return;
     drag.current = null;
     if (d.moved) latest.current.onMoveEnd(); // one drag is one undo step
+    else if (d.collapseTo) latest.current.onSelectElements(d.collapseTo); // a plain click on one of several: pick just that one
   };
 
   const onClick = (e: MouseEvent) => {
@@ -250,8 +277,10 @@ export function InlineFlat({
     const part = element ? null : partFrom(e.target);
     if (!element && !part) return;
     e.preventDefault();
-    if (element) onSelectElement(element);
-    else onSelect(part);
+    if (element) {
+      const { elements: all, selectedElements: current, onSelectElements: select } = latest.current;
+      select(e.shiftKey ? toggleUnit(current, element, all) : unitOf(element, all));
+    } else onSelect(part);
   };
 
   return (

@@ -1063,3 +1063,14 @@ img { display: block; max-width: 100%; }
 .flat-inline [data-element]:focus-visible {
   filter: drop-shadow(0 0 1.5px var(--accent)) drop-shadow(0 0 1.5px var(--accent)) drop-shadow(0 0 6px rgb(156 65 39 / 0.5));
 }
+
+/* The rectangle shown while dragging a selection box over the canvas. */
+.selection-box {
+  position: fixed;
+  z-index: 40;
+  border: 1px solid var(--accent);
+  background: rgb(156 65 39 / 0.08);
+  pointer-events: none;
+}
+
+.button-row { display: flex; flex-wrap: wrap; gap: 8px; }

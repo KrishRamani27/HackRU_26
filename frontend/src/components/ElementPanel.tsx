@@ -4,6 +4,7 @@ import type { ElementPatch } from "../state/specReducer";
 import { PATTERNS } from "../state/specSchema";
 import { ChipGroup, ColorSwatch, RangeField, Section } from "./Controls";
 import { TrashIcon } from "./Icons";
+import { SavePartBar } from "./SavePartBar";
 
 const PATTERN_LABELS = { solid: "Solid", denim: "Denim", plaid: "Plaid", floral: "Floral" } as const;
 const MAX_NAME = 120; // the contract's limit
@@ -17,10 +18,13 @@ interface Props {
   /** A drag or typing session ended. */
   onCommit: () => void;
   onDelete: () => void;
+  /** Saves this drawing to the library under a name. */
+  onSave: (name: string) => Promise<void>;
+  onOpenLibrary: () => void;
 }
 
 /** The properties panel while a hand drawn element is selected. */
-export function ElementPanel({ element, onUpdate, onCommit, onDelete }: Props) {
+export function ElementPanel({ element, onUpdate, onCommit, onDelete, onSave, onOpenLibrary }: Props) {
   // The name is edited in a local draft and applied when you press Enter or leave the box, so it
   // can be empty for a moment while typing and Escape can simply throw the draft away.
   const [name, setName] = useState(element.name);
@@ -61,6 +65,7 @@ export function ElementPanel({ element, onUpdate, onCommit, onDelete }: Props) {
         </div>
       </div>
       <div className="panel__body">
+        <SavePartBar key={element.id} label={element.name} onSave={onSave} onOpenLibrary={onOpenLibrary} />
         <Section name="drawing" title="Drawing">
           <div className="field">
             <label className="field__label" htmlFor="element-name">Name</label>

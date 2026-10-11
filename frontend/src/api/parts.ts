@@ -10,7 +10,7 @@ export class PartsError extends Error {
   }
 }
 
-async function send(path: string, init: RequestInit): Promise<Response> {
+export async function send(path: string, init: RequestInit): Promise<Response> {
   try {
     return await fetch(`${API_URL}${path}`, init);
   } catch (err) {
@@ -22,7 +22,7 @@ async function send(path: string, init: RequestInit): Promise<Response> {
   }
 }
 
-async function fail(response: Response, what: string): Promise<never> {
+export async function fail(response: Response, what: string): Promise<never> {
   const detail = await readDetail(response);
   if (response.status === 401) {
     throw new PartsError("Backend needs an API key", "The backend is protected by a shared key, which this app doesn’t send yet.");

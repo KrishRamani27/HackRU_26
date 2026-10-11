@@ -2,7 +2,7 @@ import type { DesignSpec, PartName } from "../../../Builder/types";
 import type { CustomElement } from "../../../Builder/buildFlat";
 import { COORD_LIMIT, MAX_ELEMENTS, MAX_POINTS, STROKE_COLOR, STROKE_WIDTH, type Point } from "../draw/strokes";
 import type { AiMode } from "../types";
-import { FOLLOWER_PARTS, isValidEdit, normalizeStyles, sameStyle, type EditAction } from "./specSchema";
+import { FOLLOWER_PARTS, PART_NAMES, isValidEdit, normalizeStyles, sameStyle, type EditAction } from "./specSchema";
 
 /** Where the current spec came from. Drives the labels on the canvas. */
 export type SpecSource = { source: "analysis"; aiMode: AiMode } | { source: "sample" };
@@ -45,8 +45,8 @@ export interface SpecState {
   openKey: string | null;
 }
 
-/** What can change on a drawn element. The id, type, points and layer order are not editable here. */
-export type ElementPatch = Partial<Pick<CustomElement, "name" | "stroke" | "stroke_width" | "closed" | "fill" | "pattern">> & {
+/** What can change on a drawn element. The id, type, points and layer order are not editable here. group_id is how elements are grouped. */
+export type ElementPatch = Partial<Pick<CustomElement, "name" | "stroke" | "stroke_width" | "closed" | "fill" | "pattern" | "group_id">> & {
   transform?: Partial<CustomElement["transform"]>;
 };
 
@@ -73,6 +73,15 @@ export type SpecAction =
   | { type: "update"; id: string; patch: ElementPatch; coalesce?: string }
   /** Removes a drawn element. One undo step. */
   | { type: "delete"; id: string }
+  /**
+   * Changes several drawn elements at once (a multi selection: color, width, moving, grouping). All or
+   * nothing: if any change would break the contract, none is applied. One undo step.
+   */
+  | { type: "updateMany"; changes: { id: string; patch: ElementPatch }[]; coalesce?: string }
+  /** Removes several drawn elements. One undo step. */
+  | { type: "deleteMany"; ids: string[] }
+  /** Adds ready made elements (a copy from the library). All or nothing, one undo step. */
+  | { type: "insert"; elements: CustomElement[] }
   /** Makes a collar or waistband that has its own style follow the bodice again. One undo step. */
   | { type: "follow"; part: PartName }
   /** Drop the spec and its history. With `source`, only if it came from that source. */
@@ -113,6 +122,7 @@ function newStroke(existing: CustomElement[], id: string, points: Point[]): Cust
     parent_part: null,
     points,
     closed: false,
+    group_id: null,
     stroke: STROKE_COLOR,
     stroke_width: STROKE_WIDTH,
     fill: null,
@@ -166,15 +176,25 @@ function followBodice(spec: DesignSpec, detached: PartName[]): DesignSpec {
   return changed ? { ...spec, style } : spec;
 }
 
-const EDITABLE = ["name", "stroke", "stroke_width", "closed", "fill", "pattern"] as const;
+const EDITABLE = ["name", "stroke", "stroke_width", "closed", "fill", "pattern", "group_id"] as const;
+const ELEMENT_ID = /^[a-zA-Z0-9_-]{1,64}$/;
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const FABRICS = ["solid", "denim", "plaid", "floral"];
 const within = (n: unknown, lo: number, hi: number) => typeof n === "number" && Number.isFinite(n) && n >= lo && n <= hi;
 
 /** The contract's rules for one element (backend/app/custom_schemas.py). */
-function validElement(el: CustomElement): boolean {
-  const t = el.transform;
+export function validElement(el: CustomElement): boolean {
+  const t = el?.transform;
+  if (!el || !t || typeof el.id !== "string" || !ELEMENT_ID.test(el.id) || el.type !== "stroke") return false;
+  const pointsOk =
+    Array.isArray(el.points) && el.points.length >= 2 && el.points.length <= MAX_POINTS &&
+    el.points.every((p) => Array.isArray(p) && p.length === 2 && within(p[0], -COORD_LIMIT, COORD_LIMIT) && within(p[1], -COORD_LIMIT, COORD_LIMIT));
   return (
+    pointsOk &&
+    (el.group_id === null || el.group_id === undefined || (typeof el.group_id === "string" && ELEMENT_ID.test(el.group_id))) &&
+    (el.parent_part === null || (PART_NAMES as readonly string[]).includes(el.parent_part)) &&
+    typeof el.visible === "boolean" && typeof el.closed === "boolean" &&
+    Number.isInteger(el.layer_order) && el.layer_order >= 0 && el.layer_order <= 10000 &&
     typeof el.name === "string" && el.name.trim().length >= 1 && el.name.length <= 120 &&
     HEX.test(el.stroke) &&
     within(el.stroke_width, 0, 100) && el.stroke_width > 0 &&
@@ -185,6 +205,19 @@ function validElement(el: CustomElement): boolean {
     within(t.scale_x, 0, 100) && t.scale_x > 0 && within(t.scale_y, 0, 100) && t.scale_y > 0 &&
     within(t.rotation, -360, 360)
   );
+}
+
+/** Puts new elements in the list as one history step (or, mid drag, into the step already started). */
+function commitElements(state: SpecState, customElements: CustomElement[], key: string | null): SpecState {
+  if (JSON.stringify(customElements) === JSON.stringify(state.customElements)) return state; // nothing changed
+  if (key !== null && key === state.openKey) return { ...state, customElements };
+  return {
+    ...state,
+    customElements,
+    past: [...state.past, snapshotOf(state)].slice(-MAX_HISTORY),
+    future: [], // a new edit ends the redo trail
+    openKey: key,
+  };
 }
 
 /** Applies a patch, or returns null if the result would break the contract. */
@@ -254,29 +287,48 @@ export function specReducer(state: SpecState, action: SpecAction): SpecState {
         console.warn("Ignored invalid change to a drawn element", action.patch);
         return state;
       }
-      if (JSON.stringify(after) === JSON.stringify(before)) return state;
-      const customElements = state.customElements.map((e, i) => (i === index ? after : e));
-      const key = action.coalesce ?? null;
-      // Same drag or typing still going: keep the undo step that was already started.
-      if (key !== null && key === state.openKey) return { ...state, customElements };
-      return {
-        ...state,
-        customElements,
-        past: [...state.past, snapshotOf(state)].slice(-MAX_HISTORY),
-        future: [],
-        openKey: key,
-      };
+      // Same drag or typing still going: commitElements keeps the undo step that was already started.
+      return commitElements(state, state.customElements.map((e, i) => (i === index ? after : e)), action.coalesce ?? null);
     }
 
     case "delete": {
       if (!state.spec || !state.customElements.some((e) => e.id === action.id)) return state;
-      return {
-        ...state,
-        customElements: state.customElements.filter((e) => e.id !== action.id),
-        past: [...state.past, snapshotOf(state)].slice(-MAX_HISTORY),
-        future: [],
-        openKey: null,
-      };
+      return commitElements(state, state.customElements.filter((e) => e.id !== action.id), null);
+    }
+
+    case "updateMany": {
+      if (!state.spec || action.changes.length === 0) return state;
+      const patches = new Map<string, ElementPatch>();
+      for (const c of action.changes) patches.set(c.id, c.patch);
+      if ([...patches.keys()].some((id) => !state.customElements.some((e) => e.id === id))) return state; // unknown id: all or nothing
+      const next: CustomElement[] = [];
+      for (const e of state.customElements) {
+        const patch = patches.get(e.id);
+        const after = patch ? patchElement(e, patch) : e;
+        if (!after) {
+          console.warn("Ignored an invalid change to a group of drawn elements", patch);
+          return state;
+        }
+        next.push(after);
+      }
+      return commitElements(state, next, action.coalesce ?? null);
+    }
+
+    case "deleteMany": {
+      const gone = new Set(action.ids);
+      if (!state.spec || !state.customElements.some((e) => gone.has(e.id))) return state;
+      return commitElements(state, state.customElements.filter((e) => !gone.has(e.id)), null);
+    }
+
+    case "insert": {
+      if (!state.spec || action.elements.length === 0) return state;
+      const ids = new Set(state.customElements.map((e) => e.id));
+      for (const e of action.elements) {
+        if (!validElement(e) || ids.has(e.id)) return state; // invalid or a duplicate id: nothing is added
+        ids.add(e.id);
+      }
+      if (state.customElements.length + action.elements.length > MAX_ELEMENTS) return state;
+      return commitElements(state, [...state.customElements, ...action.elements], null);
     }
 
     case "commit":
