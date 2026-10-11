@@ -65,7 +65,8 @@ class CustomPart(Base):
     __tablename__ = "custom_parts"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     name: Mapped[str] = mapped_column(String(120))
-    element: Mapped[dict] = mapped_column(JSON)
+    # Keep the existing JSON column; old rows hold one object, new rows hold a list.
+    element: Mapped[dict | list] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 

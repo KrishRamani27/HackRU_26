@@ -124,6 +124,12 @@ The current backend is a shared team demo; it does not have individual user acco
   sending [] clears them. IDs are unique per design. Invalid shapes are rejected.
 - Design history includes manual elements; restoring a version appends a new version.
 - Custom reusable parts use `/custom-parts`; inserting a template generates a fresh ID.
+- Custom elements support optional `group_id` (same ID rules). `/custom-parts` accepts
+  `{name, elements: [...]}` for multi-stroke bows and other shapes. Legacy single
+  element requests/rows remain supported. Reuse creates fresh element/group IDs and
+  inserts the entire group atomically. Contract/types are updated in the same files.
+- Verification after the grouping update: **70 tests passed**. No live Gemini calls
+  were needed; old single-stroke templates and failed group insertions are tested.
 - Added a non-destructive startup upgrade for existing databases and stale-write checks.
 - Verification after this update: **49 tests passed**, including old database preservation,
   custom edit/reuse/restore, invalid input rejection and concurrent-save checks.

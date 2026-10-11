@@ -22,6 +22,7 @@ AI outputs still use the existing dress contract.
   "custom_elements": [
     {
       "id": "crease-1",
+      "group_id": null,
       "name": "Sleeve crease",
       "type": "stroke",
       "parent_part": "right_sleeve",
@@ -75,6 +76,10 @@ Limits: 200 elements per design, 5,000 points per element, finite coordinates be
 0 and at most 100, nonnegative integer layer order up to 10,000. Colors are 6-digit hex.
 Element IDs are 1–64 letters, numbers, underscores or hyphens; omission generates a UUID.
 IDs must be unique inside each design.
+`group_id` is optional/null, with the same 1–64 character rules as `id`. Several
+strokes may share a group ID; each stroke still has its own unique element ID.
+PATCH `group_id` to assign a group or null to ungroup. Multi-select behavior belongs
+to the frontend; the backend stores the membership and includes it in version history.
 
 ## Endpoints
 
@@ -89,10 +94,10 @@ updated design, including `custom_elements` and its new `version`.
 | `PATCH /designs/{id}/elements/{element_id}` | Changed fields | Edit one element; partial transform supported |
 | `DELETE /designs/{id}/elements/{element_id}` | None | Remove one element, return design (200) |
 | `POST /designs/{id}/versions/{version}/restore` | None | Restore spec and elements as a new version |
-| `POST /custom-parts` | `{name, element}` | Save reusable drawing template (201) |
+| `POST /custom-parts` | `{name, elements: [...]}` | Save one or several strokes as a reusable template (201) |
 | `GET /custom-parts` | None | Templates; optional limit/offset |
 | `GET /custom-parts/{part_id}` | None | One template |
-| `PUT /custom-parts/{part_id}` | `{name, element}` | Update template, existing instances unchanged |
+| `PUT /custom-parts/{part_id}` | `{name, elements: [...]}` | Update template, existing instances unchanged |
 | `DELETE /custom-parts/{part_id}` | None | Delete template (204), existing instances unchanged |
 | `POST /designs/{id}/elements/from-part/{part_id}` | `{}` or `{transform, layer_order}` | Insert an independent copy with a new ID (201) |
 
@@ -117,6 +122,41 @@ For `PATCH /designs/{id}/elements/crease-1?expected_version=2`:
 This changes x position, horizontal scale, color and layer order. Other transform
 fields keep their old values. `fill: null` clears a fill, and `parent_part: null`
 removes its attachment label. Null is invalid for fields such as name or transform.
+
+## Save a bow made from several strokes
+
+Send only the selected strokes; they do not need to include every member of a group.
+For `POST /custom-parts`:
+
+```json
+{
+  "name": "My bow",
+  "elements": [
+    {"id": "bow-left", "group_id": "bow-1", "name": "Left", "points": [[100,100],[120,110]]},
+    {"id": "bow-center", "group_id": "bow-1", "name": "Center", "points": [[120,110],[125,110]]},
+    {"id": "bow-right", "group_id": "bow-1", "name": "Right", "points": [[125,110],[145,100]]}
+  ]
+}
+```
+
+Library responses always contain `elements`, an array of 1–200 strokes. Empty lists
+and duplicate element IDs are rejected. For backward compatibility, requests may
+still send legacy `{name, element}` instead. Sending both fields is rejected.
+Single-element responses also include legacy `element`; group responses do not.
+Existing database rows holding one stroke still work; no database migration is needed
+for this update. New lists use the same JSON column.
+
+To reuse, POST `{}` to `/designs/{id}/elements/from-part/{part_id}`. All strokes are
+inserted atomically, with one new design version. Each element receives a new ID.
+Each non-null group ID is remapped to a fresh ID, keeping group relationships within
+the copy and separating it from earlier copies. Ungrouped strokes stay ungrouped.
+Stored points/transforms are preserved. A capacity failure inserts none of the strokes.
+
+`layer_order` on reuse sets the lowest layer; relative layer offsets are preserved.
+For grouped templates, omit `transform`: replacing every stroke's transform could
+break their layout, so it is rejected with 422. Frontend computes group moves/resizes
+and saves updated member transforms via design PUT (with `expected_version`). The
+existing transform override still works for single-stroke templates.
 
 ## Persistence, history and existing databases
 

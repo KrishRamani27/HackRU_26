@@ -177,3 +177,103 @@ def test_concurrent_saves_cannot_silently_overwrite(tmp_path):
     with sessions() as session:
         assert session.get(Design, row_id).custom_elements[0]["id"] == "crease-1"
     engine.dispose()
+
+
+def test_group_id_round_trip_patch_and_restore(client):
+    saved = design(client, custom_elements=[element(group_id="bow-1")])
+    path = f"/designs/{saved['id']}"
+    assert client.get(path + "/elements").json()[0]["group_id"] == "bow-1"
+    assert client.patch(path + "/elements/crease-1", json={"group_id": "bow-2"}).status_code == 200
+    cleared = client.patch(path + "/elements/crease-1", json={"group_id": None})
+    assert cleared.json()["custom_elements"][0]["group_id"] is None
+    restored = client.post(path + "/versions/1/restore")
+    assert restored.json()["custom_elements"][0]["group_id"] == "bow-1"
+
+
+@pytest.mark.parametrize("group_id", ["", "bad id", "a" * 65, 123, "<svg>"])
+def test_group_id_follows_element_id_rules(group_id):
+    with pytest.raises(ValidationError):
+        CustomElement.model_validate(element(group_id=group_id))
+
+
+def test_group_library_save_update_and_reuse(client):
+    members = [element(id=f"bow-{i}", group_id="bow", layer_order=i,
+                       transform={"x": i * 10, "rotation": i * 5}) for i in range(3)]
+    members.append(element(id="ungrouped", group_id=None))
+    response = client.post("/custom-parts", json={"name": "Bow", "elements": members})
+    assert response.status_code == 201
+    template = response.json()
+    assert len(template["elements"]) == 4 and "element" not in template
+    assert client.get(f"/custom-parts/{template['id']}").json()["elements"] == template["elements"]
+    assert client.get("/custom-parts").json()[0]["elements"] == template["elements"]
+    saved = design(client)
+    path = f"/designs/{saved['id']}"
+    reuse = path + f"/elements/from-part/{template['id']}"
+    first = client.post(reuse, json={})
+    second = client.post(reuse, json={"layer_order": 10})
+    assert first.status_code == second.status_code == 201
+    copies = second.json()["custom_elements"]
+    assert len(copies) == 8 and second.json()["version"] == 3
+    assert len({item["id"] for item in copies}) == 8
+    assert copies[0]["group_id"] == copies[1]["group_id"] == copies[2]["group_id"]
+    assert copies[4]["group_id"] == copies[5]["group_id"] == copies[6]["group_id"]
+    assert copies[0]["group_id"] != copies[4]["group_id"] != "bow"
+    assert copies[3]["group_id"] is None and copies[7]["group_id"] is None
+    assert [item["transform"] for item in copies[:4]] == [item["transform"] for item in template["elements"]]
+    assert [item["layer_order"] for item in copies[4:]] == [10, 11, 12, 10]
+    assert client.get(path + "/versions").json()[1]["custom_elements"] == first.json()["custom_elements"]
+    updated = client.put(f"/custom-parts/{template['id']}", json={"name": "Two strokes", "elements": members[:2]})
+    assert updated.status_code == 200 and len(updated.json()["elements"]) == 2
+    assert len(client.get(path).json()["custom_elements"]) == 8
+    assert client.post(reuse, json={"transform": {"x": 99}}).status_code == 422
+
+
+def test_group_reuse_capacity_failure_is_atomic(client):
+    response = client.post("/custom-parts", json={"name": "Bow", "elements": [
+        element(id="left", group_id="bow"), element(id="center", group_id="bow"),
+        element(id="right", group_id="bow"),
+    ]})
+    saved = design(client, custom_elements=[element(id=f"stroke-{i}") for i in range(198)])
+    path = f"/designs/{saved['id']}"
+    result = client.post(path + f"/elements/from-part/{response.json()['id']}", json={})
+    assert result.status_code == 422
+    assert len(client.get(path).json()["custom_elements"]) == 198
+    assert client.get(path).json()["version"] == 1
+
+
+@pytest.mark.parametrize("body", [
+    {"name": "Empty", "elements": []},
+    {"name": "Duplicate", "elements": [element(), element()]},
+    {"name": "Both", "element": element(), "elements": [element()]},
+    {"name": "Too many", "elements": [element(id=f"e-{i}") for i in range(201)]},
+])
+def test_invalid_group_library_request(client, body):
+    assert client.post("/custom-parts", json=body).status_code == 422
+    assert client.get("/custom-parts").json() == []
+
+
+def test_old_library_rows_still_load_and_reuse(tmp_path):
+    from app.database import CustomPart
+
+    url = f"sqlite:///{tmp_path / 'legacy-library.db'}"
+    engine, sessions = database(url)
+    initialize_database(engine)
+    old = CustomElement.model_validate(element()).model_dump()
+    old.pop("group_id")
+    with sessions() as session:
+        row = CustomPart(name="Old single stroke", element=old)
+        session.add(row)
+        session.commit()
+        part_id = row.id
+    engine.dispose()
+    settings = Settings(_env_file=None, ai_mode="mock", storage_mode="local", backend_api_key="",
+                        database_url=url, local_storage_dir=str(tmp_path / "uploads"))
+    with TestClient(create_app(settings)) as client:
+        response = client.get(f"/custom-parts/{part_id}")
+        assert response.status_code == 200
+        assert len(response.json()["elements"]) == 1
+        assert response.json()["element"]["group_id"] is None
+        saved = design(client)
+        inserted = client.post(f"/designs/{saved['id']}/elements/from-part/{part_id}", json={})
+        assert inserted.status_code == 201
+        assert inserted.json()["custom_elements"][0]["id"] != old["id"]
