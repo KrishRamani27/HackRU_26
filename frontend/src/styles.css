@@ -1174,3 +1174,13 @@ img { display: block; max-width: 100%; }
 .dlist__confirm { margin-top: 6px; padding: 10px 12px; border: 1px solid var(--accent-line); border-radius: var(--radius-sm); background: var(--accent-soft); font-size: 13px; }
 .dlist__confirm p { margin: 0 0 8px; }
 .modal--small { width: min(440px, 100%); }
+
+/* The title block gives way before the buttons do, so the top bar never grows wider than the window
+   (it used to push Export off the edge as soon as "Unsaved changes" appeared). */
+.topbar__titles { flex: 1 1 0; }
+.topbar__title-row > * { flex: none; }
+.topbar__title-row > .topbar__project { flex: 0 1 auto; min-width: 0; }
+.topbar__project--edit .topbar__name { min-width: 6ch; }
+.chip, .unsaved { white-space: nowrap; }
+.shell { grid-template-columns: minmax(0, 1fr); }
+.topbar { min-width: 0; }

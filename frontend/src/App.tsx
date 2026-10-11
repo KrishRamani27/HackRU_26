@@ -338,6 +338,14 @@ export default function App() {
       void sketch.accept(picked);
     });
 
+  // New design: an empty canvas, no sketch, no drawings, no undo history, the title back to "Untitled garment",
+  // and no saved design id, so the next save creates a new design. Asks first if there are unsaved changes.
+  const startNewDesign = () =>
+    confirmReplace("Starting a new design", () => {
+      sketch.clear();
+      dispatch({ type: "clear" });
+    });
+
   const browse = () => inputRef.current?.click();
   const onInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const picked = e.target.files?.[0];
@@ -371,6 +379,7 @@ export default function App() {
           onReload={() => void file.reload()}
           onDismiss={file.dismiss}
           onOpenDesign={() => setOpeningDesign(true)}
+          onNewDesign={startNewDesign}
           onUpload={browse}
           exportEnabled={canvas.status === "ready"}
           onExport={exportCurrent}
