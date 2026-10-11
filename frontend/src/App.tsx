@@ -2,13 +2,14 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type Cha
 import type { PartName } from "../../Builder/types";
 import { buildFlat } from "../../Builder/buildFlat";
 import { mockSpec } from "../../Builder/mockSpec";
+import { MAX_ELEMENTS, newElementId, type Point } from "./draw/strokes";
 import { exportFlat, type ExportFormat } from "./export/exportFlat";
 import { NavRail } from "./components/NavRail";
 import { TopBar } from "./components/TopBar";
 import { UploadPanel } from "./components/UploadPanel";
 import { LeftPanel, type LeftTab } from "./components/LeftPanel";
 import { LibraryPanel } from "./components/LibraryPanel";
-import { CanvasStage } from "./components/CanvasStage";
+import { CanvasStage, type CanvasTool } from "./components/CanvasStage";
 import { PropertiesPanel } from "./components/PropertiesPanel";
 import { CanvasCrash, ErrorBoundary, PanelCrash } from "./components/ErrorBoundary";
 import { ACCEPT_ATTR, useSketchUpload } from "./hooks/useSketchUpload";
@@ -66,11 +67,12 @@ export default function App() {
   const flat = useMemo(() => {
     if (!design.spec) return null;
     try {
-      return { svg: buildFlat(design.spec) };
+      // Hand drawn elements are drawn on top of the dress. They are not part of the spec.
+      return { svg: buildFlat(design.spec, design.customElements) };
     } catch {
       return { svg: null };
     }
-  }, [design.spec]);
+  }, [design.spec, design.customElements]);
 
   let canvas: CanvasState;
   if (analysis.status.status === "loading") {
@@ -106,10 +108,15 @@ export default function App() {
   const exportCurrent = useCallback(
     async (format: ExportFormat) => {
       if (!design.spec) throw new Error("There is nothing to export yet.");
-      return exportFlat(buildFlat(design.spec), PROJECT_NAME, format);
+      return exportFlat(buildFlat(design.spec, design.customElements), PROJECT_NAME, format);
     },
-    [design.spec],
+    [design.spec, design.customElements],
   );
+
+  // The pen tool. Only usable while a flat is on the canvas; a new design starts back on Select.
+  const [tool, setTool] = useState<CanvasTool>("select");
+  useEffect(() => setTool("select"), [canvas.status, design.meta]);
+  const drawStroke = useCallback((points: Point[]) => dispatch({ type: "draw", id: newElementId(), points }), []);
 
   const applyEdit = useCallback(
     (action: EditAction, coalesce?: string) => dispatch({ type: "apply", actions: [action], coalesce }),
@@ -222,6 +229,10 @@ export default function App() {
             onRetry={analysis.retry}
             selectedPart={canvas.status === "ready" ? (selection?.part ?? null) : null}
             onSelectPart={selectPart}
+            tool={canvas.status === "ready" ? tool : "select"}
+            onToolChange={setTool}
+            canDraw={design.customElements.length < MAX_ELEMENTS}
+            onStroke={drawStroke}
           />
           </ErrorBoundary>
           <ErrorBoundary resetKey={design.spec} fallback={(reset, error) => <PanelCrash error={error} onRetry={reset} />}>

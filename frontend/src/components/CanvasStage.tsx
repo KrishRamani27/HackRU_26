@@ -2,7 +2,9 @@ import { useEffect, useState, type CSSProperties } from "react";
 import type { PartName } from "../../../Builder/types";
 import type { CanvasState } from "../types";
 import { PART_LABELS } from "../state/specSchema";
-import { AlertIcon, CheckIcon, EyeIcon, FitIcon, UploadIcon, ZoomInIcon, ZoomOutIcon } from "./Icons";
+import type { Point } from "../draw/strokes";
+import { DrawLayer } from "./DrawLayer";
+import { AlertIcon, CheckIcon, CursorIcon, EyeIcon, FitIcon, PenIcon, UploadIcon, ZoomInIcon, ZoomOutIcon } from "./Icons";
 import { InlineFlat } from "./InlineFlat";
 import { LoadingNote } from "./LoadingNote";
 import { PlaceholderFlat } from "./PlaceholderFlat";
@@ -17,14 +19,23 @@ interface Props {
   /** The part picked on the canvas (a Builder group id), if any. */
   selectedPart: PartName | null;
   onSelectPart: (part: PartName | null) => void;
+  /** The active tool. With the pen, dragging on the flat draws a freehand stroke. */
+  tool: CanvasTool;
+  onToolChange: (tool: CanvasTool) => void;
+  /** False once the design holds as many drawn elements as the contract allows. */
+  canDraw: boolean;
+  /** A finished stroke, in 400 by 600 canvas units. */
+  onStroke: (points: Point[]) => void;
 }
+
+export type CanvasTool = "select" | "pen";
 
 const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
 const FIT_INDEX = 2;
 const SAMPLE_LABEL = "Sample preview—not generated from a sketch";
 const MOCK_LABEL = "Demo result (mock AI)—not real sketch recognition";
 
-export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUpload, onRetry, selectedPart, onSelectPart }: Props) {
+export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUpload, onRetry, selectedPart, onSelectPart, tool, onToolChange, canDraw, onStroke }: Props) {
   const [zoomIndex, setZoomIndex] = useState(FIT_INDEX);
   const sampling = state.status === "ready" && state.source === "sample";
   const hasArt = state.status === "ready";
@@ -32,17 +43,19 @@ export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUp
 
   useEffect(() => setZoomIndex(FIT_INDEX), [hasArt]);
 
-  // Escape deselects. Ignored while typing, so it can't interfere with the notes field.
+  // Escape leaves the pen tool first; with the select tool it deselects the part. Ignored while
+  // typing, so it can't interfere with the notes field.
   useEffect(() => {
-    if (!selectedPart) return;
+    if (tool !== "pen" && !selectedPart) return;
     const onKey = (e: KeyboardEvent) => {
       // defaultPrevented: another control (e.g. the Export menu) already used this Escape.
       if (e.key !== "Escape" || e.defaultPrevented || e.target instanceof HTMLTextAreaElement) return;
-      onSelectPart(null);
+      if (tool === "pen") onToolChange("select");
+      else onSelectPart(null);
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [selectedPart, onSelectPart]);
+  }, [tool, selectedPart, onSelectPart, onToolChange]);
 
   const context = state.status === "ready"
     ? state.source === "sample"
@@ -72,6 +85,30 @@ export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUp
               Hide sample
             </button>
           )}
+          <div className="tools" role="group" aria-label="Tools">
+            <button
+              type="button"
+              className="icon-btn tool-btn"
+              aria-label="Select tool"
+              aria-pressed={tool === "select"}
+              title="Select: click a part of the dress"
+              disabled={!hasArt}
+              onClick={() => onToolChange("select")}
+            >
+              <CursorIcon />
+            </button>
+            <button
+              type="button"
+              className="icon-btn tool-btn"
+              aria-label="Pen tool"
+              aria-pressed={tool === "pen"}
+              title={canDraw ? "Pen: drag on the flat to draw (Esc to stop)" : "The drawing limit (200 strokes) is reached"}
+              disabled={!hasArt || !canDraw}
+              onClick={() => onToolChange("pen")}
+            >
+              <PenIcon />
+            </button>
+          </div>
           <div className="zoom" role="group" aria-label="Zoom">
             <button
               type="button"
@@ -117,6 +154,7 @@ export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUp
             {state.source === "analysis" && state.aiMode === "mock" && (
               <span className="sheet__tag sheet__tag--sample">{MOCK_LABEL}</span>
             )}
+            <div className="flat-wrap">
             <InlineFlat
               markup={state.svgMarkup}
               label={
@@ -129,8 +167,12 @@ export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUp
               selected={selectedPart}
               onSelect={onSelectPart}
             />
-            {selectedPart && (
-              <span className="sheet__selected" role="status">Selected · {PART_LABELS[selectedPart]}</span>
+            {tool === "pen" && <DrawLayer onStroke={onStroke} />}
+            </div>
+            {tool === "pen" ? (
+              <span className="sheet__selected" role="status">Pen · drag to draw · Esc to stop</span>
+            ) : (
+              selectedPart && <span className="sheet__selected" role="status">Selected · {PART_LABELS[selectedPart]}</span>
             )}
           </div>
         )}

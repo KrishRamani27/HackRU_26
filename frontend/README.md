@@ -38,6 +38,7 @@ Dev only: `?canvas=loading` and `?canvas=error` on the dev URL preview those can
 * **Undo and redo.** Ctrl+Z, Ctrl+Shift+Z or Ctrl+Y (Cmd on a Mac), plus buttons in the top bar. Up to 50 steps. A slider or color picker drag, or a stretch of typing in the notes box, is one step. The shortcuts are ignored inside text boxes so the notes box keeps its own undo.
 * **Collar and waistband follow the bodice.** The builder fills these as 6px strips. By default they copy the bodice's color and pattern and keep following it. Setting a color or pattern on one gives it its own style. A "Match bodice" button then appears in its row and hands it back to the bodice, as one undo step.
 * **Component library.** The left panel has "Sketch" and "Library" tabs (the dark side strip drives the same tabs). Select a part and use "Save to library" to store its settings and style. The Library tab shows saved parts as swatch cards with a `buildFlat` preview, part type filter chips, click to apply, and delete with a confirmation. Applying is one undo step.
+* **Draw on the flat (phase 1).** A Select and a Pen tool sit in the canvas toolbar. With the pen on, press and drag on the flat to draw a freehand stroke; Escape leaves the pen. Strokes are custom elements from `backend/CUSTOM_ELEMENTS.md` and are drawn on top of the dress by `buildFlat(spec, customElements)`, in the canvas and in export. You cannot yet select, move, delete or restyle them.
 * **Export.** The Export button (enabled once a design is on the canvas, including the sample) downloads SVG or PNG. The file name comes from the project title, for example `untitled-garment.svg`. A short "Exported" message confirms it.
 * **Loading and errors.** While analyzing it says "Reading your sketch…" with a thin progress line. After about 4 seconds it softly rotates reassurance lines. Every failure has a clear title, a message, and "Try again". Two error boundaries (canvas, properties panel) turn an unexpected rendering error into a message instead of a white screen.
 
@@ -59,9 +60,12 @@ upload ─► useSketchUpload ─► useAnalysis ─► POST /analyze ─► Des
 
 The spec shape and the edit action `{ op: "set", path, value }` are the shared contracts in `CHATGPT.md`. Types come from `Builder/types.ts`; `src/state/specSchema.ts` holds the allowed values and `isValidEdit`, which applies the same rules as the backend (known path, allowed value, range). Invalid edits are ignored.
 
-`src/state/specReducer.ts` is the single place the current spec lives. Its state is the spec, where it came from, the undo history (`past`, `future`, capped at 50), which trim parts have their own style (`detached`), and an `openKey` used to merge a drag into one step. Actions: `load`, `apply`, `commit`, `undo`, `redo`, `follow`, `clear`. Selection is UI only and lives in `App.tsx`, outside the reducer. Loading a new sketch or opening the sample starts a fresh history.
+`src/state/specReducer.ts` is the single place the current spec lives. Its state is the spec, the hand drawn `customElements` (beside the spec, never inside it, so the spec stays the dress contract that goes to `/analyze`), where it came from, the undo history (`past`, `future`, capped at 50; each snapshot holds the spec, `detached` and the drawing), which trim parts have their own style (`detached`), and an `openKey` used to merge a drag into one step. Actions: `load`, `apply`, `commit`, `undo`, `redo`, `follow`, `draw`, `clear`. Selection is UI only and lives in `App.tsx`, outside the reducer. Loading a new sketch or opening the sample starts a fresh history.
 
 After every change `normalizeStyles` makes each part's style complete (a fill and a pattern) and safe (a fill must be `#rrggbb`, a pattern must be allowed). `buildFlat` copies fills into SVG attributes without escaping, so this matters.
+
+### Manual drawing
+`src/components/DrawLayer.tsx` is a transparent SVG over the flat with the same viewBox, so its screen matrix is the flat's and pointer positions convert to 400 by 600 canvas units exactly at any zoom or scroll (`clientToCanvas` in `src/draw/strokes.ts`). A finished drag is simplified (Ramer-Douglas-Peucker, tolerance 0.6 units, rounded to 2 decimals, always within the contract's 5000 point limit) and dispatched as `draw`. The reducer adds it with the contract defaults (type `stroke`, `closed` false, stroke `#1C1B1A`, width 2, identity transform, visible, `layer_order` one above the highest, a UUID id, the name "Stroke N") as one undo step, up to 200 elements. `custom_elements` is never sent to `/analyze`. Library previews call `buildFlat(spec)` without elements.
 
 ### Safe inline SVG
 
@@ -91,9 +95,10 @@ Canvas parts map onto library types in `src/library/libraryModel.ts`: collar is 
 | `src/hooks/useUndoShortcuts.ts` | Ctrl+Z, Ctrl+Shift+Z, Ctrl+Y. |
 | `src/state/specSchema.ts`, `src/state/specReducer.ts` | Contract rules; the one spec, its history, and the trim follow rules. |
 | `src/flat/sanitizeSvg.ts` | The SVG safety filter. |
+| `src/draw/strokes.ts` | Pointer to canvas coordinates, stroke simplification, stroke defaults and limits. |
 | `src/export/exportFlat.ts` | SVG and PNG download. |
 | `src/library/libraryModel.ts` | Saved part mapping, apply, and previews. |
-| `src/components/` | `TopBar`, `NavRail`, `LeftPanel`, `UploadPanel`, `LibraryPanel`, `CanvasStage`, `InlineFlat`, `PropertiesPanel`, `SavePartBar`, `ExportMenu`, `LoadingNote`, `ErrorBoundary`, `Controls`, `PlaceholderFlat`, `garmentPaths`, `Icons`. |
+| `src/components/` | `TopBar`, `NavRail`, `LeftPanel`, `UploadPanel`, `LibraryPanel`, `CanvasStage`, `InlineFlat`, `DrawLayer`, `PropertiesPanel`, `SavePartBar`, `ExportMenu`, `LoadingNote`, `ErrorBoundary`, `Controls`, `PlaceholderFlat`, `garmentPaths`, `Icons`. |
 
 The drawing code is a teammate's work in `Builder/` at the repo root (`buildFlat.ts`, `mockSpec.ts`, `types.ts`, `svgToPng.ts`). The frontend imports it and must not edit it. `vite.config.ts` allows the dev server to serve that folder.
 
@@ -104,7 +109,8 @@ There is no automated test suite in the repo. Changes so far were checked with `
 ## Known limits
 
 * Gemini mode has not been tested from the frontend. Everything was tested against the backend in mock mode, which returns the same fixed dress for any sketch.
-* Whole designs are not saved, only library parts. A refresh loses the current design. There are no user accounts, so everyone using one backend shares one library, which lists the 100 newest parts. Saved parts cannot be renamed.
+* Whole designs are not saved, only library parts. A refresh loses the current design, including drawn strokes (the backend can store them, but the frontend does not use those routes yet).
+* Drawing is phase 1: strokes can be drawn and undone only. No select, move, resize, restyle, hide, reorder, delete, closed shapes or fills yet. The pen needs a pointer (mouse, touch, stylus), so there is no keyboard way to draw. There are no user accounts, so everyone using one backend shares one library, which lists the 100 newest parts. Saved parts cannot be renamed.
 * The SVG export has been checked as valid XML and rendered in a browser, but has not been opened in Adobe Illustrator itself.
 * Floral on the waistband is hard to see because the builder's band is 6px tall. Side seam pockets are a line, so they take no color. The waistband only exists while the waist seam is on.
 * If the backend enables its shared `BACKEND_API_KEY`, the app shows "Backend needs an API key", because it does not send one.

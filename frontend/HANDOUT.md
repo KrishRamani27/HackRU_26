@@ -14,10 +14,11 @@ This is the part of FlatSketch you see in the browser. You give it a photo of a 
 8. **Reuse a saved part.** Open the "Library" tab at the top of the left panel. You see your saved parts as cards. Click a card to apply it to the design on the sheet. Filter chips at the top narrow the cards by part type, and the little trash icon on a card deletes it after a confirmation. Applying a part counts as one change, so one undo reverts it.
 9. **Undo and redo.** Made a mistake? Press Ctrl+Z, or click the undo arrow at the top. Ctrl+Shift+Z or Ctrl+Y (or the redo arrow) brings the change back. It remembers the last 50 changes. Dragging a slider counts as one change, not one per pixel, so a single undo puts the slider back where the drag started.
 10. **Click a part of the dress.** Click the bodice, a sleeve, the skirt and so on. The part glows, its name shows at the bottom of the sheet ("Selected: Bodice"), and the right panel scrolls to the matching controls and flashes them briefly. Click empty space or press Escape to let go. You can also Tab to a part and press Enter.
-11. **Zoom.** Zoom buttons at the top of the sheet go from 50% to 300%, and there is a "fit" button.
-12. **View sample.** On the empty sheet there is a "View sample" button. It loads a ready made dress from the builder so you can try the controls without uploading anything or running the backend. It is labeled as a sample that was not generated from a sketch, and "Hide sample" takes you back to the empty sheet. The sample is fully editable too.
-13. **Export.** Once something is on the sheet, the Export button at the top turns on. Click it and pick SVG or PNG from the small menu. The file downloads with a name taken from the title, like `untitled-garment.svg`, and a short "Exported" message appears.
-14. **Starting over.** Uploading a new sketch, opening the sample, or removing your sketch replaces the current design, and any edits and undo history are gone. Saved parts in the library are not affected. Whole designs are not saved anywhere yet.
+11. **Draw on the flat.** Next to the zoom buttons there are two tool buttons: Select (the arrow) and Pen. Turn the pen on, then press and drag on the dress to draw a freehand line, like sketching a crease, a seam or a note on top of the drawing. Let go to finish the line. Press Escape to put the pen away. Each line is one undo step, it shows up in the exported SVG and PNG, and clicking through a line still selects the part of the dress underneath.
+12. **Zoom.** Zoom buttons at the top of the sheet go from 50% to 300%, and there is a "fit" button.
+13. **View sample.** On the empty sheet there is a "View sample" button. It loads a ready made dress from the builder so you can try the controls without uploading anything or running the backend. It is labeled as a sample that was not generated from a sketch, and "Hide sample" takes you back to the empty sheet. The sample is fully editable too.
+14. **Export.** Once something is on the sheet, the Export button at the top turns on. Click it and pick SVG or PNG from the small menu. The file downloads with a name taken from the title, like `untitled-garment.svg`, and a short "Exported" message appears.
+15. **Starting over.** Uploading a new sketch, opening the sample, or removing your sketch replaces the current design, and any edits and undo history are gone. Saved parts in the library are not affected. Whole designs are not saved anywhere yet.
 
 ## 2. The layout
 
@@ -42,7 +43,7 @@ The screen has a thin dark strip on the left, a top bar, and three panels.
 * A short "Sketch guidance" list: front view with the garment centered, dark lines on a plain light background, shot flat without heavy shadows.
 
 **Panel 02, Canvas (middle)**
-* A toolbar with a status tag, the zoom buttons, and "Hide sample" when the sample is showing.
+* A toolbar with a status tag, the Select and Pen tool buttons, the zoom buttons, and "Hide sample" when the sample is showing.
 * The paper sheet on a grid mat, where the dress is drawn.
 * Tags on the sheet that say what you are looking at, and the "Selected" label at the bottom.
 
@@ -90,6 +91,13 @@ A saved part has four pieces, agreed in the project guide: a `name`, a `part_typ
 The parts you click on the sheet (collar, bodice, left sleeve and so on) are not the same list as the six library types, so `libraryModel.ts` maps them: collar is neckline, bodice is proportions, either sleeve is sleeves, waist seam is waist, skirt is skirt, and pockets or buttons are details (saving pockets stores only the pockets setting, saving buttons stores only the buttons setting).
 
 Applying a card turns the saved part into a batch of the same edit actions the controls use (for example set `sleeves.type` to `puff`, then the fill and pattern). They go through the one reducer together, so undo reverts the whole thing in one step, and invalid values are ignored like any other edit. A sleeve style is put on both sleeves. The small card previews are drawn by `buildFlat` too: a plain dress with the saved part applied, cropped to the area that part changes.
+
+### Drawing on the flat
+Hand drawn lines are "custom elements", defined in `backend/CUSTOM_ELEMENTS.md`. They are kept next to the settings in the same reducer, never inside them, so the settings stay exactly what the backend and the AI expect, and the lines are never sent to `/analyze`. Because they live in the same place, undo and redo cover them too.
+
+With the pen on, a transparent layer sits over the dress. As you drag, it turns the pointer position into the dress's own 400 by 600 coordinates using the drawing's screen matrix, so it is exact at any zoom or scroll. While you drag you see the line grow. When you let go, the line is simplified (a few thousand pointer positions become tens or hundreds of points, never more than 0.6 units off from what you drew) and added with the contract's defaults: type stroke, not closed, color #1C1B1A, width 2, no move or resize, visible, drawn on top of the earlier ones, with a generated id and a name like "Stroke 1".
+
+`buildFlat` draws the lines (it takes them as a second input) inside one group called `manual_drawing` on top of the dress. The app passes them to `buildFlat` both for the canvas and for export. The safe SVG filter needed no change, because the new groups and lines use only things it already allowed. Library card previews are drawn from the settings only, so they never show drawings.
 
 ### Export
 The Export button does not copy what is on the screen. It asks `buildFlat` for a fresh drawing of the current settings and saves that text. That is why the selection glow, hover outline and focus rings can never end up in a file. The SVG gets an XML line at the top and keeps `xmlns`, `width` and `height` on the first tag, which Illustrator needs. The eight named groups, the fills and the fabric patterns are kept exactly as the builder wrote them. Before saving, a safety check refuses to write the file if it finds any code, any style leftovers, or any on screen only marker. The PNG is the same drawing at 2x size (800 by 1200) on a white background, made by the builder's own `svgToPng` helper.
@@ -186,6 +194,9 @@ Everything is in `frontend/`. The drawing code is not ours: it lives in `Builder
 **`src/library/`**
 * `libraryModel.ts`: what a saved part is, how canvas parts map to library types, how a saved part becomes edit actions, and how the card previews are drawn.
 
+**`src/draw/`**
+* `strokes.ts`: pointer position to dress coordinates, simplifying a line, the stroke defaults and limits.
+
 **`src/export/`**
 * `exportFlat.ts`: makes the download. Builds the SVG file or the 2x PNG from the builder's drawing text and names the file from the title.
 
@@ -201,6 +212,7 @@ Everything is in `frontend/`. The drawing code is not ours: it lives in `Builder
 * `LibraryPanel.tsx`: the content of the Library tab: filter chips, the card grid, loading, error and empty states, and the delete confirmation.
 * `SavePartBar.tsx`: the "Save to library" bar that appears when a part is selected.
 * `CanvasStage.tsx`: the Canvas panel, with zoom, tags, empty, loading and error screens, and the selected label.
+* `DrawLayer.tsx`: the transparent layer for the pen. It turns a press and drag into a line and shows it as you draw.
 * `InlineFlat.tsx`: puts the cleaned drawing in the page and handles clicking, keyboard, and highlighting parts.
 * `PropertiesPanel.tsx`: the Properties panel and the scroll and flash when a part is selected.
 * `Controls.tsx`: the reusable pieces: section heading, chip group, slider.
@@ -241,7 +253,7 @@ You can try the sample with only the frontend running. Uploading a sketch needs 
 
 **Not built yet**
 * **Opening an export in Illustrator itself.** The SVG was checked as valid XML and rendered in a browser, and it has the named layers, fills and patterns. Nobody has opened it in Illustrator yet, so test one before promising it.
-* **Saving designs.** Whole designs are not saved. A refresh loses the current design. Only library parts are saved, because the frontend does not use the backend's design routes yet.
+* **Saving designs.** Whole designs are not saved. A refresh loses the current design, including any lines you drew. Only library parts are saved, because the frontend does not use the backend's design routes yet.
 * **Library limits.** Everyone who uses the same backend shares one library, because there are no user accounts. It shows the 100 newest parts. You cannot rename a saved part.
 * **Library previews.** The card previews use a plain white dress as the base. Applying a saved collar or waist seam style gives that part its own style, so it stops following the bodice.
 * **Layers panel.** The project guide mentions one. We have click to select instead.
@@ -260,6 +272,7 @@ You can try the sample with only the frontend running. Uploading a sketch needs 
 * **No automated tests.** The checks were done by hand with scripted browser runs. There is no test suite in the repo.
 * **Built desktop first.** It adapts to small screens by stacking the panels, but it is not tuned for phones.
 * **Edits and undo history are lost** when you load a new sketch or the sample.
+* **Drawing, phase 1.** You can draw lines and undo them. You cannot yet select, move, resize, recolor, hide, reorder or delete a line, draw closed shapes, or fill them. The contract allows up to 200 lines per design and 5000 points per line. The pen needs a mouse, finger or stylus, so there is no keyboard way to draw yet.
 
 ## 9. How to explain this to judges
 
