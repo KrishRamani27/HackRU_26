@@ -74,7 +74,9 @@
   model returns 503 (overloaded) or 429 (quota, counted per model), both without a
   retry, or when it still times out or returns 504 after its one retry. Without a
   fallback set, 503 gets the normal retry and 429 fails at once. Saved
-  `/analyze` results in `AI/results/` now record the `model` that answered.
+  `/analyze` results in `AI/results/` now record the `model` that answered and the
+  `prompt_version`. `AI/evaluate.py` groups accuracy by prompt version and reports
+  core and detail fields separately.
 - `/analyze` uses the full field-by-field prompt `ANALYZE_PROMPT` in `ai.py`.
 - Spec detail fields added on the backend (prompt version `v10-detailed`):
   `collar.type`, `sleeves.cuff`, `sleeves.shoulder`, `waist.style`, `skirt.fullness`,
