@@ -4,6 +4,7 @@ import type { CanvasState } from "../types";
 import { PART_LABELS } from "../state/specSchema";
 import { AlertIcon, CheckIcon, EyeIcon, FitIcon, UploadIcon, ZoomInIcon, ZoomOutIcon } from "./Icons";
 import { InlineFlat } from "./InlineFlat";
+import { LoadingNote } from "./LoadingNote";
 import { PlaceholderFlat } from "./PlaceholderFlat";
 
 interface Props {
@@ -183,8 +184,11 @@ export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUp
             <div className="empty-canvas">
               <div className="skeleton" aria-hidden="true" />
               <div className="empty-canvas__copy">
-                <p className="display-title">Analyzing your sketch…</p>
-                <p className="muted">Reading the design and drawing the flat. This can take a few seconds.</p>
+                <p className="display-title">Reading your sketch…</p>
+                <LoadingNote />
+              </div>
+              <div className="progress-line" aria-hidden="true">
+                <span className="progress-line__bar" />
               </div>
             </div>
           </div>
