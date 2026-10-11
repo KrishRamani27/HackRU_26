@@ -76,3 +76,12 @@ export const CheckIcon = (p: P) => (
 export const SlidersIcon = (p: P) => (
   <svg {...base} {...p}><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="17" r="2" /></svg>
 );
+export const EyeOffIcon = (p: P) => (
+  <svg {...base} {...p}><path d="M3 3l18 18" /><path d="M10.6 5.7A9.7 9.7 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a16 16 0 0 1-3 3.8M6.5 7.2A16 16 0 0 0 2.5 12S6 18.5 12 18.5a9 9 0 0 0 3.2-.6" /><path d="M9.9 9.9a2.8 2.8 0 0 0 4 4" /></svg>
+);
+export const ArrowUpIcon = (p: P) => (
+  <svg {...base} {...p}><path d="M12 19V5M6 11l6-6 6 6" /></svg>
+);
+export const ArrowDownIcon = (p: P) => (
+  <svg {...base} {...p}><path d="M12 5v14M6 13l6 6 6-6" /></svg>
+);

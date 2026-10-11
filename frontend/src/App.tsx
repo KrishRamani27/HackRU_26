@@ -20,6 +20,8 @@ import { buildSavedPart, editsFor, type SavedPart } from "./library/libraryModel
 import { isTyping, useUndoShortcuts } from "./hooks/useUndoShortcuts";
 import { ElementPanel } from "./components/ElementPanel";
 import { MultiPanel } from "./components/MultiPanel";
+import type { LayersProps } from "./components/LayersSection";
+import type { TransformPatch } from "./draw/transform";
 import { validElement, type ElementPatch } from "./state/specReducer";
 import type { CustomElement } from "../../Builder/buildFlat";
 import type { SavedDrawing } from "./api/customParts";
@@ -114,10 +116,18 @@ export default function App() {
     setSelectedElements(ids);
     if (ids.length > 0) setSelection(null);
   }, []);
+  // Dress parts hidden with the eye in the Layers list. Canvas only: it is a view setting, not part of the
+  // design, so it is not in the undo history and never reaches an export.
+  const [hiddenParts, setHiddenParts] = useState<PartName[]>([]);
+  const togglePartHidden = useCallback(
+    (part: PartName) => setHiddenParts((h) => (h.includes(part) ? h.filter((p) => p !== part) : [...h, part])),
+    [],
+  );
   // A different design (new analysis, sample opened or closed) starts with nothing selected.
   useEffect(() => {
     setSelection(null);
     setSelectedElements([]);
+    setHiddenParts([]);
   }, [design.meta]);
   // Drawings that are gone (deleted, or their stroke was undone) are not selected any more.
   useEffect(() => {
@@ -158,6 +168,27 @@ export default function App() {
         changes: moves.map((m) => ({ id: m.id, patch: { transform: { x: m.x, y: m.y } } })),
         coalesce: `move:${moves.map((m) => m.id).join(",")}`,
       }),
+    [],
+  );
+  // Resize and rotate: new x, y, scale or rotation for each element, one undo step per drag.
+  const transformElements = useCallback(
+    (changes: Map<string, TransformPatch>) =>
+      dispatch({
+        type: "updateMany",
+        changes: [...changes].map(([id, transform]) => ({ id, patch: { transform } })),
+        coalesce: `xform:${[...changes.keys()].join(",")}`,
+      }),
+    [],
+  );
+  // Layers list: hide or show, rename, and stack order. Each is one undo step.
+  const setVisible = useCallback(
+    (ids: string[], visible: boolean) =>
+      dispatch({ type: "updateMany", changes: ids.map((id) => ({ id, patch: { visible } })) }),
+    [],
+  );
+  const renameElement = useCallback((id: string, name: string) => dispatch({ type: "update", id, patch: { name } }), []);
+  const reorderElements = useCallback(
+    (ids: string[], direction: "up" | "down") => dispatch({ type: "reorder", ids, direction }),
     [],
   );
   const updateSelected = useCallback(
@@ -255,6 +286,19 @@ export default function App() {
     [library.remove],
   );
 
+  const layers: LayersProps = {
+    elements: design.customElements,
+    selectedElements,
+    selectedPart: selection?.part ?? null,
+    hiddenParts,
+    onSelectElements: selectElements,
+    onSelectPart: selectPart,
+    onSetVisible: setVisible,
+    onTogglePart: togglePartHidden,
+    onReorder: reorderElements,
+    onRename: renameElement,
+  };
+
   const matchBodice = useCallback((part: PartName) => dispatch({ type: "follow", part }), []);
   const commitEdit = useCallback(() => dispatch({ type: "commit" }), []);
 
@@ -351,6 +395,8 @@ export default function App() {
             onSelectElements={selectElements}
             onMoveElements={moveElements}
             onMoveEnd={commitEdit}
+            onTransformElements={transformElements}
+            hiddenParts={hiddenParts}
             tool={canvas.status === "ready" ? tool : "select"}
             onToolChange={setTool}
             canDraw={design.customElements.length < MAX_ELEMENTS}
@@ -366,6 +412,7 @@ export default function App() {
               onDelete={deleteSelected}
               onSave={saveDrawing}
               onOpenLibrary={() => setLeftTab("library")}
+              layers={layers}
             />
           ) : canvas.status === "ready" && selectedData.length > 1 ? (
             <MultiPanel
@@ -377,6 +424,7 @@ export default function App() {
               onDelete={deleteSelected}
               onSave={saveDrawing}
               onOpenLibrary={() => setLeftTab("library")}
+              layers={layers}
             />
           ) : (
           <PropertiesPanel
@@ -389,6 +437,7 @@ export default function App() {
             following={design.spec ? FOLLOWER_PARTS.filter((p) => !design.detached.includes(p)) : []}
             onOpenLibrary={() => setLeftTab("library")}
             onMatchBodice={matchBodice}
+            layers={layers}
           />
           )}
           </ErrorBoundary>

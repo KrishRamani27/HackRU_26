@@ -4,6 +4,7 @@ import type { ElementPatch } from "../state/specReducer";
 import { ColorSwatch, RangeField, Section } from "./Controls";
 import { TrashIcon } from "./Icons";
 import { SavePartBar } from "./SavePartBar";
+import { LayersSection, type LayersProps } from "./LayersSection";
 
 interface Props {
   /** The selected elements (two or more, or one whole group). */
@@ -16,10 +17,11 @@ interface Props {
   onDelete: () => void;
   onSave: (name: string) => Promise<void>;
   onOpenLibrary: () => void;
+  layers: LayersProps;
 }
 
 /** The properties panel while several drawn elements are selected: color, width, grouping and delete only. */
-export function MultiPanel({ elements, onUpdateAll, onCommit, onGroup, onUngroup, onDelete, onSave, onOpenLibrary }: Props) {
+export function MultiPanel({ elements, onUpdateAll, onCommit, onGroup, onUngroup, onDelete, onSave, onOpenLibrary, layers }: Props) {
   const first = elements[0];
   const { canGroup, canUngroup } = groupingOf(elements);
   const isOneGroup = elements.every((e) => e.group_id && e.group_id === first.group_id);
@@ -79,6 +81,8 @@ export function MultiPanel({ elements, onUpdateAll, onCommit, onGroup, onUngroup
             )}
           </div>
         </Section>
+
+        <LayersSection {...layers} />
 
         <Section name="remove" title="Remove">
           <p className="field__hint">Press Delete or Backspace, or use the button, to remove all {elements.length}. Undo brings them back.</p>

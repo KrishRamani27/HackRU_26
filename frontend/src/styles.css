@@ -1074,3 +1074,49 @@ img { display: block; max-width: 100%; }
 }
 
 .button-row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Resize and rotate box around the selected drawings. Its own layer, so it never reaches an export. */
+.xform-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.xform__box { fill: none; stroke: var(--accent); stroke-width: 1; }
+.xform__stem { stroke: var(--accent); stroke-width: 1; }
+.xform__handle { fill: #fff; stroke: var(--accent); stroke-width: 1.5; pointer-events: all; touch-action: none; }
+.xform__handle--rotate { cursor: grab; fill: var(--accent-soft); }
+.xform__handle:hover { fill: var(--accent-soft); }
+.flat-inline [data-part][data-hidden] { display: none; }
+
+/* Layers list in the properties panel. */
+.layers__heading { margin: 0; }
+.layers__toggle {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  padding: 2px 0; border: 0; background: none; color: inherit; font: inherit;
+  letter-spacing: inherit; text-transform: inherit; cursor: pointer; text-align: left;
+}
+.layers__toggle:focus-visible { outline: none; box-shadow: var(--focus); border-radius: 4px; }
+.layers__toggle svg, .layer__fold svg { transition: transform 0.15s; }
+.layers__toggle svg.is-closed, .layer__fold svg.is-closed { transform: rotate(-90deg); }
+.layers__count { margin-left: auto; font-weight: 500; letter-spacing: 0; color: var(--ink-3); }
+.layers__body { display: flex; flex-direction: column; gap: 10px; }
+.layers__list, .layers__children { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.layers__children { margin-left: 16px; }
+.layers__sub { margin: 4px 0 0; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.layer { display: flex; align-items: center; gap: 2px; min-height: 30px; padding: 0 2px; border-radius: var(--radius-sm); }
+.layer:hover { background: rgb(0 0 0 / 0.03); }
+.layer.is-selected { background: var(--accent-soft); }
+.layer.is-hidden .layer__name { color: var(--ink-3); text-decoration: line-through; }
+.layer .icon-btn { width: 26px; height: 26px; flex: none; }
+.layer__fold { width: 22px; height: 26px; flex: none; display: inline-flex; align-items: center; justify-content: center; }
+.layer__name {
+  flex: 1; min-width: 0; padding: 4px 6px; border: 0; background: none; color: var(--ink); font: inherit;
+  font-size: 13px; text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.layer__name:focus-visible { outline: none; box-shadow: var(--focus); border-radius: 4px; }
+.layer__edit { flex: 1; min-width: 0; min-height: 26px; font-size: 13px; padding: 0 6px; }
+.field--pair { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.field--pair .input { padding: 0 8px; }

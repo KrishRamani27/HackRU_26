@@ -9,6 +9,8 @@ import { expandGroups } from "../draw/groups";
 import { DrawLayer } from "./DrawLayer";
 import { AlertIcon, CheckIcon, CursorIcon, EyeIcon, FitIcon, PenIcon, UploadIcon, ZoomInIcon, ZoomOutIcon } from "./Icons";
 import { InlineFlat } from "./InlineFlat";
+import { SelectionBox } from "./SelectionBox";
+import type { TransformPatch } from "../draw/transform";
 import { LoadingNote } from "./LoadingNote";
 import { PlaceholderFlat } from "./PlaceholderFlat";
 
@@ -28,6 +30,10 @@ interface Props {
   onSelectElements: (ids: string[]) => void;
   onMoveElements: (moves: { id: string; x: number; y: number }[]) => void;
   onMoveEnd: () => void;
+  /** Resize or rotate: new transform values per element. Called repeatedly during one drag. */
+  onTransformElements: (changes: Map<string, TransformPatch>) => void;
+  /** Dress parts hidden on the canvas only. */
+  hiddenParts: readonly PartName[];
   /** The active tool. With the pen, dragging on the flat draws a freehand stroke. */
   tool: CanvasTool;
   onToolChange: (tool: CanvasTool) => void;
@@ -44,7 +50,7 @@ const FIT_INDEX = 2;
 const SAMPLE_LABEL = "Sample preview—not generated from a sketch";
 const MOCK_LABEL = "Demo result (mock AI)—not real sketch recognition";
 
-export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUpload, onRetry, selectedPart, onSelectPart, elements, selectedElements, onSelectElements, onMoveElements, onMoveEnd, tool, onToolChange, canDraw, onStroke }: Props) {
+export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUpload, onRetry, selectedPart, onSelectPart, elements, selectedElements, onSelectElements, onMoveElements, onMoveEnd, onTransformElements, hiddenParts, tool, onToolChange, canDraw, onStroke }: Props) {
   const [zoomIndex, setZoomIndex] = useState(FIT_INDEX);
   const sampling = state.status === "ready" && state.source === "sample";
   const hasArt = state.status === "ready";
@@ -240,7 +246,17 @@ export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUp
               onSelectElements={onSelectElements}
               onMoveElements={onMoveElements}
               onMoveEnd={onMoveEnd}
+              hiddenParts={hiddenParts}
             />
+            {tool === "select" && selectedElements.length > 0 && (
+              <SelectionBox
+                elements={elements}
+                selectedElements={selectedElements}
+                zoom={zoom}
+                onTransform={onTransformElements}
+                onTransformEnd={onMoveEnd}
+              />
+            )}
             {tool === "pen" && <DrawLayer onStroke={onStroke} />}
             </div>
             {tool === "pen" ? (

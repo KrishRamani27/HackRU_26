@@ -5,6 +5,8 @@ import { PATTERNS } from "../state/specSchema";
 import { ChipGroup, ColorSwatch, RangeField, Section } from "./Controls";
 import { TrashIcon } from "./Icons";
 import { SavePartBar } from "./SavePartBar";
+import { LayersSection, type LayersProps } from "./LayersSection";
+import { setAroundCenter, MAX_SCALE, MIN_SCALE } from "../draw/transform";
 
 const PATTERN_LABELS = { solid: "Solid", denim: "Denim", plaid: "Plaid", floral: "Floral" } as const;
 const MAX_NAME = 120; // the contract's limit
@@ -21,10 +23,55 @@ interface Props {
   /** Saves this drawing to the library under a name. */
   onSave: (name: string) => Promise<void>;
   onOpenLibrary: () => void;
+  layers: LayersProps;
+}
+
+type NumberKey = "scale_x" | "scale_y" | "rotation";
+const NUMBER_FIELDS: { key: NumberKey; label: string; min: number; max: number; step: number }[] = [
+  { key: "scale_x", label: "Scale X", min: MIN_SCALE, max: MAX_SCALE, step: 0.05 },
+  { key: "scale_y", label: "Scale Y", min: MIN_SCALE, max: MAX_SCALE, step: 0.05 },
+  { key: "rotation", label: "Rotation", min: -360, max: 360, step: 1 },
+];
+
+/** An exact number box: applied on Enter or leaving it, Escape and a bad value put the old number back. */
+function NumberBox({ id, label, value, min, max, step, onApply }: {
+  id: string; label: string; value: number; min: number; max: number; step: number; onApply: (n: number) => void;
+}) {
+  const shown = String(Math.round(value * 100) / 100);
+  const [draft, setDraft] = useState(shown);
+  const cancelled = useRef(false);
+  useEffect(() => setDraft(shown), [shown, id]);
+  const finish = () => {
+    if (cancelled.current) { cancelled.current = false; setDraft(shown); return; }
+    const n = Number(draft);
+    if (draft.trim() === "" || !Number.isFinite(n) || n < min || n > max) setDraft(shown);
+    else if (n !== value) onApply(n);
+  };
+  return (
+    <div className="field">
+      <label className="field__label" htmlFor={id}>{label}</label>
+      <input
+        id={id}
+        className="input"
+        type="number"
+        inputMode="decimal"
+        min={min}
+        max={max}
+        step={step}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={finish}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); }
+          else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancelled.current = true; e.currentTarget.blur(); }
+        }}
+      />
+    </div>
+  );
 }
 
 /** The properties panel while a hand drawn element is selected. */
-export function ElementPanel({ element, onUpdate, onCommit, onDelete, onSave, onOpenLibrary }: Props) {
+export function ElementPanel({ element, onUpdate, onCommit, onDelete, onSave, onOpenLibrary, layers }: Props) {
   // The name is edited in a local draft and applied when you press Enter or leave the box, so it
   // can be empty for a moment while typing and Escape can simply throw the draft away.
   const [name, setName] = useState(element.name);
@@ -117,6 +164,25 @@ export function ElementPanel({ element, onUpdate, onCommit, onDelete, onSave, on
           {!canClose && <p className="field__hint">A closed shape needs at least 3 points.</p>}
         </Section>
 
+        <Section name="transform" title="Size and angle">
+          <div className="field--pair">
+            {NUMBER_FIELDS.map((f) => (
+              <NumberBox
+                key={f.key}
+                id={`element-${f.key}`}
+                label={f.label}
+                value={element.transform[f.key]}
+                min={f.min}
+                max={f.max}
+                step={f.step}
+                // Applied around the line's own center, so it stays where it is.
+                onApply={(n) => onUpdate({ transform: setAroundCenter(element, { [f.key]: n }) })}
+              />
+            ))}
+          </div>
+          <p className="field__hint">Or drag the corner handles on the canvas to resize (Shift keeps proportions) and the round handle to turn it (Shift snaps to 15 degrees).</p>
+        </Section>
+
         {element.closed && (
           <Section name="fill" title="Fill">
             {element.fill === null ? (
@@ -153,6 +219,8 @@ export function ElementPanel({ element, onUpdate, onCommit, onDelete, onSave, on
             )}
           </Section>
         )}
+
+        <LayersSection {...layers} />
 
         <Section name="remove" title="Remove">
           <p className="field__hint">Drag the line on the canvas to move it. Press Delete or Backspace, or use the button, to remove it. Undo brings it back.</p>
