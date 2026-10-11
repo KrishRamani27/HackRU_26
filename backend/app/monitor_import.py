@@ -3,11 +3,11 @@ import argparse
 import json
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 
 from .config import Settings
@@ -27,7 +27,10 @@ DOCUMENTED_RUNS = {
 }
 
 
-def historical_version(path, versions_text):
+def historical_version(path, versions_text, metadata=None):
+    explicit = (metadata or {}).get("prompt_version")
+    if isinstance(explicit, str) and re.fullmatch(r"v\d+-[\w-]+", explicit):
+        return explicit[:100], "prompt_version recorded in result"
     known = set(re.findall(r"^## (v\d+-[\w-]+):", versions_text, re.MULTILINE))
     if path.name in ("test1.json", "test2.json", "test3.json") and "v1-aistudio" in known:
         return "v1-aistudio", "AI Studio v1/v2 ambiguous; team assigns v1"
@@ -62,9 +65,36 @@ def import_history(monitor):
                 else:
                     timestamp = datetime.fromtimestamp(path.stat().st_mtime, timezone.utc)
                     timestamp_basis = "file-mtime-estimate"
-                version, basis = historical_version(path, versions)
+                version, basis = historical_version(path, versions, spec)
+                model = spec.get("model")
+                model = model[:100] if isinstance(model, str) and model else "unknown-historical"
+                spec = {key: value for key, value in spec.items() if key not in ("model", "prompt_version")}
+                # A live call already has telemetry. Do not count its saved JSON
+                # again as historical data when this backend restarts.
+                if timestamp_match:
+                    candidates = session.scalars(select(AICall).where(
+                        AICall.source == "live", AICall.route == "/analyze",
+                        AICall.timestamp >= timestamp - timedelta(minutes=3),
+                        AICall.timestamp <= timestamp + timedelta(seconds=3)))
+                    represented = False
+                    for row in candidates:
+                        stem = re.sub(r"[^A-Za-z0-9_-]", "_",
+                                      Path(row.image_filename or "").stem) or "sketch"
+                        started = row.timestamp.replace(tzinfo=timezone.utc) if (
+                            row.timestamp.tzinfo is None) else row.timestamp
+                        ended = started + timedelta(milliseconds=row.response_time_ms or 0)
+                        if (row.status == "ok" and row.spec == spec
+                                and stem == path.stem.split("__")[0]
+                                and abs((ended - timestamp).total_seconds()) <= 3):
+                            represented = True
+                            break
+                    if represented:
+                        session.add(HistoryImport(source_key=key))
+                        session.commit()
+                        skipped += 1
+                        continue
                 session.add(AICall(
-                    timestamp=timestamp, route="/analyze", model="unknown-historical",
+                    timestamp=timestamp, route="/analyze", model=model,
                     prompt_version=version, image_filename=path.stem.split("__")[0],
                     response_time_ms=None, status="ok", retry_used=False, spec=spec,
                     source="historical", gemini_attempted=True,

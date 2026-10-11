@@ -6,7 +6,7 @@ import type { DesignSpec, PartName, Pattern } from "../../../Builder/types";
 import { buildFlat } from "../../../Builder/buildFlat";
 import { mockSpec } from "../../../Builder/mockSpec";
 import { initialSpecState, specReducer } from "../state/specReducer";
-import { DEFAULT_STYLE, isValidEdit, stylePath, type EditAction } from "../state/specSchema";
+import { DEFAULT_STYLE, isValidEdit, specValue, stylePath, type EditAction } from "../state/specSchema";
 
 export const PART_TYPES = ["neckline", "sleeves", "waist", "skirt", "details", "proportions"] as const;
 export type LibraryPartType = (typeof PART_TYPES)[number];
@@ -37,10 +37,10 @@ export interface SavedPart extends SavedPartInput {
 const SOURCE: Record<PartName, { type: LibraryPartType; keys: readonly string[] }> = {
   collar_neckline: { type: "neckline", keys: ["type", "depth"] },
   bodice: { type: "proportions", keys: ["shoulder_width", "waist_y"] },
-  left_sleeve: { type: "sleeves", keys: ["type", "length"] },
-  right_sleeve: { type: "sleeves", keys: ["type", "length"] },
-  waist_seam: { type: "waist", keys: ["seam"] },
-  skirt: { type: "skirt", keys: ["silhouette", "length"] },
+  left_sleeve: { type: "sleeves", keys: ["type", "length", "cuff", "shoulder"] },
+  right_sleeve: { type: "sleeves", keys: ["type", "length", "cuff", "shoulder"] },
+  waist_seam: { type: "waist", keys: ["seam", "style"] },
+  skirt: { type: "skirt", keys: ["silhouette", "length", "fullness", "hem", "panels"] },
   pockets: { type: "details", keys: ["pockets"] },
   buttons: { type: "details", keys: ["buttons"] },
 };
@@ -60,9 +60,9 @@ function styleTargets(type: LibraryPartType, keys: string[]): PartName[] {
 /** The saved-part record for the selected canvas part, from the current design. */
 export function buildSavedPart(spec: DesignSpec, part: PartName, name: string): SavedPartInput {
   const { type, keys } = SOURCE[part];
-  const section = spec[type as keyof DesignSpec] as unknown as Record<string, string | number | boolean>;
   const spec_settings: SavedPartInput["spec_settings"] = {};
-  for (const key of keys) spec_settings[key] = section[key];
+  // specValue fills in the backend's default for a field the spec doesn't have (older specs, the sample).
+  for (const key of keys) spec_settings[key] = specValue(spec, `${type}.${key}`);
   const style = { ...DEFAULT_STYLE, ...spec.style[part] };
   return { name: name.trim(), part_type: type, spec_settings, style: { fill: style.fill, pattern: style.pattern } };
 }

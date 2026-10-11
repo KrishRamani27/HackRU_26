@@ -2,7 +2,18 @@ import { useEffect, useRef } from "react";
 import type { DesignSpec, PartName } from "../../../Builder/types";
 import type { CanvasState } from "../types";
 import {
+  BOW_TYPES,
+  COLLAR_TYPES,
+  CUFF_TYPES,
   DEFAULT_STYLE,
+  FULLNESS_TYPES,
+  HEM_TYPES,
+  PANEL_TYPES,
+  PLACKET_TYPES,
+  SHOULDER_TYPES,
+  TRIM_TYPES,
+  WAIST_STYLES,
+  specValue,
   FILLED_PARTS,
   FOLLOWER_PARTS,
   MAX_NOTES_LENGTH,
@@ -20,6 +31,7 @@ import {
 } from "../state/specSchema";
 import { ChipGroup, ColorSwatch, RangeField, Section } from "./Controls";
 import { SavePartBar } from "./SavePartBar";
+import { LayersSection, type LayersProps } from "./LayersSection";
 import { tee } from "./garmentPaths";
 
 interface Props {
@@ -39,6 +51,7 @@ interface Props {
   following: readonly PartName[];
   /** Hands a collar or waistband with its own style back to the bodice's color and pattern. */
   onMatchBodice: (part: PartName) => void;
+  layers: LayersProps;
 }
 
 // Which section holds the controls for each canvas part. The bodice has no
@@ -58,6 +71,37 @@ const FLASH_MS = 1400;
 
 const NECKLINE_LABELS: Record<(typeof NECKLINE_TYPES)[number], string> = {
   crew: "Crew", v: "V", scoop: "Scoop", square: "Square",
+  sweetheart: "Sweetheart", off_shoulder: "Off shoulder", halter: "Halter", high: "High",
+};
+const COLLAR_LABELS: Record<(typeof COLLAR_TYPES)[number], string> = {
+  none: "None", shirt: "Shirt", peter_pan: "Peter Pan", band: "Band", mandarin: "Mandarin",
+};
+const CUFF_LABELS: Record<(typeof CUFF_TYPES)[number], string> = {
+  none: "None", band: "Band", ruffle: "Ruffle", elastic: "Elastic",
+};
+const SHOULDER_LABELS: Record<(typeof SHOULDER_TYPES)[number], string> = {
+  set_in: "Set in", puff_top: "Puff top", off_shoulder: "Off shoulder",
+};
+const WAIST_STYLE_LABELS: Record<(typeof WAIST_STYLES)[number], string> = {
+  natural: "Natural", empire: "Empire", dropped: "Dropped", belted: "Belted",
+};
+const FULLNESS_LABELS: Record<(typeof FULLNESS_TYPES)[number], string> = {
+  plain: "Plain", gathered: "Gathered", pleated: "Pleated",
+};
+const HEM_LABELS: Record<(typeof HEM_TYPES)[number], string> = {
+  plain: "Plain", ruffle: "Ruffle", tiered: "Tiered", slit: "Slit",
+};
+const PANEL_LABELS: Record<(typeof PANEL_TYPES)[number], string> = {
+  none: "None", front_seam: "Front seam", princess_seams: "Princess seams",
+};
+const PLACKET_LABELS: Record<(typeof PLACKET_TYPES)[number], string> = {
+  none: "None", bodice: "Bodice", full: "Full length",
+};
+const BOW_LABELS: Record<(typeof BOW_TYPES)[number], string> = {
+  none: "None", neckline: "Neckline", waist: "Waist",
+};
+const TRIM_LABELS: Record<(typeof TRIM_TYPES)[number], string> = {
+  none: "None", piping: "Piping", lace: "Lace",
 };
 const SLEEVE_TYPE_LABELS: Record<(typeof SLEEVE_TYPES)[number], string> = {
   none: "None", cap: "Cap", puff: "Puff", fitted: "Fitted",
@@ -84,7 +128,7 @@ const unitDisplay = (v: number) => v.toFixed(2);
 // Avoid float noise like 0.30000000000000004 reaching the spec.
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
-export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommit, onSavePart, onOpenLibrary, following, onMatchBodice }: Props) {
+export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommit, onSavePart, onOpenLibrary, following, onMatchBodice, layers }: Props) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const flashTimer = useRef<number>(0);
 
@@ -124,6 +168,7 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
       <div className="panel__body" ref={bodyRef}>
         {spec ? (
           <>
+            <LayersSection {...layers} />
             {selection && <SavePartBar key={selection.part} label={PART_LABELS[selection.part]} onSave={(name) => onSavePart(selection.part, name)} onOpenLibrary={onOpenLibrary} />}
             <Section name="neckline" title="Neckline">
               <ChipGroup
@@ -131,6 +176,12 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
                 options={toOptions(NECKLINE_TYPES, NECKLINE_LABELS)}
                 value={spec.neckline.type}
                 onChange={(v) => set("neckline.type", v)}
+              />
+              <ChipGroup
+                label="Collar"
+                options={toOptions(COLLAR_TYPES, COLLAR_LABELS)}
+                value={specValue<(typeof COLLAR_TYPES)[number]>(spec, "collar.type")}
+                onChange={(v) => set("collar.type", v)}
               />
               <RangeField
                 onCommit={onCommit}
@@ -161,6 +212,18 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
                 hint={spec.sleeves.type === "none" ? "Sleeve length applies when sleeves are present." : undefined}
                 onChange={(i) => set("sleeves.length", SLEEVE_LENGTHS[i], true)}
               />
+              <ChipGroup
+                label="Cuff"
+                options={toOptions(CUFF_TYPES, CUFF_LABELS)}
+                value={specValue<(typeof CUFF_TYPES)[number]>(spec, "sleeves.cuff")}
+                onChange={(v) => set("sleeves.cuff", v)}
+              />
+              <ChipGroup
+                label="Shoulder"
+                options={toOptions(SHOULDER_TYPES, SHOULDER_LABELS)}
+                value={specValue<(typeof SHOULDER_TYPES)[number]>(spec, "sleeves.shoulder")}
+                onChange={(v) => set("sleeves.shoulder", v)}
+              />
             </Section>
 
             <Section name="waist" title="Waist">
@@ -169,6 +232,12 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
                 options={[{ value: true, label: "Seam" }, { value: false, label: "No seam" }]}
                 value={spec.waist.seam}
                 onChange={(v) => set("waist.seam", v)}
+              />
+              <ChipGroup
+                label="Waist style"
+                options={toOptions(WAIST_STYLES, WAIST_STYLE_LABELS)}
+                value={specValue<(typeof WAIST_STYLES)[number]>(spec, "waist.style")}
+                onChange={(v) => set("waist.style", v)}
               />
             </Section>
 
@@ -188,6 +257,24 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
                 ends={["Mini", "Floor"]}
                 onChange={(i) => set("skirt.length", SKIRT_LENGTHS[i], true)}
               />
+              <ChipGroup
+                label="Fullness"
+                options={toOptions(FULLNESS_TYPES, FULLNESS_LABELS)}
+                value={specValue<(typeof FULLNESS_TYPES)[number]>(spec, "skirt.fullness")}
+                onChange={(v) => set("skirt.fullness", v)}
+              />
+              <ChipGroup
+                label="Hem"
+                options={toOptions(HEM_TYPES, HEM_LABELS)}
+                value={specValue<(typeof HEM_TYPES)[number]>(spec, "skirt.hem")}
+                onChange={(v) => set("skirt.hem", v)}
+              />
+              <ChipGroup
+                label="Panels"
+                options={toOptions(PANEL_TYPES, PANEL_LABELS)}
+                value={specValue<(typeof PANEL_TYPES)[number]>(spec, "skirt.panels")}
+                onChange={(v) => set("skirt.panels", v)}
+              />
             </Section>
 
             <Section name="details" title="Details">
@@ -204,6 +291,30 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
                 value={spec.details.buttons}
                 display={String(spec.details.buttons)}
                 onChange={(v) => set("details.buttons", v, true)}
+              />
+              <ChipGroup
+                label="Placket"
+                options={toOptions(PLACKET_TYPES, PLACKET_LABELS)}
+                value={specValue<(typeof PLACKET_TYPES)[number]>(spec, "details.placket")}
+                onChange={(v) => set("details.placket", v)}
+              />
+              <ChipGroup
+                label="Darts"
+                options={[{ value: true, label: "Darts" }, { value: false, label: "No darts" }]}
+                value={specValue<boolean>(spec, "details.darts")}
+                onChange={(v) => set("details.darts", v)}
+              />
+              <ChipGroup
+                label="Bow"
+                options={toOptions(BOW_TYPES, BOW_LABELS)}
+                value={specValue<(typeof BOW_TYPES)[number]>(spec, "details.bow")}
+                onChange={(v) => set("details.bow", v)}
+              />
+              <ChipGroup
+                label="Trim"
+                options={toOptions(TRIM_TYPES, TRIM_LABELS)}
+                value={specValue<(typeof TRIM_TYPES)[number]>(spec, "details.trim")}
+                onChange={(v) => set("details.trim", v)}
               />
             </Section>
 

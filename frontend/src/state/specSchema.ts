@@ -15,7 +15,43 @@ import type {
   SleeveType,
 } from "../../../Builder/types";
 
-export const NECKLINE_TYPES: readonly NecklineType[] = ["crew", "v", "scoop", "square"];
+// Prompt version v10 (backend/app/schemas.py) added four neckline types and a set of detail fields. The type
+// file in Builder/ still lists the original four necklines and none of the detail fields (and the builder does
+// not draw them yet), so the full lists live here, as the single place the frontend reads allowed values from.
+export type NecklineKind = NecklineType | "sweetheart" | "off_shoulder" | "halter" | "high";
+export const NECKLINE_TYPES: readonly NecklineKind[] = ["crew", "v", "scoop", "square", "sweetheart", "off_shoulder", "halter", "high"];
+export const COLLAR_TYPES = ["none", "shirt", "peter_pan", "band", "mandarin"] as const;
+export const CUFF_TYPES = ["none", "band", "ruffle", "elastic"] as const;
+export const SHOULDER_TYPES = ["set_in", "puff_top", "off_shoulder"] as const;
+export const WAIST_STYLES = ["natural", "empire", "dropped", "belted"] as const;
+export const FULLNESS_TYPES = ["plain", "gathered", "pleated"] as const;
+export const HEM_TYPES = ["plain", "ruffle", "tiered", "slit"] as const;
+export const PANEL_TYPES = ["none", "front_seam", "princess_seams"] as const;
+export const PLACKET_TYPES = ["none", "bodice", "full"] as const;
+export const BOW_TYPES = ["none", "neckline", "waist"] as const;
+export const TRIM_TYPES = ["none", "piping", "lace"] as const;
+
+/** What the backend uses for a v10 field a spec doesn't have (older specs, the mock sample): "nothing special". */
+export const V10_DEFAULTS: Record<string, string | boolean> = {
+  "collar.type": "none",
+  "sleeves.cuff": "none",
+  "sleeves.shoulder": "set_in",
+  "waist.style": "natural",
+  "skirt.fullness": "plain",
+  "skirt.hem": "plain",
+  "skirt.panels": "none",
+  "details.placket": "none",
+  "details.darts": false,
+  "details.bow": "none",
+  "details.trim": "none",
+};
+
+/** The value at a dotted path of a spec, or the backend's default when the spec doesn't have the field. */
+export function specValue<T extends string | number | boolean>(spec: DesignSpec, path: string): T {
+  let node: unknown = spec;
+  for (const key of path.split(".")) node = (node as Record<string, unknown> | undefined)?.[key];
+  return (node === undefined || node === null ? V10_DEFAULTS[path] : node) as T;
+}
 export const SLEEVE_TYPES: readonly SleeveType[] = ["none", "cap", "puff", "fitted"];
 export const SLEEVE_LENGTHS: readonly SleeveLength[] = ["short", "elbow", "long"];
 export const SILHOUETTES: readonly Silhouette[] = ["straight", "a_line", "flared"];
@@ -71,13 +107,24 @@ const unit: Rule = { kind: "number", min: 0, max: 1 };
 const RULES: Record<string, Rule> = {
   "neckline.type": { kind: "enum", options: NECKLINE_TYPES },
   "neckline.depth": unit,
+  "collar.type": { kind: "enum", options: COLLAR_TYPES },
   "sleeves.type": { kind: "enum", options: SLEEVE_TYPES },
   "sleeves.length": { kind: "enum", options: SLEEVE_LENGTHS },
+  "sleeves.cuff": { kind: "enum", options: CUFF_TYPES },
+  "sleeves.shoulder": { kind: "enum", options: SHOULDER_TYPES },
   "waist.seam": { kind: "boolean" },
+  "waist.style": { kind: "enum", options: WAIST_STYLES },
   "skirt.silhouette": { kind: "enum", options: SILHOUETTES },
   "skirt.length": { kind: "enum", options: SKIRT_LENGTHS },
+  "skirt.fullness": { kind: "enum", options: FULLNESS_TYPES },
+  "skirt.hem": { kind: "enum", options: HEM_TYPES },
+  "skirt.panels": { kind: "enum", options: PANEL_TYPES },
   "details.pockets": { kind: "enum", options: POCKET_TYPES },
   "details.buttons": { kind: "number", min: 0, max: 8, integer: true },
+  "details.placket": { kind: "enum", options: PLACKET_TYPES },
+  "details.darts": { kind: "boolean" },
+  "details.bow": { kind: "enum", options: BOW_TYPES },
+  "details.trim": { kind: "enum", options: TRIM_TYPES },
   "proportions.shoulder_width": unit,
   "proportions.waist_y": unit,
   notes: { kind: "text", max: MAX_NOTES_LENGTH },

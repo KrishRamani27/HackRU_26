@@ -16,10 +16,12 @@ This is the part of FlatSketch you see in the browser. You give it a photo of a 
 10. **Click a part of the dress.** Click the bodice, a sleeve, the skirt and so on. The part glows, its name shows at the bottom of the sheet ("Selected: Bodice"), and the right panel scrolls to the matching controls and flashes them briefly. Click empty space or press Escape to let go. You can also Tab to a part and press Enter.
 11. **Draw on the flat, then edit what you drew.** Next to the zoom buttons there are two tool buttons: Select (the arrow) and Pen. Turn the pen on, then press and drag on the dress to draw a freehand line, like sketching a crease, a seam or a note on top of the drawing. Press Escape to put the pen away. With the Select tool, click right on a line to select it (thin lines have an invisible wider area so they are easy to hit). The right panel then shows its name, stroke color, stroke width, an Open line or Closed shape choice, and, for a closed shape, a fill color and a fabric pattern (solid, denim, plaid or floral). Drag the selected line to move it. Press Delete or Backspace, or use the Delete button, to remove it. Every change, every drag and every delete is one undo step, and everything shows up in the exported SVG and PNG.
 11b. **Select several, group them, save them.** With the Select tool, hold Shift and click to add or remove lines, or drag a box on empty canvas to select every line inside it. Dragging moves all selected lines together, and Delete removes them all, each as one undo step. With several selected, the right panel shows only stroke color, stroke width, Group or Ungroup, and Delete. Group ties the lines together, so clicking any one selects the whole group. When a line or group is selected, the "Save to library" bar appears. A group is saved as one item. In the Library tab the "Drawings" chip shows saved drawings with a small preview and name. Click a card to add a copy to your design (one undo step), or use the trash icon to delete it after a confirmation.
+11c. **Resize, rotate and layers.** When a line, a group or several lines are selected, a thin box in the accent color appears with a small square handle on each corner and a round handle above the top edge. Drag a corner to resize (the opposite corner stays put, and Shift keeps the proportions). Drag the round handle to rotate around the middle of the selection (Shift snaps to 15 degrees). A single line also has Scale X, Scale Y and Rotation boxes in the right panel for exact numbers. Each drag is one undo step, and the box and handles never appear in an exported file. The right panel also has a Layers list you can fold away. It shows your drawn lines on top (a group is one row you can open), then the eight dress parts. Click a row to select it. The eye hides a line, which also leaves it out of the export, or hides a dress part on the screen only, so the export still has it. The up and down arrows change what is drawn on top of what, and a double click on a line name renames it.
 12. **Zoom.** Zoom buttons at the top of the sheet go from 50% to 300%, and there is a "fit" button.
 13. **View sample.** On the empty sheet there is a "View sample" button. It loads a ready made dress from the builder so you can try the controls without uploading anything or running the backend. It is labeled as a sample that was not generated from a sketch, and "Hide sample" takes you back to the empty sheet. The sample is fully editable too.
 14. **Export.** Once something is on the sheet, the Export button at the top turns on. Click it and pick SVG or PNG from the small menu. The file downloads with a name taken from the title, like `untitled-garment.svg`, and a short "Exported" message appears.
-15. **Starting over.** Uploading a new sketch, opening the sample, or removing your sketch replaces the current design, and any edits and undo history are gone. Saved parts in the library are not affected. Whole designs are not saved anywhere yet.
+14b. **Save and open whole designs.** Click Save design in the top bar, or press Ctrl+S. The first save creates the design on the backend. After that each save updates it. The word Saved shows briefly, and the Unsaved changes dot goes away. Click Open to see your saved designs with their names and when they were last updated, and click one to load it, drawn lines and groups included, with a fresh undo history. If you have unsaved changes it asks before replacing them. If someone else saved the same design in the meantime, your save is refused with the message "This design changed somewhere else. Reload to get the latest." and nothing is overwritten. Reload brings in their version and replaces your edits.
+15. **Starting over.** Uploading a new sketch, opening the sample, or removing your sketch replaces the current design, and any edits and undo history are gone. Saved parts in the library are not affected. If you have unsaved changes, opening a saved design, uploading a new sketch, opening the sample, hiding the sample or removing your sketch all ask first (Replace or Keep editing). Keep editing changes nothing.
 
 ## 2. The layout
 
@@ -31,7 +33,7 @@ The screen has a thin dark strip on the left, a top bar, and three panels.
 * "Workbench" and "Library". Each one switches the left panel (Workbench shows the Sketch tab, Library shows the Library tab), and the one for the open tab is lit. They stay in step with the tabs inside the left panel.
 
 **Top bar**
-* A small "Atelier / Workbench" line, then the project name "Untitled garment" in big letters with a "Draft" tag. The name is fixed for now, you cannot rename it.
+* A small "Atelier / Workbench" line, then the project name "Untitled garment" in big letters with a "Draft" tag. Click the name to rename it. The name is used when you save the design and in the file names of exports. Next to it, a dot and the words "Unsaved changes" show when you have edited since the last save. On the right there are Open and Save design buttons.
 * A status note that only appears after an analysis: "Mock AI mode", "Gemini", or "AI mode unknown".
 * Undo and redo arrow buttons. They are greyed out when there is nothing to undo or redo.
 * The "Upload sketch" button.
@@ -121,21 +123,34 @@ We checked this by measuring the picture before and after each change: every col
 
 | Control | What it changes |
 | --- | --- |
-| Neckline, Type | Crew, V, Scoop, or Square (`neckline.type`) |
+| Neckline, Type | Crew, V, Scoop, Square, Sweetheart, Off shoulder, Halter, or High (`neckline.type`). The builder only draws the first four so far; the others are drawn like a scoop. |
+| Neckline, Collar | None, Shirt, Peter Pan, Band, or Mandarin (`collar.type`) |
 | Neckline, Depth | Slider from 0 to 1, shallow to deep (`neckline.depth`) |
 | Sleeves, Type | None, Cap, Puff, or Fitted (`sleeves.type`) |
 | Sleeves, Length | Slider with three stops: Short, Elbow, Long (`sleeves.length`). Greyed out while sleeves are None, because length does not apply then. |
+| Sleeves, Cuff | None, Band, Ruffle, or Elastic (`sleeves.cuff`) |
+| Sleeves, Shoulder | Set in, Puff top, or Off shoulder (`sleeves.shoulder`) |
 | Waist, Waist seam | Seam or No seam, whether the waist line is drawn (`waist.seam`) |
+| Waist, Waist style | Natural, Empire, Dropped, or Belted (`waist.style`) |
 | Skirt, Silhouette | Straight, A line, or Flared (`skirt.silhouette`) |
 | Skirt, Length | Slider with four stops: Mini, Knee, Midi, Floor (`skirt.length`) |
+| Skirt, Fullness | Plain, Gathered, or Pleated (`skirt.fullness`) |
+| Skirt, Hem | Plain, Ruffle, Tiered, or Slit (`skirt.hem`) |
+| Skirt, Panels | None, Front seam, or Princess seams (`skirt.panels`) |
 | Details, Pockets | None, Patch, or Side seam (`details.pockets`) |
 | Details, Buttons | Slider from 0 to 8 buttons down the front (`details.buttons`) |
+| Details, Placket | None, Bodice, or Full length (`details.placket`) |
+| Details, Darts | Darts or No darts (`details.darts`) |
+| Details, Bow | None, Neckline, or Waist (`details.bow`) |
+| Details, Trim | None, Piping, or Lace (`details.trim`) |
 | Proportions, Shoulder width | Slider from 0 to 1 (`proportions.shoulder_width`) |
 | Proportions, Waist height | Slider from 0 to 1 (`proportions.waist_y`). In the builder now, 0 is the empire line (high), 0.5 a natural waist, 1 a dropped waist (low). See the known limits about its labels. |
 | Fabric & color, one row per part | A color swatch and four pattern chips (Solid, Denim, Plaid, Floral) for each of the 8 parts (`style.<part>.fill` and `style.<part>.pattern`). The collar and waist seam rows say "Follows the bodice until you set a color or pattern here" until you style them yourself. |
 | Notes | A free text box up to 4000 characters (`notes`). It is for anything the settings cannot express, and it does not change the drawing. |
 
 Two things you cannot edit: the garment type (it is always a dress), and anything the builder does not draw (see limits).
+
+The controls added in the backend's v10 update (the four extra necklines, collar, cuff, shoulder, waist style, fullness, hem, panels, placket, darts, bow and trim) are saved and sent to the backend like any other setting, and the flat builder draws all of them, so choosing one changes the picture straight away.
 
 Sliders always show their current value next to the label. The selected chip is filled with the accent color (a deep terracotta).
 
@@ -259,12 +274,11 @@ You can try the sample with only the frontend running. Uploading a sketch needs 
 
 **Not built yet**
 * **Opening an export in Illustrator itself.** The SVG was checked as valid XML and rendered in a browser, and it has the named layers, fills and patterns. Nobody has opened it in Illustrator yet, so test one before promising it.
-* **Saving designs.** Whole designs are not saved. A refresh loses the current design, including any lines you drew. Only library parts are saved, because the frontend does not use the backend's design routes yet.
+* **Saving designs.** Designs are saved to the shared backend with no accounts, so everyone using the same backend sees the same list (the 50 newest). There is no way yet to delete a saved design, see its older versions, or save the uploaded sketch picture with it. A design you never saved is lost on refresh.
 * **Library limits.** Everyone who uses the same backend shares one library, because there are no user accounts. It shows the 100 newest parts. You cannot rename a saved part.
 * **Library previews.** The card previews use a plain white dress as the base. Applying a saved collar or waist seam style gives that part its own style, so it stops following the bodice.
 * **Layers panel.** The project guide mentions one. We have click to select instead.
 * **AI suggestions, voice, and the verify loop.** The backend has routes for them. The frontend does not use them.
-* **Renaming the project.** The name "Untitled garment" and the "Draft" tag are fixed.
 
 **Things that behave in a limited way**
 * **Gemini mode is untested from the frontend.** Everything was tested against the backend in mock mode. The code reads the header and handles real mode, but we have not seen it work with a real Gemini key.
@@ -278,7 +292,7 @@ You can try the sample with only the frontend running. Uploading a sketch needs 
 * **No automated tests.** The checks were done by hand with scripted browser runs. There is no test suite in the repo.
 * **Built desktop first.** It adapts to small screens by stacking the panels, but it is not tuned for phones.
 * **Edits and undo history are lost** when you load a new sketch or the sample.
-* **Drawing, so far.** You can draw lines, select them, rename them, change color and width, close them into shapes, fill shapes with a color or fabric, move them by dragging, delete them, and undo all of it. You cannot yet resize, rotate, hide or reorder a line, attach one to a dress part, or draw a shape by clicking corners. The contract allows up to 200 lines per design and 5000 points per line. Drawing needs a mouse, finger or stylus. You can Tab to a line and press Enter to select it, but there is no keyboard way to draw or move one. On a touch screen, dragging a line may also scroll the page.
+* **Drawing, so far.** You can draw lines, select them, rename them, change color and width, close them into shapes, fill shapes with a color or fabric, move them by dragging, delete them, and undo all of it. You cannot yet attach a line to a dress part, or draw a shape by clicking corners. The contract allows up to 200 lines per design and 5000 points per line. Drawing needs a mouse, finger or stylus. You can Tab to a line and press Enter to select it, but there is no keyboard way to draw or move one. On a touch screen, dragging a line may also scroll the page.
 
 ## 9. How to explain this to judges
 
