@@ -4,8 +4,9 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
  * Small uppercase label that groups related controls. `name` is a stable key
  * the panel uses to scroll to and highlight a section.
  */
-export function Section({ name, title, children }: { name: string; title: string; children: ReactNode }) {
+export function Section({ name, title, children, hidden }: { name: string; title: string; children: ReactNode; hidden?: boolean }) {
   const id = useId();
+  if (hidden) return null;
   return (
     <section className="prop-section" data-section={name} aria-labelledby={id}>
       <h3 id={id} className="eyebrow">{title}</h3>
@@ -28,6 +29,8 @@ interface ChipGroupProps<T extends string | boolean> {
   onChange: (value: T) => void;
   disabled?: boolean;
   small?: boolean;
+  /** The builder doesn't draw this yet (see SHOWN_CONTROLS in specSchema.ts): render nothing. */
+  hidden?: boolean;
 }
 
 /** Segmented chips: one option selected at a time, selected shown in the accent color. */
@@ -38,7 +41,9 @@ export function ChipGroup<T extends string | boolean>({
   onChange,
   disabled,
   small,
+  hidden,
 }: ChipGroupProps<T>) {
+  if (hidden) return null;
   return (
     <div className={`field${small ? " field--compact" : ""}`}>
       <span className="field__label">{label}</span>
@@ -75,11 +80,13 @@ interface RangeFieldProps {
   /** Short captions under the two ends of the track. */
   ends?: [string, string];
   hint?: string;
+  hidden?: boolean;
 }
 
 /** Slider with its current value always visible. */
-export function RangeField({ label, min, max, step, value, display, onChange, onCommit, disabled, ends, hint }: RangeFieldProps) {
+export function RangeField({ label, min, max, step, value, display, onChange, onCommit, disabled, ends, hint, hidden }: RangeFieldProps) {
   const id = useId();
+  if (hidden) return null;
   return (
     <div className="field">
       <div className="field__row">

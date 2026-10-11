@@ -31,6 +31,61 @@ export const PLACKET_TYPES = ["none", "bodice", "full"] as const;
 export const BOW_TYPES = ["none", "neckline", "waist"] as const;
 export const TRIM_TYPES = ["none", "piping", "lace"] as const;
 
+/**
+ * WHICH CONTROLS THE PROPERTIES PANEL SHOWS. One place, one line per control.
+ *
+ * Only settings that Builder/buildFlat.ts actually draws get a control: a control that changes nothing on the
+ * canvas is confusing. The other fields still live in the spec (an /analyze result, a saved design or a saved
+ * part carries them through untouched, and edits to them are still accepted by `isValidEdit`); they just have no
+ * control yet.
+ *
+ * - `true` shows the control with all its options.
+ * - A list shows only those options (the others are hidden, and a value the spec already holds that is not in
+ *   the list is mentioned in a small note under the control).
+ *
+ * When the builder learns to draw one, turn its control back on by uncommenting its line below (or, for the
+ * four extra necklines, adding them to the list).
+ */
+export const SHOWN_CONTROLS: Record<string, true | readonly string[]> = {
+  // Neckline: the builder draws crew, v, scoop and square. Sweetheart, off shoulder, halter and high are drawn
+  // like a scoop for now.
+  "neckline.type": ["crew", "v", "scoop", "square"], // all eight: true
+  "neckline.depth": true,
+  // "collar.type": true,
+  "sleeves.type": true,
+  "sleeves.length": true,
+  // "sleeves.cuff": true,
+  // "sleeves.shoulder": true,
+  "waist.seam": true,
+  // "waist.style": true,
+  "skirt.silhouette": true,
+  "skirt.length": true,
+  // "skirt.fullness": true,
+  // "skirt.hem": true,
+  // "skirt.panels": true,
+  "details.pockets": true,
+  "details.buttons": true,
+  // "details.placket": true,
+  // "details.darts": true,
+  // "details.bow": true,
+  // "details.trim": true,
+  "proportions.shoulder_width": true,
+  "proportions.waist_y": true,
+};
+
+/** Does the panel show a control for this spec path? */
+export const isShown = (path: string): boolean => path in SHOWN_CONTROLS;
+
+/** Does the panel show any control whose path starts with one of these prefixes (a whole section)? */
+export const anyShown = (...prefixes: string[]): boolean =>
+  Object.keys(SHOWN_CONTROLS).some((path) => prefixes.some((p) => path.startsWith(p)));
+
+/** The options of a control that are shown (all of them when the control is listed as `true`). */
+export function shownOptions<T extends string>(path: string, options: readonly { value: T; label: string }[]) {
+  const rule = SHOWN_CONTROLS[path];
+  return Array.isArray(rule) ? options.filter((o) => (rule as readonly string[]).includes(o.value)) : [...options];
+}
+
 /** What the backend uses for a v10 field a spec doesn't have (older specs, the mock sample): "nothing special". */
 export const V10_DEFAULTS: Record<string, string | boolean> = {
   "collar.type": "none",

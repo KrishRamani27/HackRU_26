@@ -123,26 +123,15 @@ We checked this by measuring the picture before and after each change: every col
 
 | Control | What it changes |
 | --- | --- |
-| Neckline, Type | Crew, V, Scoop, Square, Sweetheart, Off shoulder, Halter, or High (`neckline.type`). The builder only draws the first four so far; the others are drawn like a scoop. |
-| Neckline, Collar | None, Shirt, Peter Pan, Band, or Mandarin (`collar.type`) |
+| Neckline, Type | Crew, V, Scoop, or Square (`neckline.type`) |
 | Neckline, Depth | Slider from 0 to 1, shallow to deep (`neckline.depth`) |
 | Sleeves, Type | None, Cap, Puff, or Fitted (`sleeves.type`) |
 | Sleeves, Length | Slider with three stops: Short, Elbow, Long (`sleeves.length`). Greyed out while sleeves are None, because length does not apply then. |
-| Sleeves, Cuff | None, Band, Ruffle, or Elastic (`sleeves.cuff`) |
-| Sleeves, Shoulder | Set in, Puff top, or Off shoulder (`sleeves.shoulder`) |
 | Waist, Waist seam | Seam or No seam, whether the waist line is drawn (`waist.seam`) |
-| Waist, Waist style | Natural, Empire, Dropped, or Belted (`waist.style`) |
 | Skirt, Silhouette | Straight, A line, or Flared (`skirt.silhouette`) |
 | Skirt, Length | Slider with four stops: Mini, Knee, Midi, Floor (`skirt.length`) |
-| Skirt, Fullness | Plain, Gathered, or Pleated (`skirt.fullness`) |
-| Skirt, Hem | Plain, Ruffle, Tiered, or Slit (`skirt.hem`) |
-| Skirt, Panels | None, Front seam, or Princess seams (`skirt.panels`) |
 | Details, Pockets | None, Patch, or Side seam (`details.pockets`) |
 | Details, Buttons | Slider from 0 to 8 buttons down the front (`details.buttons`) |
-| Details, Placket | None, Bodice, or Full length (`details.placket`) |
-| Details, Darts | Darts or No darts (`details.darts`) |
-| Details, Bow | None, Neckline, or Waist (`details.bow`) |
-| Details, Trim | None, Piping, or Lace (`details.trim`) |
 | Proportions, Shoulder width | Slider from 0 to 1 (`proportions.shoulder_width`) |
 | Proportions, Waist height | Slider from 0 to 1 (`proportions.waist_y`). In the builder now, 0 is the empire line (high), 0.5 a natural waist, 1 a dropped waist (low). See the known limits about its labels. |
 | Fabric & color, one row per part | A color swatch and four pattern chips (Solid, Denim, Plaid, Floral) for each of the 8 parts (`style.<part>.fill` and `style.<part>.pattern`). The collar and waist seam rows say "Follows the bodice until you set a color or pattern here" until you style them yourself. |
@@ -150,7 +139,7 @@ We checked this by measuring the picture before and after each change: every col
 
 Two things you cannot edit: the garment type (it is always a dress), and anything the builder does not draw (see limits).
 
-The controls added in the backend's v10 update (the four extra necklines, collar, cuff, shoulder, waist style, fullness, hem, panels, placket, darts, bow and trim) are saved and sent to the backend like any other setting, but the flat builder does not draw them yet, so choosing them does not change the picture until the builder is updated.
+The panel only shows controls for settings the flat builder draws. The backend's newer settings (the extra necklines Sweetheart, Off shoulder, Halter and High, and collar, cuff, shoulder, waist style, fullness, hem, panels, placket, darts, bow and trim) have no control for now, because choosing them would not change the picture. They are not lost: a sketch result that includes them keeps them, and they are saved with the design and sent to the backend like any other setting. If a result has one of the four extra necklines, a small note under Neckline says the flat shows it as a scoop. When the builder learns to draw one, its control is switched back on by one line in `src/state/specSchema.ts` (the list called `SHOWN_CONTROLS`).
 
 Sliders always show their current value next to the label. The selected chip is filled with the accent color (a deep terracotta).
 

@@ -19,6 +19,9 @@ import {
   MAX_NOTES_LENGTH,
   NECKLINE_TYPES,
   PART_NAMES,
+  anyShown,
+  isShown,
+  shownOptions,
   PART_LABELS,
   PATTERNS,
   POCKET_TYPES,
@@ -170,15 +173,22 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
           <>
             <LayersSection {...layers} />
             {selection && <SavePartBar key={selection.part} label={PART_LABELS[selection.part]} onSave={(name) => onSavePart(selection.part, name)} onOpenLibrary={onOpenLibrary} />}
-            <Section name="neckline" title="Neckline">
+            <Section name="neckline" title="Neckline" hidden={!anyShown("neckline.", "collar.")}>
               <ChipGroup
                 label="Type"
-                options={toOptions(NECKLINE_TYPES, NECKLINE_LABELS)}
+                options={shownOptions("neckline.type", toOptions(NECKLINE_TYPES, NECKLINE_LABELS))}
+                hidden={!isShown("neckline.type")}
                 value={spec.neckline.type}
                 onChange={(v) => set("neckline.type", v)}
               />
+              {isShown("neckline.type") && !shownOptions("neckline.type", toOptions(NECKLINE_TYPES, NECKLINE_LABELS)).some((o) => o.value === spec.neckline.type) && (
+                <p className="field__hint">
+                  This design has a {NECKLINE_LABELS[spec.neckline.type as keyof typeof NECKLINE_LABELS] ?? spec.neckline.type} neckline, which the builder doesn’t draw yet, so the flat shows it as a scoop. The setting is kept.
+                </p>
+              )}
               <ChipGroup
                 label="Collar"
+                hidden={!isShown("collar.type")}
                 options={toOptions(COLLAR_TYPES, COLLAR_LABELS)}
                 value={specValue<(typeof COLLAR_TYPES)[number]>(spec, "collar.type")}
                 onChange={(v) => set("collar.type", v)}
@@ -186,6 +196,7 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
               <RangeField
                 onCommit={onCommit}
                 label="Depth"
+                hidden={!isShown("neckline.depth")}
                 min={0} max={1} step={0.05}
                 value={spec.neckline.depth}
                 display={unitDisplay(spec.neckline.depth)}
@@ -194,10 +205,11 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
               />
             </Section>
 
-            <Section name="sleeves" title="Sleeves">
+            <Section name="sleeves" title="Sleeves" hidden={!anyShown("sleeves.")}>
               <ChipGroup
                 label="Type"
                 options={toOptions(SLEEVE_TYPES, SLEEVE_TYPE_LABELS)}
+                hidden={!isShown("sleeves.type")}
                 value={spec.sleeves.type}
                 onChange={(v) => set("sleeves.type", v)}
               />
@@ -207,6 +219,7 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
                 min={0} max={SLEEVE_LENGTHS.length - 1} step={1}
                 value={SLEEVE_LENGTHS.indexOf(spec.sleeves.length)}
                 display={SLEEVE_LENGTH_LABELS[spec.sleeves.length]}
+                hidden={!isShown("sleeves.length")}
                 ends={["Short", "Long"]}
                 disabled={spec.sleeves.type === "none"}
                 hint={spec.sleeves.type === "none" ? "Sleeve length applies when sleeves are present." : undefined}
@@ -214,36 +227,41 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
               />
               <ChipGroup
                 label="Cuff"
+                hidden={!isShown("sleeves.cuff")}
                 options={toOptions(CUFF_TYPES, CUFF_LABELS)}
                 value={specValue<(typeof CUFF_TYPES)[number]>(spec, "sleeves.cuff")}
                 onChange={(v) => set("sleeves.cuff", v)}
               />
               <ChipGroup
                 label="Shoulder"
+                hidden={!isShown("sleeves.shoulder")}
                 options={toOptions(SHOULDER_TYPES, SHOULDER_LABELS)}
                 value={specValue<(typeof SHOULDER_TYPES)[number]>(spec, "sleeves.shoulder")}
                 onChange={(v) => set("sleeves.shoulder", v)}
               />
             </Section>
 
-            <Section name="waist" title="Waist">
+            <Section name="waist" title="Waist" hidden={!anyShown("waist.")}>
               <ChipGroup
                 label="Waist seam"
+                hidden={!isShown("waist.seam")}
                 options={[{ value: true, label: "Seam" }, { value: false, label: "No seam" }]}
                 value={spec.waist.seam}
                 onChange={(v) => set("waist.seam", v)}
               />
               <ChipGroup
                 label="Waist style"
+                hidden={!isShown("waist.style")}
                 options={toOptions(WAIST_STYLES, WAIST_STYLE_LABELS)}
                 value={specValue<(typeof WAIST_STYLES)[number]>(spec, "waist.style")}
                 onChange={(v) => set("waist.style", v)}
               />
             </Section>
 
-            <Section name="skirt" title="Skirt">
+            <Section name="skirt" title="Skirt" hidden={!anyShown("skirt.")}>
               <ChipGroup
                 label="Silhouette"
+                hidden={!isShown("skirt.silhouette")}
                 options={toOptions(SILHOUETTES, SILHOUETTE_LABELS)}
                 value={spec.skirt.silhouette}
                 onChange={(v) => set("skirt.silhouette", v)}
@@ -254,32 +272,37 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
                 min={0} max={SKIRT_LENGTHS.length - 1} step={1}
                 value={SKIRT_LENGTHS.indexOf(spec.skirt.length)}
                 display={SKIRT_LENGTH_LABELS[spec.skirt.length]}
+                hidden={!isShown("skirt.length")}
                 ends={["Mini", "Floor"]}
                 onChange={(i) => set("skirt.length", SKIRT_LENGTHS[i], true)}
               />
               <ChipGroup
                 label="Fullness"
+                hidden={!isShown("skirt.fullness")}
                 options={toOptions(FULLNESS_TYPES, FULLNESS_LABELS)}
                 value={specValue<(typeof FULLNESS_TYPES)[number]>(spec, "skirt.fullness")}
                 onChange={(v) => set("skirt.fullness", v)}
               />
               <ChipGroup
                 label="Hem"
+                hidden={!isShown("skirt.hem")}
                 options={toOptions(HEM_TYPES, HEM_LABELS)}
                 value={specValue<(typeof HEM_TYPES)[number]>(spec, "skirt.hem")}
                 onChange={(v) => set("skirt.hem", v)}
               />
               <ChipGroup
                 label="Panels"
+                hidden={!isShown("skirt.panels")}
                 options={toOptions(PANEL_TYPES, PANEL_LABELS)}
                 value={specValue<(typeof PANEL_TYPES)[number]>(spec, "skirt.panels")}
                 onChange={(v) => set("skirt.panels", v)}
               />
             </Section>
 
-            <Section name="details" title="Details">
+            <Section name="details" title="Details" hidden={!anyShown("details.")}>
               <ChipGroup
                 label="Pockets"
+                hidden={!isShown("details.pockets")}
                 options={toOptions(POCKET_TYPES, POCKET_LABELS)}
                 value={spec.details.pockets}
                 onChange={(v) => set("details.pockets", v)}
@@ -287,6 +310,7 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
               <RangeField
                 onCommit={onCommit}
                 label="Buttons"
+                hidden={!isShown("details.buttons")}
                 min={0} max={8} step={1}
                 value={spec.details.buttons}
                 display={String(spec.details.buttons)}
@@ -294,34 +318,39 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
               />
               <ChipGroup
                 label="Placket"
+                hidden={!isShown("details.placket")}
                 options={toOptions(PLACKET_TYPES, PLACKET_LABELS)}
                 value={specValue<(typeof PLACKET_TYPES)[number]>(spec, "details.placket")}
                 onChange={(v) => set("details.placket", v)}
               />
               <ChipGroup
                 label="Darts"
+                hidden={!isShown("details.darts")}
                 options={[{ value: true, label: "Darts" }, { value: false, label: "No darts" }]}
                 value={specValue<boolean>(spec, "details.darts")}
                 onChange={(v) => set("details.darts", v)}
               />
               <ChipGroup
                 label="Bow"
+                hidden={!isShown("details.bow")}
                 options={toOptions(BOW_TYPES, BOW_LABELS)}
                 value={specValue<(typeof BOW_TYPES)[number]>(spec, "details.bow")}
                 onChange={(v) => set("details.bow", v)}
               />
               <ChipGroup
                 label="Trim"
+                hidden={!isShown("details.trim")}
                 options={toOptions(TRIM_TYPES, TRIM_LABELS)}
                 value={specValue<(typeof TRIM_TYPES)[number]>(spec, "details.trim")}
                 onChange={(v) => set("details.trim", v)}
               />
             </Section>
 
-            <Section name="proportions" title="Proportions">
+            <Section name="proportions" title="Proportions" hidden={!anyShown("proportions.")}>
               <RangeField
                 onCommit={onCommit}
                 label="Shoulder width"
+                hidden={!isShown("proportions.shoulder_width")}
                 min={0} max={1} step={0.05}
                 value={spec.proportions.shoulder_width}
                 display={unitDisplay(spec.proportions.shoulder_width)}
@@ -330,6 +359,7 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
               <RangeField
                 onCommit={onCommit}
                 label="Waist height"
+                hidden={!isShown("proportions.waist_y")}
                 min={0} max={1} step={0.05}
                 value={spec.proportions.waist_y}
                 display={unitDisplay(spec.proportions.waist_y)}

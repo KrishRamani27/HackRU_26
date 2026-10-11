@@ -6,7 +6,7 @@ import type { DesignSpec, PartName, Pattern } from "../../../Builder/types";
 import { buildFlat } from "../../../Builder/buildFlat";
 import { mockSpec } from "../../../Builder/mockSpec";
 import { initialSpecState, specReducer } from "../state/specReducer";
-import { DEFAULT_STYLE, isValidEdit, specValue, stylePath, type EditAction } from "../state/specSchema";
+import { DEFAULT_STYLE, isShown, isValidEdit, specValue, stylePath, type EditAction } from "../state/specSchema";
 
 export const PART_TYPES = ["neckline", "sleeves", "waist", "skirt", "details", "proportions"] as const;
 export type LibraryPartType = (typeof PART_TYPES)[number];
@@ -62,7 +62,9 @@ export function buildSavedPart(spec: DesignSpec, part: PartName, name: string): 
   const { type, keys } = SOURCE[part];
   const spec_settings: SavedPartInput["spec_settings"] = {};
   // specValue fills in the backend's default for a field the spec doesn't have (older specs, the sample).
-  for (const key of keys) spec_settings[key] = specValue(spec, `${type}.${key}`);
+  // Only settings the panel has a control for (SHOWN_CONTROLS) are saved with a part, so a card never lists a
+  // setting the builder can't draw.
+  for (const key of keys) if (isShown(`${type}.${key}`)) spec_settings[key] = specValue(spec, `${type}.${key}`);
   const style = { ...DEFAULT_STYLE, ...spec.style[part] };
   return { name: name.trim(), part_type: type, spec_settings, style: { fill: style.fill, pattern: style.pattern } };
 }
