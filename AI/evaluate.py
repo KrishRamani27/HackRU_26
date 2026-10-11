@@ -151,7 +151,7 @@ def main():
     print(f"  Core fields:   {cell(*core):>8}  {percent(*core)}")
     print(f"  Detail fields: {cell(*detail):>8}  {percent(*detail)}")
     print(f"  All fields:    {cell(core[0] + detail[0], core[1] + detail[1]):>8}  "
-          f"{percent(core[0] + detail[0], core[1] + detail[1])}")
+        f"{percent(core[0] + detail[0], core[1] + detail[1])}")
 
     print(f"\nMismatches ({len(mismatches)}):")
     for line in mismatches or ["none"]:
