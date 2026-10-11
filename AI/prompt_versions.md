@@ -17,13 +17,13 @@ Each analyze prompt version has a short name. The current one is stored in
 `PROMPT_VERSION` in `backend/app/ai.py`:
 
 ```python
-PROMPT_VERSION = "v8-accents"
+PROMPT_VERSION = "v9-collar-accent"
 ```
 
 **Whenever `ANALYZE_PROMPT` changes, bump `PROMPT_VERSION` and add an entry here with
 the same name.** This covers the prompt text and anything that changes what Gemini is
 asked to return for `/analyze`, such as a new field in `GeminiDesignSpec`. Use the next
-number and one or two words for the change, for example `v9-neckline-layers`.
+number and one or two words for the change, for example `v10-neckline-layers`.
 
 `PROMPT_VERSION` covers the analyze prompt only. The edit prompts further down
 (`EDIT_GUIDE`, `VERIFY_RULES`) are not versioned by it.
@@ -40,7 +40,8 @@ number and one or two words for the change, for example `v9-neckline-layers`.
 | `v5-neckline` | + neckline fix | Backend | 0 | not tested yet | |
 | `v6-waist-y` | + new waist_y scale | Backend, live | 2 | 16/16 | none (`test3` not run) |
 | `v7-silhouette` | + skirt silhouette definitions | Backend, live | 3 | 23/24 | `test3` neckline (`v`) |
-| `v8-accents` (current) | + accents | Backend | 0 | not tested yet | |
+| `v8-accents` | + accents | Backend, live | 2 | 16/16 | none (`test2` not run) |
+| `v9-collar-accent` (current) | + collar accent rule | Backend | 0 | not tested yet | |
 
 ## v1-aistudio: AI Studio v1
 
@@ -156,10 +157,10 @@ whether v1 or v2 produced them. _Confirm which one and move this line under it._
 - **What to check:** `test2` should now return `a_line`, and `test1` (a very full
   floor-length skirt) should stay `flared`.
 
-## v8-accents: Backend full prompt + accents (current)
+## v8-accents: Backend full prompt + accents
 
 - **Where:** `ANALYZE_PROMPT` and `spread_style` in `backend/app/ai.py`;
-  `GeminiAccent` in `backend/app/ai_schemas.py` (current version).
+  `GeminiAccent` in `backend/app/ai_schemas.py`.
 - **What changed:**
   - Gemini still returns one `main_style`, and can now also return `accents`: a list
     of up to 3 items, each with `part` (one of the 8 SVG group names) and `fill`
@@ -171,12 +172,38 @@ whether v1 or v2 produced them. _Confirm which one and move this line under it._
 - **Why:** with a single main style, color-blocking was lost. On `test3`, the black
   buttons came back the same off-white as the dress. Asking Gemini for all 8 part
   styles was tried first and made replies slow, so accents add only the exceptions.
+- **Results:** two saved live runs from 10:23 PM on October 10, both 8/8:
+  - `test3`: `buttons` came back near-black (`#1b1919`) while the other seven parts
+    stayed off-white, so the buttons accent works. `neckline.type` was `scoop`, correct
+    for the first time on this sketch.
+  - `test3` did not get an accent for the black yoke at the neck, although the notes
+    describe "a contrasting black high-neck turtleneck yoke/underlayer". This led to
+    `v9-collar-accent`.
+  - `test1`: no accents, one floral style on all parts, as expected.
+  - `test2` was not run. A `test1` run saved at 7:39 PM (also 8/8, no accents) may be
+    from `v7-silhouette` or this version.
+- **Builder note:** when this version was written, the builder drew `collar_neckline`
+  and `waist_seam` without a fill. It now fills both as 6 px bands, so an accent on
+  either part does show on the flat.
+
+## v9-collar-accent: Backend full prompt + collar accent rule (current)
+
+- **Where:** `ANALYZE_PROMPT` in `backend/app/ai.py` (current version).
+- **What changed:** one sentence added to the `accents` field description:
+  "If the neckline or top area is a clearly different color from the main dress, for
+  example a contrasting yoke, collar or neckband, add an accent for collar_neckline
+  with that color."
+- **Why:** on `test3` with `v8-accents`, Gemini noticed the black yoke at the neck and
+  wrote it in the notes, but returned an accent only for the buttons. The spec has no
+  yoke part; `collar_neckline` is the closest part, and the builder draws it as a
+  filled band along the neck edge.
 - **Results:** not tested yet; no live calls were made for this change.
-- **What to check:** `test3` should return an accent for `buttons` in a dark color;
-  `test1` and `test2` should return an empty list.
-- **Known limit:** the builder draws `collar_neckline` and `waist_seam` without a
-  fill, so an accent on those two parts is stored in the spec but does not change
-  the drawing.
+- **What to check:**
+  - `test3` should return two accents: `buttons` and `collar_neckline`, both dark.
+  - `test3` `neckline.type` should stay `scoop`. The neckline rule says to ignore a
+    different-color layer underneath when choosing the type; this rule asks Gemini to
+    report that same layer's color. Watch that the two do not pull against each other.
+  - `test1` and `test2` should still return an empty list.
 
 # Edit prompts (/verify, /command, /suggestions)
 

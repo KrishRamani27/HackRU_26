@@ -1,0 +1,61 @@
+{
+  "garment_type": "dress",
+  "neckline": {
+    "type": "scoop",
+    "depth": 0.35
+  },
+  "sleeves": {
+    "type": "puff",
+    "length": "short"
+  },
+  "waist": {
+    "seam": true
+  },
+  "skirt": {
+    "silhouette": "a_line",
+    "length": "knee"
+  },
+  "details": {
+    "pockets": "none",
+    "buttons": 4
+  },
+  "proportions": {
+    "shoulder_width": 0.5,
+    "waist_y": 0.45
+  },
+  "style": {
+    "collar_neckline": {
+      "fill": "#e6ecea",
+      "pattern": "solid"
+    },
+    "bodice": {
+      "fill": "#e6ecea",
+      "pattern": "solid"
+    },
+    "left_sleeve": {
+      "fill": "#e6ecea",
+      "pattern": "solid"
+    },
+    "right_sleeve": {
+      "fill": "#e6ecea",
+      "pattern": "solid"
+    },
+    "waist_seam": {
+      "fill": "#e6ecea",
+      "pattern": "solid"
+    },
+    "skirt": {
+      "fill": "#e6ecea",
+      "pattern": "solid"
+    },
+    "pockets": {
+      "fill": "#e6ecea",
+      "pattern": "solid"
+    },
+    "buttons": {
+      "fill": "#1b1919",
+      "pattern": "solid"
+    }
+  },
+  "notes": "Features an off-shoulder or sweetheart/scooped outer bodice cut over a contrasting black high-neck turtleneck yoke/underlayer. The pleated skirt extends to knee length with a central button placket containing 4 visible black buttons."
+}

@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 # Name of the current ANALYZE_PROMPT version. Bump it whenever that prompt changes,
 # and add a matching entry to AI/prompt_versions.md.
-PROMPT_VERSION = "v8-accents"
+PROMPT_VERSION = "v9-collar-accent"
 
 MAX_IMAGE_SIDE = 1536  # longest side sent to Gemini, in pixels
 MAX_ACCENTS = 3  # contrast-color parts accepted from one /analyze reply
@@ -80,7 +80,9 @@ Fields:
   has "part" (one of collar_neckline, bodice, left_sleeve, right_sleeve, waist_seam,
   skirt, pockets, buttons) and "fill" (a 6-digit hex code). Use accents only for parts
   whose color clearly differs from the main color, such as contrast buttons or a
-  contrast collar. Use an empty list when the dress is one color.
+  contrast collar. If the neckline or top area is a clearly different color from the
+  main dress, for example a contrasting yoke, collar or neckband, add an accent for
+  collar_neckline with that color. Use an empty list when the dress is one color.
 - notes: short free text for anything the fields above cannot express, and for any
   uncertainty.
 

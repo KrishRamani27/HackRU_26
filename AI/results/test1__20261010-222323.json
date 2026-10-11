@@ -1,0 +1,61 @@
+{
+  "garment_type": "dress",
+  "neckline": {
+    "type": "scoop",
+    "depth": 0.25
+  },
+  "sleeves": {
+    "type": "puff",
+    "length": "long"
+  },
+  "waist": {
+    "seam": true
+  },
+  "skirt": {
+    "silhouette": "flared",
+    "length": "floor"
+  },
+  "details": {
+    "pockets": "none",
+    "buttons": 0
+  },
+  "proportions": {
+    "shoulder_width": 0.55,
+    "waist_y": 0.52
+  },
+  "style": {
+    "collar_neckline": {
+      "fill": "#d29a63",
+      "pattern": "floral"
+    },
+    "bodice": {
+      "fill": "#d29a63",
+      "pattern": "floral"
+    },
+    "left_sleeve": {
+      "fill": "#d29a63",
+      "pattern": "floral"
+    },
+    "right_sleeve": {
+      "fill": "#d29a63",
+      "pattern": "floral"
+    },
+    "waist_seam": {
+      "fill": "#d29a63",
+      "pattern": "floral"
+    },
+    "skirt": {
+      "fill": "#d29a63",
+      "pattern": "floral"
+    },
+    "pockets": {
+      "fill": "#d29a63",
+      "pattern": "floral"
+    },
+    "buttons": {
+      "fill": "#d29a63",
+      "pattern": "floral"
+    }
+  },
+  "notes": "Historical 1830s/1840s calico printed dress with wide gathered scoop neckline, pleating/smocking at lower bodice coming to a pointed waist, bishop/demi-gigot sleeves pleated at the upper arm and puffed below with cuffs, and a gathered full skirt with a ruffled bottom flounce."
+}
