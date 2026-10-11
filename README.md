@@ -1,6 +1,15 @@
-# HackRU_26
+# Atelier
 
-FlatSketch: turn dress sketches into editable SVG designs.
+Turn hand-drawn dress sketches into editable SVG designs. Built at HackRU Fall 2026.
+Older notes in this repository use the working name FlatSketch for the same project.
+
+## Live demo
+
+- App: https://hack-ru-26.vercel.app
+- Backend API: https://hackru-26.onrender.com (health check at `/health`)
+
+The backend runs on a free plan and sleeps when idle, so the first request after
+a quiet spell can take up to a minute.
 
 ## Start here
 
@@ -42,6 +51,11 @@ and export VITE_API_URL=http://localhost:8001 before npm run dev.
 
 ## Team safety
 
-This repository is private. Collaborators share code, not personal Google logins.
+This repository is public. Collaborators share code, not personal Google logins.
 Never commit .env, passwords or downloaded credential files. Each laptop needs
-its own setup or access to a deployed backend. Cloud Run deployment is pending.
+its own setup or access to the deployed backend. The frontend is deployed on
+Vercel and the backend on Render; Cloud Run deployment is not in use.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

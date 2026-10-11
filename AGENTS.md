@@ -1,5 +1,16 @@
 # FlatSketch — team notes and agent instructions
 
+## Name, licence and deployment — October 11, 2026
+
+- The project name is **Atelier** (Krish's decision). FlatSketch was the working name
+  and still appears in older notes, file names and settings; those were not renamed.
+- Live: frontend on Vercel (https://hack-ru-26.vercel.app), backend on Render
+  (https://hackru-26.onrender.com). The repository is now public.
+- Render uses the Tiger database, so designs survive restarts. It still reports
+  storage_mode local: uploaded sketch images are on a temporary disk until GCS
+  credentials are added on Render.
+- Added an MIT LICENSE file, and the live links to README.md.
+
 ## Sketch storage connection — October 11, 2026
 
 - Aryan requested connecting frontend Save to cloud sketch storage. Save now uploads
