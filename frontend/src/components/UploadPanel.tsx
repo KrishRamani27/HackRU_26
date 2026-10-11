@@ -2,15 +2,18 @@ import { useState, type DragEvent } from "react";
 import type { SketchState } from "../types";
 import { formatBytes, MAX_BYTES } from "../hooks/useSketchUpload";
 import { AlertIcon, CheckIcon, CloseIcon, ImageIcon, UploadIcon } from "./Icons";
+import { SamplesMenu } from "./SamplesMenu";
+import type { SampleDesign } from "../samples";
 
 interface Props {
   state: SketchState;
   onBrowse: () => void;
   onFile: (file: File) => void;
   onClear: () => void;
+  onChooseSample: (sample: SampleDesign) => void;
 }
 
-export function UploadPanel({ state, onBrowse, onFile, onClear }: Props) {
+export function UploadPanel({ state, onBrowse, onFile, onClear, onChooseSample }: Props) {
   const [dragging, setDragging] = useState(false);
 
   const onDragOver = (e: DragEvent) => {
@@ -73,6 +76,11 @@ export function UploadPanel({ state, onBrowse, onFile, onClear }: Props) {
             )}
           </div>
         )}
+
+        <div className="samples-row">
+          <span className="muted">No sketch yet?</span>
+          <SamplesMenu onChoose={onChooseSample} />
+        </div>
 
         {state.status === "error" && (
           <div className="notice notice--error" role="alert">

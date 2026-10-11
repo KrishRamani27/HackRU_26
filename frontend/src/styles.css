@@ -1184,3 +1184,7 @@ img { display: block; max-width: 100%; }
 .chip, .unsaved { white-space: nowrap; }
 .shell { grid-template-columns: minmax(0, 1fr); }
 .topbar { min-width: 0; }
+
+.samples__menu--left { left: 0; right: auto; }
+.samples__menu { min-width: 280px; }
+.samples-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; }

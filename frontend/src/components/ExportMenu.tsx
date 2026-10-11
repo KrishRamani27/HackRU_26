@@ -99,7 +99,7 @@ export function ExportMenu({ enabled, onExport }: Props) {
       </button>
       {!enabled && (
         <span id={hintId} className="visually-hidden">
-          Nothing to export yet. Upload a sketch or view the sample first.
+          Nothing to export yet. Upload a sketch or choose a sample first.
         </span>
       )}
 

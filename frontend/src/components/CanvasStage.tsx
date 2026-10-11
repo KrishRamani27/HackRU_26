@@ -7,9 +7,11 @@ import { PART_LABELS } from "../state/specSchema";
 import type { Point } from "../draw/strokes";
 import { expandGroups } from "../draw/groups";
 import { DrawLayer } from "./DrawLayer";
-import { AlertIcon, CheckIcon, CursorIcon, EyeIcon, FitIcon, PenIcon, UploadIcon, ZoomInIcon, ZoomOutIcon } from "./Icons";
+import { AlertIcon, CheckIcon, CursorIcon, FitIcon, PenIcon, UploadIcon, ZoomInIcon, ZoomOutIcon } from "./Icons";
 import { InlineFlat } from "./InlineFlat";
 import { SelectionBox } from "./SelectionBox";
+import { SamplesMenu } from "./SamplesMenu";
+import type { SampleDesign } from "../samples";
 import type { TransformPatch } from "../draw/transform";
 import { LoadingNote } from "./LoadingNote";
 import { PlaceholderFlat } from "./PlaceholderFlat";
@@ -17,7 +19,7 @@ import { PlaceholderFlat } from "./PlaceholderFlat";
 interface Props {
   state: CanvasState;
   hasSketch: boolean;
-  onShowSample: () => void;
+  onChooseSample: (sample: SampleDesign) => void;
   onHideSample: () => void;
   onUpload: () => void;
   onRetry: () => void;
@@ -52,7 +54,7 @@ const FIT_INDEX = 2;
 const SAMPLE_LABEL = "Sample preview—not generated from a sketch";
 const MOCK_LABEL = "Demo result (mock AI)—not real sketch recognition";
 
-export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUpload, onRetry, selectedPart, onSelectPart, elements, selectedElements, onSelectElements, onMoveElements, onMoveEnd, onTransformElements, hiddenParts, tool, onToolChange, canDraw, onStroke, toolbarExtra }: Props) {
+export function CanvasStage({ state, hasSketch, onChooseSample, onHideSample, onUpload, onRetry, selectedPart, onSelectPart, elements, selectedElements, onSelectElements, onMoveElements, onMoveEnd, onTransformElements, hiddenParts, tool, onToolChange, canDraw, onStroke, toolbarExtra }: Props) {
   const [zoomIndex, setZoomIndex] = useState(FIT_INDEX);
   const sampling = state.status === "ready" && state.source === "sample";
   const hasArt = state.status === "ready";
@@ -303,10 +305,7 @@ export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUp
                     <span>Upload sketch</span>
                   </button>
                 )}
-                <button type="button" className="btn btn--ghost" onClick={onShowSample}>
-                  <EyeIcon />
-                  <span>View sample</span>
-                </button>
+                <SamplesMenu onChoose={onChooseSample} />
               </div>
               <ol className="steps" aria-label="How the workbench works">
                 <li className={hasSketch ? "is-done" : "is-current"}>
