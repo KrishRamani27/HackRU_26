@@ -192,7 +192,7 @@ def test_live_analyze_results_are_saved_for_evaluation(client, monkeypatch, tmp_
     response = client.post("/analyze", files={"sketch": ("../my sketch.png", png())})
     saved = list(results.iterdir())
     assert len(saved) == 1 and saved[0].name.startswith("my_sketch__")
-    assert json.loads(saved[0].read_text()) == response.json()
+    assert json.loads(saved[0].read_text()) == {"model": "gemini-2.5-flash", **response.json()}
 
 
 def test_large_images_are_downscaled_for_gemini():
@@ -349,6 +349,92 @@ def test_accent_parts_match_the_contract():
 
     assert list(get_args(GeminiAccent.model_fields["part"].annotation)) == list(Styles.model_fields)
 
+
+def test_fallback_model_is_tried_when_primary_stays_unavailable(client, monkeypatch, tmp_path, caplog):
+    import httpx
+    from google import genai
+    from google.genai import errors
+
+    def api_error(kind, code, status):
+        return kind(code, {"error": {"message": status.lower(), "status": status}})
+
+    unavailable = api_error(errors.ServerError, 503, "UNAVAILABLE")
+    deadline = api_error(errors.ServerError, 504, "DEADLINE_EXCEEDED")
+    internal = api_error(errors.ServerError, 500, "INTERNAL")
+    quota = api_error(errors.ClientError, 429, "RESOURCE_EXHAUSTED")
+    timeout = httpx.ReadTimeout("The read operation timed out")
+    models, waits = [], []
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            self.models = self
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def generate_content(self, **kwargs):
+            models.append(kwargs["model"])
+            if len(models) in failing:
+                raise failing[len(models)]
+            return SimpleNamespace(text=analyze_reply())
+
+    monkeypatch.setattr(genai, "Client", FakeClient)
+    monkeypatch.setattr("app.ai.time.sleep", waits.append)
+    settings = client.app.state.ai.settings
+    settings.ai_mode, settings.gemini_api_key = "gemini", "fake-test-key"
+    settings.gemini_model, settings.gemini_fallback_model = "main-model", "backup-model"
+    results = tmp_path / "results"
+    results.mkdir()
+
+    def analyze():
+        models.clear()
+        waits.clear()
+        return client.post("/analyze", files={"sketch": ("dress.png", png())}).status_code
+
+    main, backup = "main-model", "backup-model"
+
+    # Overloaded (503) or out of quota (429): no retry, straight to the fallback after 2 seconds.
+    for first in (unavailable, quota):
+        failing = {1: first}
+        assert analyze() == 200
+        assert models == [main, backup] and waits == [2]
+    assert "Gemini fallback model backup-model answered" in caplog.text
+    saved = [json.loads(path.read_text()) for path in results.iterdir()]
+    assert saved and all(result["model"] == backup for result in saved)
+
+    # Timeouts and 504s get one retry on the main model first, then the fallback.
+    for first, second in ((timeout, timeout), (deadline, deadline), (timeout, deadline), (deadline, unavailable)):
+        failing = {1: first, 2: second}
+        assert analyze() == 200
+        assert models == [main, main, backup] and waits == [2]
+
+    # A retry that succeeds never touches the fallback.
+    failing = {1: deadline}
+    assert analyze() == 200 and models == [main, main] and waits == []
+
+    # The fallback gets one try only, whatever it fails with.
+    for failing in ({1: unavailable, 2: unavailable}, {1: quota, 2: quota}):
+        assert analyze() == 502 and models == [main, backup]
+
+    # Other 5xx errors are retried once but never use the fallback.
+    failing = {1: internal, 2: internal}
+    assert analyze() == 502 and models == [main, main] and waits == []
+
+    # Other 4xx errors fail immediately: no retry, no fallback.
+    failing = {1: api_error(errors.ClientError, 400, "INVALID_ARGUMENT")}
+    assert analyze() == 502 and models == [main] and waits == []
+
+    # Without GEMINI_FALLBACK_MODEL: 503 gets the normal retry, 429 fails immediately.
+    settings.gemini_fallback_model = ""
+    failing = {1: unavailable, 2: unavailable}
+    assert analyze() == 502 and models == [main, main] and waits == []
+    failing = {1: unavailable}
+    assert analyze() == 200 and models == [main, main]
+    failing = {1: quota}
+    assert analyze() == 502 and models == [main] and waits == []
 
 def test_gemini_reply_with_missing_fields_is_502(client, monkeypatch):
     fake_gemini(client, monkeypatch, '{"garment_type": "dress"}')

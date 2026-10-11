@@ -1,6 +1,8 @@
 import io
+import json
 import logging
 import re
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -20,7 +22,8 @@ PROMPT_VERSION = "v9-collar-accent"
 MAX_IMAGE_SIDE = 1536  # longest side sent to Gemini, in pixels
 MAX_ACCENTS = 3  # contrast-color parts accepted from one /analyze reply
 THINKING_LEVEL = "low"  # less model thinking means faster replies
-TIMEOUT_MS = 45000  # per attempt; call() retries once on a timeout or 5xx
+TIMEOUT_MS = 30000  # per attempt; call() retries once on a timeout or 5xx (not 503 with a fallback)
+FALLBACK_WAIT_S = 2  # pause before trying GEMINI_FALLBACK_MODEL
 # Live /analyze specs are saved here so AI/evaluate.py can score them offline.
 RESULTS_DIR = Path(__file__).resolve().parents[2] / "AI" / "results"
 
@@ -163,14 +166,14 @@ def shrink(image):
     return output.getvalue(), mime
 
 
-def save_result(name, spec):
-    """Save one live /analyze spec as AI/results/<image>__<time>.json."""
+def save_result(name, spec, model):
+    """Save one live /analyze spec as AI/results/<image>__<time>.json, with the model that made it."""
     if not RESULTS_DIR.is_dir():  # for example inside Docker, where AI/ is not copied
         return
     image = re.sub(r"[^A-Za-z0-9_-]", "_", Path(name or "").stem) or "sketch"
     path = RESULTS_DIR / f"{image}__{datetime.now():%Y%m%d-%H%M%S}.json"
     try:
-        path.write_text(spec.model_dump_json(indent=2))
+        path.write_text(json.dumps({"model": model, **spec.model_dump()}, indent=2))
     except OSError as exc:
         logger.warning("Could not save analyze result (%s)", type(exc).__name__)
 
@@ -193,6 +196,7 @@ class AIService:
     def call(self, prompt, gemini_schema, schema, images=(), prepare=None):
         # gemini_schema is the shape Gemini fills in; schema is our strict contract.
         # prepare can reshape Gemini's reply before the strict check.
+        # Returns the validated result and the name of the model that answered.
         import httpx
         from google import genai
         from google.genai import errors, types
@@ -209,18 +213,56 @@ class AIService:
                     response_mime_type="application/json", response_schema=gemini_schema,
                     thinking_config=types.ThinkingConfig(thinking_level=THINKING_LEVEL),
                 )
+                def generate(model):
+                    return client.models.generate_content(model=model, contents=contents, config=config)
+
+                model = self.settings.gemini_model
+                fallback = self.settings.gemini_fallback_model
+                has_fallback = bool(fallback) and fallback != model
+
+                def code(exc):
+                    return getattr(exc, "code", None)  # HTTP status; None for a timeout on our side
+
+                def worth_retrying(exc):
+                    # 503 means the model is overloaded and rarely recovers within seconds,
+                    # so with a fallback model available we skip the retry.
+                    if code(exc) == 503:
+                        return not has_fallback
+                    return code(exc) is None or code(exc) >= 500  # timeout, 504, other 5xx
+
+                def worth_fallback(exc):
+                    # Timeout, quota used up (429, counted per model), overloaded (503), too slow (504).
+                    return has_fallback and code(exc) in (None, 429, 503, 504)
+
+                error = None
                 try:
-                    response = client.models.generate_content(
-                        model=self.settings.gemini_model, contents=contents, config=config)
-                except (httpx.TimeoutException, errors.ServerError) as exc:
-                    # Timeouts and Gemini 5xx errors are usually temporary: try once more.
+                    response = generate(model)
+                except (httpx.TimeoutException, errors.APIError) as exc:
+                    error = exc
+                if error and worth_retrying(error):
                     logger.warning("Gemini attempt 1 failed (%s): %s. Retrying once.",
-                                  type(exc).__name__, self._safe(exc))
-                    response = client.models.generate_content(
-                        model=self.settings.gemini_model, contents=contents, config=config)
+                                   type(error).__name__, self._safe(error))
+                    try:
+                        response = generate(model)
+                        error = None
+                    except (httpx.TimeoutException, errors.APIError) as exc:
+                        error = exc
+                if error:
+                    if not worth_fallback(error):
+                        raise error  # 4xx, other 5xx, or no fallback model: fail as before
+                    logger.warning("Gemini model %s failed (%s): %s. Trying fallback model %s.",
+                                   model, type(error).__name__, self._safe(error), fallback)
+                    time.sleep(FALLBACK_WAIT_S)
+                    model = fallback
+                    response = generate(model)
+                if model == self.settings.gemini_model:
+                    logger.info("Gemini model %s answered", model)
+                else:
+                    logger.warning("Gemini fallback model %s answered; primary model %s was unavailable",
+                                   model, self.settings.gemini_model)
                 reply = gemini_schema.model_validate_json(response.text or "")
                 data = reply.model_dump()
-                return schema.model_validate(prepare(data) if prepare else data)
+                return schema.model_validate(prepare(data) if prepare else data), model
         except ValidationError as exc:
             logger.warning("Gemini returned an invalid contract: %s", self._safe(exc))
             raise HTTPException(502, "AI returned invalid data. Please try again.") from None
@@ -235,15 +277,15 @@ class AIService:
     def analyze(self, image, name=""):
         if self.settings.ai_mode == "mock":
             return DesignSpec(notes="MOCK: fixed sample dress; this image was not analyzed.")
-        spec = self.call(ANALYZE_PROMPT, GeminiDesignSpec, DesignSpec, [image], prepare=spread_style)
-        save_result(name, spec)
+        spec, model = self.call(ANALYZE_PROMPT, GeminiDesignSpec, DesignSpec, [image], prepare=spread_style)
+        save_result(name, spec, model)
         return spec
 
     def edits(self, spec, text, images=()):
         if self.settings.ai_mode == "mock":
             return []
         rules = EDIT_GUIDE + (VERIFY_RULES if images else "")
-        result = self.call(f"{text}\nCurrent spec: {spec.model_dump_json()}\n\n{rules}",
+        result, _ = self.call(f"{text}\nCurrent spec: {spec.model_dump_json()}\n\n{rules}",
                            GeminiEditResult, AIEditResult, images)
         apply_actions(spec, result.actions)
         return result.actions
@@ -251,7 +293,7 @@ class AIService:
     def suggestions(self, spec, goal):
         if self.settings.ai_mode == "mock":
             return Suggestions(suggestions=[], end_goal="MOCK: a clean front-view dress flat.")
-        result = self.call(f"Suggest improvements. Goal: {goal}\nSpec: {spec.model_dump_json()}"
+        result, _ = self.call(f"Suggest improvements. Goal: {goal}\nSpec: {spec.model_dump_json()}"
                            f"\n\n{EDIT_GUIDE}", GeminiSuggestions, Suggestions)
         for suggestion in result.suggestions:
             apply_actions(spec, suggestion.actions)

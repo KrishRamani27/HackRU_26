@@ -1,0 +1,61 @@
+{
+  "garment_type": "dress",
+  "neckline": {
+    "type": "v",
+    "depth": 0.35
+  },
+  "sleeves": {
+    "type": "puff",
+    "length": "short"
+  },
+  "waist": {
+    "seam": true
+  },
+  "skirt": {
+    "silhouette": "a_line",
+    "length": "knee"
+  },
+  "details": {
+    "pockets": "none",
+    "buttons": 4
+  },
+  "proportions": {
+    "shoulder_width": 0.5,
+    "waist_y": 0.5
+  },
+  "style": {
+    "collar_neckline": {
+      "fill": "#1a1a1a",
+      "pattern": "solid"
+    },
+    "bodice": {
+      "fill": "#e6ecea",
+      "pattern": "solid"
+    },
+    "left_sleeve": {
+      "fill": "#e6ecea",
+      "pattern": "solid"
+    },
+    "right_sleeve": {
+      "fill": "#e6ecea",
+      "pattern": "solid"
+    },
+    "waist_seam": {
+      "fill": "#e6ecea",
+      "pattern": "solid"
+    },
+    "skirt": {
+      "fill": "#e6ecea",
+      "pattern": "solid"
+    },
+    "pockets": {
+      "fill": "#e6ecea",
+      "pattern": "solid"
+    },
+    "buttons": {
+      "fill": "#1a1a1a",
+      "pattern": "solid"
+    }
+  },
+  "notes": "Features a contrasting black high-neck/yoke underlayer or contrast upper chest piece. The outer dress has a sweetheart/v-shaped bodice opening with puff sleeves, center-front button fastening (4 visible dark buttons), and an A-line pleated skirt ending around the knee."
+}

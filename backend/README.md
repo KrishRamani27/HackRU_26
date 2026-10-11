@@ -117,6 +117,9 @@ waist, skirt, details, proportions. There is no standalone bodice shape field in
 
 Set `AI_MODE=gemini`, `GEMINI_API_KEY`, and a `GEMINI_MODEL` available to your account.
 The current example uses `gemini-2.5-flash`; the model is configurable.
+Optionally set `GEMINI_FALLBACK_MODEL`. The backend waits 2 seconds and tries that model
+once when the main model answers 503 or 429, or still times out or answers 504 after
+one retry. Each attempt has a 30-second timeout.
 Mock analysis always returns the same sample spec. Mock verify and command return `[]`.
 Mock suggestions return no suggested edits. AI responses carry `X-AI-Mode` so the UI can
 show a demo badge. Real AI errors never silently return a mock result.

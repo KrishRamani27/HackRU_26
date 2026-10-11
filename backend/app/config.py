@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     ai_mode: Literal["mock", "gemini"] = "mock"
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
+    gemini_fallback_model: str = ""  # optional; used when the main model is unavailable
     database_url: str = "sqlite:///./data/flatsketch.db"
     storage_mode: Literal["local", "gcs"] = "local"
     local_storage_dir: str = "./data/uploads"

@@ -34,7 +34,7 @@
 - Explicit mock AI mode, so teammates can connect before credentials are ready.
 - Shared team API-key protection, frontend CORS settings, health/readiness routes.
 - Docker packaging, pinned dependencies, secret exclusions and setup notes.
-- Verification: **36 tests passed** locally. Gemini and GCS adapter tests use fakes;
+- Verification: **71 tests passed** locally. Gemini and GCS adapter tests use fakes;
   this does not mean the live cloud services have been tested.
 - Gemini rejects `additionalProperties` in response schemas, so `ai.py` sends the plain
   models in `ai_schemas.py` and validates replies with the strict contract afterwards.
@@ -42,9 +42,14 @@
   suggestions returned valid data; verify returned values outside the contract (502).
 - The default model `gemini-2.5-flash` returns 404 for our key; set `GEMINI_MODEL`.
 - Gemini speed-ups in `ai.py`: low thinking level, images downscaled to 1536 px on the
-  longest side, 45 s timeout with one retry on a timeout or 5xx. `/analyze` asks Gemini
+  longest side, 30 s timeout per attempt with one retry on a timeout or 5xx. `/analyze` asks Gemini
   for one main fill and pattern and copies it to all 8 parts. Live `/analyze` usually
   takes 4-6 s, with occasional stalls of 40 s or more.
+- Optional `GEMINI_FALLBACK_MODEL`: `ai.py` waits 2 s and tries it once when the main
+  model returns 503 (overloaded) or 429 (quota, counted per model), both without a
+  retry, or when it still times out or returns 504 after its one retry. Without a
+  fallback set, 503 gets the normal retry and 429 fails at once. Saved
+  `/analyze` results in `AI/results/` now record the `model` that answered.
 - `/analyze` uses the full field-by-field prompt `ANALYZE_PROMPT` in `ai.py`.
 - `/analyze` can also return up to 3 `accents` (a part and a fill) for contrast-color
   parts; `spread_style` in `ai.py` applies them after copying the main style.
