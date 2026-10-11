@@ -14,6 +14,7 @@ export interface ElementTransform {
 
 export interface CustomElement {
   id: string;
+  group_id?: string | null;
   name: string;
   type: "stroke";
   parent_part: DressPartName | null;
@@ -40,4 +41,18 @@ export type CustomElementPatch = Partial<Omit<CustomElement, "id" | "type" | "tr
 export interface ManualDrawingDocument {
   custom_elements: CustomElement[];
   version: number;
+}
+
+export interface CustomPartWrite {
+  name: string;
+  elements: CustomElementCreate[];
+}
+
+export interface CustomPart {
+  id: string;
+  name: string;
+  elements: CustomElement[];
+  created_at: string;
+  // Legacy single-stroke alias; absent for grouped templates.
+  element?: CustomElement;
 }

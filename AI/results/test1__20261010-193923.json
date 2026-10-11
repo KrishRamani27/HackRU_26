@@ -1,0 +1,61 @@
+{
+  "garment_type": "dress",
+  "neckline": {
+    "type": "scoop",
+    "depth": 0.25
+  },
+  "sleeves": {
+    "type": "puff",
+    "length": "long"
+  },
+  "waist": {
+    "seam": true
+  },
+  "skirt": {
+    "silhouette": "flared",
+    "length": "floor"
+  },
+  "details": {
+    "pockets": "none",
+    "buttons": 0
+  },
+  "proportions": {
+    "shoulder_width": 0.55,
+    "waist_y": 0.55
+  },
+  "style": {
+    "collar_neckline": {
+      "fill": "#d69e6b",
+      "pattern": "floral"
+    },
+    "bodice": {
+      "fill": "#d69e6b",
+      "pattern": "floral"
+    },
+    "left_sleeve": {
+      "fill": "#d69e6b",
+      "pattern": "floral"
+    },
+    "right_sleeve": {
+      "fill": "#d69e6b",
+      "pattern": "floral"
+    },
+    "waist_seam": {
+      "fill": "#d69e6b",
+      "pattern": "floral"
+    },
+    "skirt": {
+      "fill": "#d69e6b",
+      "pattern": "floral"
+    },
+    "pockets": {
+      "fill": "#d69e6b",
+      "pattern": "floral"
+    },
+    "buttons": {
+      "fill": "#d69e6b",
+      "pattern": "floral"
+    }
+  },
+  "notes": "Historical 19th-century calico dress with gathered boat/scoop neckline, pointed front waist seam with gathering, pleated/gathered dropped bishop-style sleeves with cuffs, and a full floor-length skirt with a ruffled hem tier."
+}
