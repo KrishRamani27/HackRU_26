@@ -519,6 +519,108 @@ def test_gemini_schemas_avoid_unsupported_fields(model):
     assert '"default"' not in schema
 
 
+# The detail fields added in prompt version v10, with the default an older spec gets.
+DETAIL_DEFAULTS = {
+    "collar.type": "none", "sleeves.cuff": "none", "sleeves.shoulder": "set_in",
+    "waist.style": "natural", "skirt.fullness": "plain", "skirt.hem": "plain",
+    "skirt.panels": "none", "details.placket": "none", "details.darts": False,
+    "details.bow": "none", "details.trim": "none",
+}
+
+
+def test_specs_saved_before_the_detail_fields_still_load(client):
+    from app.schemas import editable_paths
+
+    part = {"fill": "#1f2a44", "pattern": "denim"}
+    old = {
+        "garment_type": "dress",
+        "neckline": {"type": "scoop", "depth": 0.3},
+        "sleeves": {"type": "puff", "length": "elbow"},
+        "waist": {"seam": True},
+        "skirt": {"silhouette": "flared", "length": "midi"},
+        "details": {"pockets": "patch", "buttons": 4},
+        "proportions": {"shoulder_width": 0.5, "waist_y": 0.5},
+        "style": {name: part for name in DesignSpec().style.model_dump()},
+        "notes": "saved before v10",
+    }
+    spec = DesignSpec.model_validate(old)
+    assert spec.neckline.type == "scoop" and spec.details.buttons == 4  # old values are kept
+    for path, default in DETAIL_DEFAULTS.items():
+        section, field = path.split(".")
+        assert getattr(getattr(spec, section), field) == default, path
+    assert DETAIL_DEFAULTS.keys() <= editable_paths()
+    assert client.post("/command", json={"text": "Make puff sleeves", "spec": old}).status_code == 200
+
+
+@pytest.mark.parametrize("path,value", [
+    ("neckline.type", "sweetheart"), ("neckline.type", "off_shoulder"), ("neckline.type", "halter"),
+    ("neckline.type", "high"), ("collar.type", "peter_pan"), ("collar.type", "mandarin"),
+    ("sleeves.cuff", "elastic"), ("sleeves.shoulder", "puff_top"), ("waist.style", "belted"),
+    ("skirt.fullness", "pleated"), ("skirt.hem", "tiered"), ("skirt.panels", "princess_seams"),
+    ("details.placket", "full"), ("details.darts", True), ("details.bow", "waist"), ("details.trim", "lace"),
+])
+def test_detail_values_are_valid_edits(path, value):
+    section, field = path.split(".")
+    spec = apply_actions(DesignSpec(), [EditAction(path=path, value=value)])
+    assert getattr(getattr(spec, section), field) == value
+
+
+@pytest.mark.parametrize("path,value", [
+    ("neckline.type", "boat"), ("collar.type", "sailor"), ("collar", "shirt"), ("sleeves.cuff", "french"),
+    ("waist.style", "high"), ("skirt.hem", "maxi"), ("details.darts", "yes"), ("details.placket", True),
+])
+def test_invalid_detail_values_are_rejected(path, value):
+    with pytest.raises(ValueError):
+        EditAction(path=path, value=value)
+
+
+def test_gemini_detail_fields_reach_the_spec_and_are_required(client, monkeypatch):
+    reply = json.loads(analyze_reply())
+    reply["neckline"]["type"] = "sweetheart"
+    reply["collar"] = {"type": "peter_pan"}
+    reply["sleeves"].update(cuff="ruffle", shoulder="off_shoulder")
+    reply["waist"]["style"] = "empire"
+    reply["skirt"].update(fullness="gathered", hem="tiered", panels="front_seam")
+    reply["details"].update(placket="full", darts=True, bow="neckline", trim="piping")
+    fake_gemini(client, monkeypatch, json.dumps(reply))
+    result = client.post("/analyze", files={"sketch": ("dress.png", png())})
+    assert result.status_code == 200
+    spec = result.json()
+    for section in ("neckline", "collar", "sleeves", "waist", "skirt", "details"):
+        assert spec[section] == reply[section], section
+
+    # Gemini must fill in every detail field: a missing one is a 502, not a silent default.
+    for section, field in (("collar", None), ("sleeves", "cuff"), ("details", "darts"), ("skirt", "hem")):
+        broken = json.loads(json.dumps(reply))
+        if field:
+            del broken[section][field]
+        else:
+            del broken[section]
+        fake_gemini(client, monkeypatch, json.dumps(broken))
+        assert client.post("/analyze", files={"sketch": ("dress.png", png())}).status_code == 502, (section, field)
+
+
+def test_analyze_prompt_explains_every_field_and_value():
+    from typing import get_args
+
+    from app.ai import ANALYZE_PROMPT
+
+    def walk(model, prefix=""):
+        for name, field in model.model_fields.items():
+            kind = field.annotation
+            if isinstance(kind, type) and issubclass(kind, BaseModel):
+                yield from walk(kind, f"{prefix}{name}.")
+            elif name != "accents":
+                yield f"{prefix}{name}", [value for value in get_args(kind) if isinstance(value, str)]
+
+    fields = dict(walk(GeminiDesignSpec))
+    assert DETAIL_DEFAULTS.keys() <= fields.keys()
+    for path, values in fields.items():
+        assert f"- {path}:" in ANALYZE_PROMPT, path
+        for value in values:
+            assert f'"{value}"' in ANALYZE_PROMPT, (path, value)
+
+
 def test_gemini_spec_matches_strict_contract():
     def same(loose, strict):
         # Gemini returns one main_style in place of the per-part style block.
@@ -540,6 +642,8 @@ def test_gemini_spec_matches_strict_contract():
                 assert bounds(field) == bounds(other), name
 
     same(GeminiDesignSpec, DesignSpec)
+    # The detail sections added in v10 are part of both models, so the walk above covers them.
+    assert "collar" in GeminiDesignSpec.model_fields and "collar" in DesignSpec.model_fields
 
 
 def test_gcs_adapter_uses_private_bucket(monkeypatch):

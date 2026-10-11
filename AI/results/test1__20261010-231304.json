@@ -1,0 +1,75 @@
+{
+  "model": "gemini-3.6-flash",
+  "garment_type": "dress",
+  "neckline": {
+    "type": "scoop",
+    "depth": 0.3
+  },
+  "collar": {
+    "type": "none"
+  },
+  "sleeves": {
+    "type": "puff",
+    "length": "long",
+    "cuff": "band",
+    "shoulder": "set_in"
+  },
+  "waist": {
+    "seam": true,
+    "style": "natural"
+  },
+  "skirt": {
+    "silhouette": "flared",
+    "length": "floor",
+    "fullness": "gathered",
+    "hem": "ruffle",
+    "panels": "none"
+  },
+  "details": {
+    "pockets": "none",
+    "buttons": 0,
+    "placket": "none",
+    "darts": true,
+    "bow": "none",
+    "trim": "none"
+  },
+  "proportions": {
+    "shoulder_width": 0.5,
+    "waist_y": 0.5
+  },
+  "style": {
+    "collar_neckline": {
+      "fill": "#d4a373",
+      "pattern": "floral"
+    },
+    "bodice": {
+      "fill": "#d4a373",
+      "pattern": "floral"
+    },
+    "left_sleeve": {
+      "fill": "#d4a373",
+      "pattern": "floral"
+    },
+    "right_sleeve": {
+      "fill": "#d4a373",
+      "pattern": "floral"
+    },
+    "waist_seam": {
+      "fill": "#d4a373",
+      "pattern": "floral"
+    },
+    "skirt": {
+      "fill": "#d4a373",
+      "pattern": "floral"
+    },
+    "pockets": {
+      "fill": "#d4a373",
+      "pattern": "floral"
+    },
+    "buttons": {
+      "fill": "#d4a373",
+      "pattern": "floral"
+    }
+  },
+  "notes": "19th-century style floral print day dress with wide scoop neck, long bishop/puffed sleeves featuring pin-tucking at the upper arm, a fitted boned/darted bodice tapering to a natural waist, and a full gathered floor-length skirt finished with a ruffle hem band."
+}

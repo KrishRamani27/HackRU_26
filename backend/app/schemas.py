@@ -7,28 +7,44 @@ class Contract(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
 
+# The detail fields added in prompt version v10 all have a "nothing special" default,
+# so specs saved before they existed still load.
 class Neckline(Contract):
-    type: Literal["crew", "v", "scoop", "square"] = "crew"
+    type: Literal["crew", "v", "scoop", "square", "sweetheart", "off_shoulder", "halter", "high"] = "crew"
     depth: float = Field(default=0.25, ge=0, le=1)
+
+
+class Collar(Contract):
+    type: Literal["none", "shirt", "peter_pan", "band", "mandarin"] = "none"
 
 
 class Sleeves(Contract):
     type: Literal["none", "cap", "puff", "fitted"] = "none"
     length: Literal["short", "elbow", "long"] = "short"
+    cuff: Literal["none", "band", "ruffle", "elastic"] = "none"
+    shoulder: Literal["set_in", "puff_top", "off_shoulder"] = "set_in"
 
 
 class Waist(Contract):
     seam: bool = True
+    style: Literal["natural", "empire", "dropped", "belted"] = "natural"
 
 
 class Skirt(Contract):
     silhouette: Literal["straight", "a_line", "flared"] = "a_line"
     length: Literal["mini", "knee", "midi", "floor"] = "knee"
+    fullness: Literal["plain", "gathered", "pleated"] = "plain"
+    hem: Literal["plain", "ruffle", "tiered", "slit"] = "plain"
+    panels: Literal["none", "front_seam", "princess_seams"] = "none"
 
 
 class Details(Contract):
     pockets: Literal["none", "patch", "side_seam"] = "none"
     buttons: int = Field(default=0, ge=0, le=8, strict=True)
+    placket: Literal["none", "bodice", "full"] = "none"
+    darts: bool = False
+    bow: Literal["none", "neckline", "waist"] = "none"
+    trim: Literal["none", "piping", "lace"] = "none"
 
 
 class Proportions(Contract):
@@ -55,6 +71,7 @@ class Styles(Contract):
 class DesignSpec(Contract):
     garment_type: Literal["dress"] = "dress"
     neckline: Neckline = Field(default_factory=Neckline)
+    collar: Collar = Field(default_factory=Collar)
     sleeves: Sleeves = Field(default_factory=Sleeves)
     waist: Waist = Field(default_factory=Waist)
     skirt: Skirt = Field(default_factory=Skirt)

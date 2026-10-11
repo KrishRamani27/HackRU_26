@@ -17,13 +17,13 @@ Each analyze prompt version has a short name. The current one is stored in
 `PROMPT_VERSION` in `backend/app/ai.py`:
 
 ```python
-PROMPT_VERSION = "v9-collar-accent"
+PROMPT_VERSION = "v10-detailed"
 ```
 
 **Whenever `ANALYZE_PROMPT` changes, bump `PROMPT_VERSION` and add an entry here with
 the same name.** This covers the prompt text and anything that changes what Gemini is
 asked to return for `/analyze`, such as a new field in `GeminiDesignSpec`. Use the next
-number and one or two words for the change, for example `v10-neckline-layers`.
+number and one or two words for the change, for example `v11-neckline-layers`.
 
 `PROMPT_VERSION` covers the analyze prompt only. The edit prompts further down
 (`EDIT_GUIDE`, `VERIFY_RULES`) are not versioned by it.
@@ -41,7 +41,8 @@ number and one or two words for the change, for example `v10-neckline-layers`.
 | `v6-waist-y` | + new waist_y scale | Backend, live | 2 | 16/16 | none (`test3` not run) |
 | `v7-silhouette` | + skirt silhouette definitions | Backend, live | 3 | 23/24 | `test3` neckline (`v`) |
 | `v8-accents` | + accents | Backend, live | 2 | 16/16 | none (`test2` not run) |
-| `v9-collar-accent` (current) | + collar accent rule | Backend | 0 | not tested yet | |
+| `v9-collar-accent` | + collar accent rule | Backend | 0 | not recorded here | |
+| `v10-detailed` (current) | + 11 detail fields, 4 neckline types | Backend | 0 | not tested yet | |
 
 ## v1-aistudio: AI Studio v1
 
@@ -186,9 +187,9 @@ whether v1 or v2 produced them. _Confirm which one and move this line under it._
   and `waist_seam` without a fill. It now fills both as 6 px bands, so an accent on
   either part does show on the flat.
 
-## v9-collar-accent: Backend full prompt + collar accent rule (current)
+## v9-collar-accent: Backend full prompt + collar accent rule
 
-- **Where:** `ANALYZE_PROMPT` in `backend/app/ai.py` (current version).
+- **Where:** `ANALYZE_PROMPT` in `backend/app/ai.py`.
 - **What changed:** one sentence added to the `accents` field description:
   "If the neckline or top area is a clearly different color from the main dress, for
   example a contrasting yoke, collar or neckband, add an accent for collar_neckline
@@ -204,6 +205,58 @@ whether v1 or v2 produced them. _Confirm which one and move this line under it._
     different-color layer underneath when choosing the type; this rule asks Gemini to
     report that same layer's color. Watch that the two do not pull against each other.
   - `test1` and `test2` should still return an empty list.
+
+## v10-detailed: Backend full prompt + detail fields (current)
+
+- **Where:** `ANALYZE_PROMPT` and `EDIT_GUIDE` in `backend/app/ai.py`;
+  `backend/app/ai_schemas.py` (Gemini-facing, every field required);
+  `backend/app/schemas.py` (strict contract, every new field has a default).
+- **What changed:** the spec can now describe construction details that used to go
+  into `notes` or were lost.
+
+  | Field | Values | Default for old specs |
+  | --- | --- | --- |
+  | `neckline.type` | adds `sweetheart`, `off_shoulder`, `halter`, `high` | unchanged (`crew`) |
+  | `collar.type` | `none`, `shirt`, `peter_pan`, `band`, `mandarin` | `none` |
+  | `sleeves.cuff` | `none`, `band`, `ruffle`, `elastic` | `none` |
+  | `sleeves.shoulder` | `set_in`, `puff_top`, `off_shoulder` | `set_in` |
+  | `waist.style` | `natural`, `empire`, `dropped`, `belted` | `natural` |
+  | `skirt.fullness` | `plain`, `gathered`, `pleated` | `plain` |
+  | `skirt.hem` | `plain`, `ruffle`, `tiered`, `slit` | `plain` |
+  | `skirt.panels` | `none`, `front_seam`, `princess_seams` | `none` |
+  | `details.placket` | `none`, `bodice`, `full` | `none` |
+  | `details.darts` | `true`, `false` | `false` |
+  | `details.bow` | `none`, `neckline`, `waist` | `none` |
+  | `details.trim` | `none`, `piping`, `lace` | `none` |
+
+  - `ANALYZE_PROMPT` explains every new field and value in plain English. A test now
+    fails if any field or value of the Gemini model is missing from the prompt.
+  - New rule: use the plain value (`none`, `plain`, `set_in`, `natural` or `false`)
+    unless the detail is clearly drawn.
+  - `"high"` is defined as a high neck on the dress itself, not on a layer underneath,
+    so it does not undo the `v5-neckline` rule.
+  - `EDIT_GUIDE` lists the new paths and values, so `/verify`, `/command` and
+    `/suggestions` can set them.
+  - All existing fields, values and defaults are unchanged.
+- **Why:** Gemini's notes kept describing things the spec could not hold: a shirt
+  collar and full button placket on `test2`, a ruffled hem tier and cuffs on `test1`,
+  pleats on `test3`.
+- **Results:** not tested yet; no live calls were made for this change.
+- **What to check:**
+  - The schema sent to Gemini is larger (19 enums, 73 values). It has not been sent to
+    live Gemini, so the first call will show whether Gemini accepts it and how much
+    slower replies are.
+  - `test1`: `skirt.hem` `ruffle` or `tiered`, `sleeves.cuff` `band`.
+  - `test2`: `collar.type` `shirt`, `details.placket` `full`, `skirt.fullness` `gathered`.
+  - `test3`: `skirt.fullness` `pleated`, and `neckline.type` should not become `high`.
+  - The 8 scored fields should not get worse. The new fields are not in the labels
+    or in `AI/evaluate.py` yet.
+- **Known limits:**
+  - The builder and the frontend do not know the new fields yet. `Builder/types.ts`,
+    `frontend/src/state/specSchema.ts` and `CHATGPT.md` still describe the old spec.
+    The builder ignores the new fields, and draws the four new neckline types as a
+    round neck.
+  - The frontend ignores edit actions that use a new path or value.
 
 # Edit prompts (/verify, /command, /suggestions)
 

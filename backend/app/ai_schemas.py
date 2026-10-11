@@ -12,27 +12,41 @@ from pydantic import BaseModel, Field
 
 
 class GeminiNeckline(BaseModel):
-    type: Literal["crew", "v", "scoop", "square"]
+    type: Literal["crew", "v", "scoop", "square", "sweetheart", "off_shoulder", "halter", "high"]
     depth: float = Field(ge=0, le=1)
+
+
+class GeminiCollar(BaseModel):
+    type: Literal["none", "shirt", "peter_pan", "band", "mandarin"]
 
 
 class GeminiSleeves(BaseModel):
     type: Literal["none", "cap", "puff", "fitted"]
     length: Literal["short", "elbow", "long"]
+    cuff: Literal["none", "band", "ruffle", "elastic"]
+    shoulder: Literal["set_in", "puff_top", "off_shoulder"]
 
 
 class GeminiWaist(BaseModel):
     seam: bool
+    style: Literal["natural", "empire", "dropped", "belted"]
 
 
 class GeminiSkirt(BaseModel):
     silhouette: Literal["straight", "a_line", "flared"]
     length: Literal["mini", "knee", "midi", "floor"]
+    fullness: Literal["plain", "gathered", "pleated"]
+    hem: Literal["plain", "ruffle", "tiered", "slit"]
+    panels: Literal["none", "front_seam", "princess_seams"]
 
 
 class GeminiDetails(BaseModel):
     pockets: Literal["none", "patch", "side_seam"]
     buttons: int = Field(ge=0, le=8)
+    placket: Literal["none", "bodice", "full"]
+    darts: bool
+    bow: Literal["none", "neckline", "waist"]
+    trim: Literal["none", "piping", "lace"]
 
 
 class GeminiProportions(BaseModel):
@@ -54,6 +68,7 @@ class GeminiAccent(BaseModel):
 class GeminiDesignSpec(BaseModel):
     garment_type: Literal["dress"]
     neckline: GeminiNeckline
+    collar: GeminiCollar
     sleeves: GeminiSleeves
     waist: GeminiWaist
     skirt: GeminiSkirt

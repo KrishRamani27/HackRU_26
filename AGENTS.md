@@ -34,7 +34,7 @@
 - Explicit mock AI mode, so teammates can connect before credentials are ready.
 - Shared team API-key protection, frontend CORS settings, health/readiness routes.
 - Docker packaging, pinned dependencies, secret exclusions and setup notes.
-- Verification: **71 tests passed** locally. Gemini and GCS adapter tests use fakes;
+- Verification: **116 backend tests passed** locally. Gemini and GCS adapter tests use fakes;
   this does not mean the live cloud services have been tested.
 - Gemini rejects `additionalProperties` in response schemas, so `ai.py` sends the plain
   models in `ai_schemas.py` and validates replies with the strict contract afterwards.
@@ -51,6 +51,14 @@
   fallback set, 503 gets the normal retry and 429 fails at once. Saved
   `/analyze` results in `AI/results/` now record the `model` that answered.
 - `/analyze` uses the full field-by-field prompt `ANALYZE_PROMPT` in `ai.py`.
+- Spec detail fields added on the backend (prompt version `v10-detailed`):
+  `collar.type`, `sleeves.cuff`, `sleeves.shoulder`, `waist.style`, `skirt.fullness`,
+  `skirt.hem`, `skirt.panels`, `details.placket`, `details.darts`, `details.bow`,
+  `details.trim`, plus neckline types `sweetheart`, `off_shoulder`, `halter`, `high`.
+  They have defaults in `schemas.py`, so older specs still load. **Not yet in
+  `CHATGPT.md`, `Builder/types.ts` or the frontend**: the builder ignores the new
+  fields and draws the new neckline types as a round neck. Values are listed in
+  `AI/prompt_versions.md`.
 - `/analyze` can also return up to 3 `accents` (a part and a fill) for contrast-color
   parts; `spread_style` in `ai.py` applies them after copying the main style.
 - `/verify`, `/command` and `/suggestions` prompts carry `EDIT_GUIDE` (allowed values

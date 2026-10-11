@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Name of the current ANALYZE_PROMPT version. Bump it whenever that prompt changes,
 # and add a matching entry to AI/prompt_versions.md.
-PROMPT_VERSION = "v9-collar-accent"
+PROMPT_VERSION = "v10-detailed"
 
 MAX_IMAGE_SIDE = 1536  # longest side sent to Gemini, in pixels
 MAX_ACCENTS = 3  # contrast-color parts accepted from one /analyze reply
@@ -43,17 +43,40 @@ Fields:
 - neckline.type: the shape of the neck opening.
   "crew" = round and close to the base of the neck. "v" = two straight lines meeting
   in a point. "scoop" = a wide, low, rounded U. "square" = a straight horizontal
-  bottom edge with corners.
+  bottom edge with corners. "sweetheart" = the top edge curves over each side of the
+  bust and dips in the middle, like the top of a heart. "off_shoulder" = the top edge
+  runs across the chest below the shoulders, leaving both shoulders bare.
+  "halter" = straps or fabric go up around the back of the neck, leaving the shoulders
+  bare. "high" = the dress covers the base of the neck and rises up the neck, like a
+  mock neck or turtleneck. Use "high" only when the dress itself has the high neck,
+  not a layer underneath.
 - neckline.depth: how far the opening drops below the base of the neck, from 0 to 1.
   0 = sits right at the base of the neck. 0.5 = reaches about mid-chest.
   1 = plunges almost to the waist.
+- collar.type: a separate piece of fabric attached around the neckline.
+  "none" = no collar, only the neckline edge. "shirt" = a pointed fold-over collar on a
+  stand, as on a button-up shirt. "peter_pan" = a flat collar with rounded ends that
+  lies on the shoulders. "band" = a narrow strip that finishes the neckline all the way
+  round and does not fold over. "mandarin" = a short stand-up collar whose two ends
+  meet, or nearly meet, at the centre front.
 - sleeves.type: "none" = sleeveless or straps only. "cap" = a tiny sleeve that only
   covers the shoulder point. "puff" = gathered fullness at the shoulder or along the
   sleeve. "fitted" = a plain sleeve that follows the arm.
 - sleeves.length: "short" = ends above the elbow. "elbow" = ends at or just below the
   elbow. "long" = reaches the wrist. If sleeves.type is "none" or "cap", use "short".
+- sleeves.shoulder: how the sleeve joins the bodice. "set_in" = a smooth seam at the
+  natural shoulder. "puff_top" = gathered fullness at the top of the sleeve, so it
+  stands up from the shoulder. "off_shoulder" = the sleeve starts on the upper arm,
+  below a bare shoulder. If sleeves.type is "none", use "set_in".
+- sleeves.cuff: how the sleeve ends. "none" = a plain edge. "band" = a fitted band or
+  buttoned cuff. "ruffle" = a frill at the end of the sleeve. "elastic" = pulled in by
+  elastic, so the sleeve puffs just above its end. If sleeves.type is "none", use "none".
 - waist.seam: true if a horizontal seam, waistband or join separates bodice and skirt.
   false if the dress falls in one piece with no join at the waist.
+- waist.style: "natural" = an ordinary waistline with nothing added. "empire" = raised
+  to just under the bust. "dropped" = lowered to the hip. "belted" = a belt, sash or
+  tie at the waist; if one is drawn, use "belted" whatever its height. Keep
+  proportions.waist_y consistent: low for an empire line, high for a dropped waist.
 - skirt.silhouette: the outline of the skirt from waist to hem.
   "straight" = falls nearly straight down from the waist with little or no widening.
   "a_line" = widens gently and evenly from waist to hem, even if the skirt is gathered
@@ -64,10 +87,30 @@ Fields:
 - skirt.length: where the hem ends on a standing figure. "mini" = mid-thigh or above.
   "knee" = at the knee, just above or just below it. "midi" = mid-calf.
   "floor" = ankle or floor.
+- skirt.fullness: how the skirt is attached at the waist. "plain" = smooth, with no
+  folds. "gathered" = many small soft folds bunched into the waist. "pleated" =
+  regular pressed folds.
+- skirt.hem: the bottom edge of the skirt. "plain" = an ordinary hem. "ruffle" = a
+  gathered strip or flounce added along the hem. "tiered" = the skirt is built from two
+  or more horizontal tiers, each gathered onto the one above. "slit" = a vertical
+  opening running up from the hem.
+- skirt.panels: long vertical seams. "none" = no vertical seams drawn. "front_seam" =
+  one seam down the centre front. "princess_seams" = two long curved seams, one each
+  side of the front, running from the bust down through the skirt.
 - details.pockets: "none", "patch" = pockets sewn on the outside, or "side_seam" =
   openings set into the side seams.
 - details.buttons: number of buttons on the centre-front opening, 0 to 8. Use 8 if
   there are more than 8.
+- details.placket: the strip where the dress opens at the centre front, usually with
+  buttons. "none" = no front opening. "bodice" = from the neckline to the waist only.
+  "full" = from the neckline all the way to the hem.
+- details.darts: true if darts are drawn: short stitched folds that taper to a point,
+  at the bust or the waist. false if none are drawn.
+- details.bow: a bow or tied ribbon. "none", "neckline" = at the neck or collar, or
+  "waist" = at the waist.
+- details.trim: decorative edging. "none", "piping" = a thin cord or narrow contrast
+  line along edges or seams, or "lace" = lace along an edge such as the neckline, cuffs
+  or hem.
 - proportions.shoulder_width: how wide the dress is at the shoulders, from 0 to 1.
   0 = very narrow, such as a halter or thin straps set close to the neck.
   0.5 = the natural shoulder line. 1 = very wide or extended past the shoulders.
@@ -100,6 +143,9 @@ Rules:
 - If a feature is unclear or falls between two options, choose the closest allowed
   value and explain the choice in notes.
 - Describe only what is visible. Do not invent pockets, buttons or seams.
+- For the detail fields (collar, cuff, shoulder, waist.style, fullness, hem, panels,
+  placket, darts, bow, trim), use the plain value ("none", "plain", "set_in", "natural"
+  or false) unless the detail is clearly drawn.
 """
 
 
@@ -107,20 +153,41 @@ EDIT_GUIDE = """Each action is {"op": "set", "path": <path>, "value": <value>}.
 Use only the paths below, and only the values listed for that path.
 
 - neckline.type: "crew" (round, close to the neck), "v" (two straight lines meeting in
-  a point), "scoop" (wide, low, rounded U) or "square" (straight bottom edge with corners).
+  a point), "scoop" (wide, low, rounded U), "square" (straight bottom edge with corners),
+  "sweetheart" (heart-shaped top edge), "off_shoulder" (below bare shoulders), "halter"
+  (straps around the neck) or "high" (rises up the neck, like a mock neck).
 - neckline.depth: number from 0 to 1. 0 = at the base of the neck, 0.5 = about
   mid-chest, 1 = almost to the waist.
+- collar.type: "none", "shirt" (pointed fold-over collar), "peter_pan" (flat, rounded
+  ends), "band" (narrow strip, no fold) or "mandarin" (short stand-up collar).
 - sleeves.type: "none" (sleeveless or straps), "cap" (tiny, covers only the shoulder
   point), "puff" (gathered fullness) or "fitted" (plain, follows the arm).
 - sleeves.length: "short" (above the elbow), "elbow" or "long" (to the wrist).
+- sleeves.cuff: "none", "band" (fitted band or cuff), "ruffle" (frill) or "elastic"
+  (pulled in by elastic).
+- sleeves.shoulder: "set_in" (smooth seam at the shoulder), "puff_top" (gathered at the
+  top of the sleeve) or "off_shoulder" (starts on the upper arm).
 - waist.seam: true or false.
+- waist.style: "natural", "empire" (just under the bust), "dropped" (at the hip) or
+  "belted" (belt, sash or tie).
 - skirt.silhouette: "straight" (falls nearly straight down from the waist), "a_line"
   (widens gently and evenly, even if gathered or pleated at the waist) or "flared"
   (dramatically full at the hem, like a circle or bell skirt).
 - skirt.length: "mini" (mid-thigh or above), "knee", "midi" (mid-calf) or "floor"
   (ankle or floor).
+- skirt.fullness: "plain" (smooth at the waist), "gathered" (soft bunched folds) or
+  "pleated" (regular pressed folds).
+- skirt.hem: "plain", "ruffle" (flounce along the hem), "tiered" (stacked horizontal
+  tiers) or "slit" (vertical opening from the hem).
+- skirt.panels: "none", "front_seam" (one seam down the centre front) or
+  "princess_seams" (two long curved seams down the front).
 - details.pockets: "none", "patch" or "side_seam".
 - details.buttons: whole number from 0 to 8.
+- details.placket: "none", "bodice" (front opening from neckline to waist) or "full"
+  (from neckline to hem).
+- details.darts: true or false.
+- details.bow: "none", "neckline" or "waist".
+- details.trim: "none", "piping" (thin contrast cord along edges) or "lace".
 - proportions.shoulder_width: number from 0 to 1. 0 = very narrow, 0.5 = natural
   shoulder line, 1 = very wide.
 - proportions.waist_y: number from 0 to 1. 0 = empire line just under the bust,
@@ -134,8 +201,8 @@ Use only the paths below, and only the values listed for that path.
 Rules:
 - Never invent a value. If the request or the sketch suggests something that is not
   listed (for example "maxi" or "bishop sleeve"), use the closest listed value.
-- Give value the right type: a number for numbers, true or false for waist.seam,
-  text in quotes for everything else.
+- Give value the right type: a number for numbers, true or false for waist.seam and
+  details.darts, text in quotes for everything else.
 - Only include actions that change the current spec. Return an empty list if nothing
   should change.
 - Never set garment_type.
