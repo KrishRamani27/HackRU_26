@@ -3,7 +3,7 @@ import { useEffect } from "react";
 // Inputs where Ctrl+Z means "undo my typing", which the browser handles itself.
 const NON_TEXT_INPUTS = new Set(["range", "color", "checkbox", "radio", "button", "submit", "reset", "file", "image"]);
 
-function isTyping(target: EventTarget | null): boolean {
+export function isTyping(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   if (target.isContentEditable || target.tagName === "TEXTAREA" || target.tagName === "SELECT") return true;
   return target instanceof HTMLInputElement && !NON_TEXT_INPUTS.has(target.type);

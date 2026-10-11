@@ -124,7 +124,7 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
       <div className="panel__body" ref={bodyRef}>
         {spec ? (
           <>
-            {selection && <SavePartBar key={selection.part} part={selection.part} onSave={onSavePart} onOpenLibrary={onOpenLibrary} />}
+            {selection && <SavePartBar key={selection.part} label={PART_LABELS[selection.part]} onSave={(name) => onSavePart(selection.part, name)} onOpenLibrary={onOpenLibrary} />}
             <Section name="neckline" title="Neckline">
               <ChipGroup
                 label="Type"

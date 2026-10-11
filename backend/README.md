@@ -29,11 +29,22 @@ This workspace already has `.venv` prepared, so you can start with the last comm
 
 ## Services
 
+Mac/Linux setup, from the backend folder:
+
+~~~bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.lock
+cp .env.example .env
+.venv/bin/python -m uvicorn app.main:app --reload
+~~~
+
+Copy .env.example only for a fresh setup; do not overwrite an existing .env.
+
 | Service | What goes there |
 | --- | --- |
 | Google Cloud Run | FastAPI code, running inside the Docker container |
 | Google Cloud Storage | Original sketches, PNG/JPEG/WebP previews uploaded by the frontend |
-| Tiger Cloud PostgreSQL | Design specs, manual drawing points/styles/transforms, versions, reusable parts, image object keys |
+| Tiger Cloud PostgreSQL | Designs, manual elements, history, reusable parts, image references and AI quality time-series |
 | Gemini API | Sketch analysis, optional suggestions, verification, text edits |
 | Google Secret Manager | Gemini key, database URL, shared backend key |
 
@@ -187,3 +198,50 @@ References: [Gemini structured output](https://ai.google.dev/gemini-api/docs/str
 [Cloud Run FastAPI](https://docs.cloud.google.com/run/docs/quickstarts/build-and-deploy/deploy-python-fastapi-service),
 [Cloud Storage uploads](https://docs.cloud.google.com/storage/docs/uploading-objects-from-memory),
 [Tiger Data MLH resources](https://www.mlh.com/partners/tigerdata).
+
+## AI quality monitor and Tiger setup
+
+GET /monitor/summary returns AI speed, accuracy, failures and frequently missed
+fields. See [MONITOR.md](MONITOR.md) for the exact frontend JSON contract.
+Default model is gemini-3.8-flash; an existing GEMINI_MODEL in .env overrides it.
+
+1. Create a Tiger Cloud service with TimescaleDB enabled. Check the current
+   signup card/trial rules before accepting anything; this code does not create
+   a paid service or confirm free-tier eligibility.
+2. Put the PostgreSQL connection URL in backend/.env as DATABASE_URL.
+   Keep sslmode=require. URL-encode special password characters if constructing
+   the URL manually. Never commit or share the connection URL in team chat.
+3. Install requirements.lock (already includes psycopg and tzdata). Restart the
+   backend from backend/. Startup creates the hypertable and continuous aggregates.
+   The role must have permission to create these objects and refresh jobs.
+4. Keep AI/label/ available for scoring, or set MONITOR_DATA_DIR to a folder with
+   label/ (or labels/), results/ and prompt_versions.md. Unlabelled calls still log.
+5. Import/refresh saved results without spending Gemini quota:
+
+~~~powershell
+.venv\Scripts\python -m app.monitor_import --data-dir ../AI
+~~~
+
+On Mac: .venv/bin/python -m app.monitor_import --data-dir ../AI.
+These commands read DATABASE_URL from .env. Imported Tiger rows persist for
+Cloud Run to read. MONITOR_IMPORT_HISTORY=false disables startup import, not logging.
+SQLite needs no Tiger account; the same route and tests work locally.
+
+The backend-only Docker build does not include the repository's AI/ folder.
+Seed Tiger with the import CLI before deployment. For live Docker scoring, mount
+a read-only labels folder and set MONITOR_DATA_DIR to its container path.
+For Cloud Run use the repository-root image below to include labels/history.
+Without labels, live calls remain unscored, not zero accuracy.
+
+Build the monitor-ready image from the repository root (not backend/):
+
+~~~powershell
+docker build -t flatsketch-backend .
+docker run --rm -p 8080:8080 --env-file backend/.env flatsketch-backend
+~~~
+
+For the deployment template above, run gcloud from the repository root instead
+of backend/, keeping --source . and the same secret/environment flags.
+The root .dockerignore and .gcloudignore allow only backend source, dependencies
+and public test labels/results/version notes. They exclude .env and frontend files.
+Docker/Tiger deployment still needs a live check; tests here use SQLite and fakes.

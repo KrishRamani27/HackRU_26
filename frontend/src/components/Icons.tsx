@@ -22,6 +22,12 @@ export const UndoIcon = (p: P) => (
 export const RedoIcon = (p: P) => (
   <svg {...base} {...p}><path d="m15 14 5-5-5-5" /><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" /></svg>
 );
+export const CursorIcon = (p: P) => (
+  <svg {...base} {...p}><path d="m5 3 14 8-6.2 1.8L10 19 5 3Z" /></svg>
+);
+export const PenIcon = (p: P) => (
+  <svg {...base} {...p}><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19l-4 1ZM14 7l3 3" /></svg>
+);
 export const TrashIcon = (p: P) => (
   <svg {...base} {...p}><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a1.5 1.5 0 0 0 1.5 1.4h7A1.5 1.5 0 0 0 17 19l1-12M9 7V4.5h6V7" /></svg>
 );
