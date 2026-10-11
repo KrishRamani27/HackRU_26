@@ -32,9 +32,12 @@ import {
   SLEEVE_TYPES,
   stylePath,
   type EditAction,
+  type GarmentKind,
 } from "../state/specSchema";
+import { useSuggestions } from "../hooks/useSuggestions";
 import { AccordionRow, ChipGroup, ColorSwatch, RangeField, Section } from "./Controls";
 import { SavePartBar } from "./SavePartBar";
+import { SuggestionsSection, type SuggestionCard } from "./SuggestionsSection";
 import { LayersSection, type LayersProps } from "./LayersSection";
 import { tee } from "./garmentPaths";
 
@@ -56,6 +59,8 @@ interface Props {
   /** Hands a collar or waistband with its own style back to the bodice's color and pattern. */
   onMatchBodice: (part: PartName) => void;
   layers: LayersProps;
+  /** Changes when a different design is loaded, so suggestions for the old one are dropped. */
+  designKey: unknown;
 }
 
 // Which section holds the controls for each canvas part. The bodice has no
@@ -132,6 +137,67 @@ const unitDisplay = (v: number) => v.toFixed(2);
 // Avoid float noise like 0.30000000000000004 reaching the spec.
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
+// ---------- AI suggestions: wording for a suggested edit, e.g. "Hem: ruffle" ----------
+const FIELD_TEXT: Record<string, { label: string; values?: Record<string, string> }> = {
+  "neckline.type": { label: "Neckline", values: NECKLINE_LABELS },
+  "neckline.depth": { label: "Neckline depth" },
+  "collar.type": { label: "Collar", values: COLLAR_LABELS },
+  "sleeves.type": { label: "Sleeves", values: SLEEVE_TYPE_LABELS },
+  "sleeves.length": { label: "Sleeve length", values: SLEEVE_LENGTH_LABELS },
+  "sleeves.cuff": { label: "Cuff", values: CUFF_LABELS },
+  "sleeves.shoulder": { label: "Shoulder", values: SHOULDER_LABELS },
+  "waist.seam": { label: "Waist seam" },
+  "waist.style": { label: "Waist style", values: WAIST_STYLE_LABELS },
+  "skirt.silhouette": { label: "Skirt silhouette", values: SILHOUETTE_LABELS },
+  "skirt.length": { label: "Skirt length", values: SKIRT_LENGTH_LABELS },
+  "skirt.fullness": { label: "Skirt fullness", values: FULLNESS_LABELS },
+  "skirt.hem": { label: "Hem", values: HEM_LABELS },
+  "skirt.panels": { label: "Panels", values: PANEL_LABELS },
+  "details.pockets": { label: "Pockets", values: POCKET_LABELS },
+  "details.buttons": { label: "Buttons" },
+  "details.placket": { label: "Placket", values: PLACKET_LABELS },
+  "details.darts": { label: "Darts" },
+  "details.bow": { label: "Bow", values: BOW_LABELS },
+  "details.trim": { label: "Trim", values: TRIM_LABELS },
+  "proportions.shoulder_width": { label: "Shoulder width" },
+  "proportions.waist_y": { label: "Waist height" },
+};
+const STYLE_PATH = /^style\.(\w+)\.(fill|pattern)$/;
+
+/** A suggested edit in a few words: the setting's name and its new value, as the panel labels them. */
+function describeEdit({ path, value }: EditAction, garment: GarmentKind): string {
+  const style = STYLE_PATH.exec(path);
+  if (style) {
+    const part = partLabel(style[1] as PartName, garment);
+    const pattern = PATTERN_LABELS[value as keyof typeof PATTERN_LABELS] ?? String(value);
+    return style[2] === "fill" ? `${part} color: ${String(value).toLowerCase()}` : `${part} pattern: ${pattern.toLowerCase()}`;
+  }
+  const field = FIELD_TEXT[path];
+  if (!field) return `${path}: ${String(value)}`;
+  const label = garment === "top" ? field.label.replace("Skirt", "Lower part") : field.label;
+  const text =
+    typeof value === "boolean" ? (value ? "on" : "off")
+    : typeof value === "number" ? (path === "details.buttons" ? String(value) : unitDisplay(value))
+    : (field.values?.[value] ?? value).toLowerCase();
+  return `${label}: ${text}`;
+}
+
+/** Does the design already hold this value (applied from a card, or set by hand)? */
+function alreadySet(spec: DesignSpec, { path, value }: EditAction): boolean {
+  const current = specValue<string | number | boolean>(spec, path);
+  if (typeof value === "number") return typeof current === "number" && Math.abs(current - value) < 1e-9;
+  if (typeof value === "string") return typeof current === "string" && current.toLowerCase() === value.toLowerCase();
+  return current === value;
+}
+
+/** Would this edit change the drawing? Mirrors which controls and options the panel shows for the garment. */
+function isDrawn({ path, value }: EditAction, garment: GarmentKind): boolean {
+  const style = STYLE_PATH.exec(path);
+  if (style) return PARTS_FOR[garment].includes(style[1] as PartName);
+  if (!controlShown(path, garment)) return false;
+  return typeof value !== "string" || optionsFor(path, garment, [{ value, label: "" }]).length > 0;
+}
+
 type PanelTab = "design" | "fabric" | "layers";
 const TABS: { id: PanelTab; label: string }[] = [
   { id: "design", label: "Design" },
@@ -157,7 +223,9 @@ interface SectionDef {
   body: ReactNode;
 }
 
-export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommit, onSavePart, onOpenLibrary, following, onMatchBodice, layers }: Props) {
+export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommit, onSavePart, onOpenLibrary, following, onMatchBodice, layers, designKey }: Props) {
+  // AI suggestions. Kept here, above the tabs, so switching tabs never asks the backend again.
+  const suggest = useSuggestions(designKey);
   const bodyRef = useRef<HTMLDivElement>(null);
   const flashTimer = useRef<number>(0);
   const tabRefs = useRef<Record<PanelTab, HTMLButtonElement | null>>({ design: null, fabric: null, layers: null });
@@ -628,6 +696,23 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
     </p>
   );
 
+  // A card's Apply sends its edit through onEdit, the same path as the controls above:
+  // one undo step, and the flat redraws. "Applied" is read from the spec, so Undo clears it.
+  const suggestionCards: SuggestionCard[] =
+    suggest.state.status === "ready"
+      ? suggest.state.suggestions.map(({ reason, action }) => ({
+          key: `${action.path}=${String(action.value)}`,
+          change: describeEdit(action, garment),
+          reason,
+          applied: alreadySet(spec, action),
+          drawn: isDrawn(action, garment),
+          onApply: () => onEdit(action),
+        }))
+      : [];
+  const suggestions = (
+    <SuggestionsSection state={suggest.state} cards={suggestionCards} onSuggest={() => suggest.request(spec)} />
+  );
+
   let content: ReactNode;
   if (tab === "layers") {
     content = <LayersSection {...layers} bare />;
@@ -636,6 +721,7 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
     content = focused ? (
       <>
         {toggleAll}
+        {suggestions}
         {own && !own.hidden ? (
           <Section name={own.name} title={own.title}>{own.body}</Section>
         ) : (
@@ -645,6 +731,7 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
     ) : (
       <>
         {toggleAll}
+        {suggestions}
         <div className="accordion">
           {sections.filter((s) => !s.hidden).map((s) => (
             <AccordionRow

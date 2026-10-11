@@ -1252,3 +1252,19 @@ img { display: block; max-width: 100%; }
 /* The eraser shows its own round cursor, the size of what it erases. */
 .draw-layer--eraser { cursor: none; }
 .draw-layer__eraser { fill: rgb(255 255 255 / 0.55); stroke: var(--ink-2); stroke-width: 0.8; pointer-events: none; }
+
+/* ---------- AI suggestions (Properties panel, Design tab) ---------- */
+.suggest { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--paper); }
+.suggest__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.suggest__title { display: flex; flex-direction: column; min-width: 0; font-weight: inherit; }
+.suggest__name { font-family: var(--font-display); font-size: 17px; line-height: 1.2; }
+.suggest__tools { display: flex; align-items: center; gap: 8px; }
+.suggest__wait { display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; color: var(--ink-2); }
+.suggest__wait .progress-line { width: 100%; margin-bottom: 2px; }
+.suggest__list { display: flex; flex-direction: column; gap: 8px; }
+.suggest-card { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); transition: background-color 0.15s, border-color 0.15s; }
+.suggest-card.is-applied { border-color: var(--accent-line); background: var(--accent-soft); }
+.suggest-card__change { font-size: 13px; font-weight: 650; color: var(--ink); }
+.suggest-card__reason { font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+.suggest-card__foot { display: flex; align-items: center; min-height: 32px; }
+.suggest-card__done { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--accent-hover); }

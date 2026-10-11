@@ -44,6 +44,7 @@ Dev only: `?canvas=loading` and `?canvas=error` on the dev URL preview those can
 * **Resize, rotate, layers.** A selected stroke, group or multi selection gets a thin accent colored box with four corner handles and a round rotate handle above the top edge. Dragging a corner resizes around the opposite corner (Shift keeps proportions); dragging the round handle rotates around the selection's center (Shift snaps to 15 degrees). One element also has Scale X, Scale Y and Rotation number fields in its panel. Each drag is one undo step. The properties panel has a collapsible Layers list: drawn elements and groups on top (a group is one expandable row), then the 8 dress parts. Click a row to select, the eye hides a drawing (saved as `visible`, so it is left out of exports) or hides a dress part on the canvas only, the arrows change `layer_order`, and a double click renames.
 
 
+* **AI suggestions.** The Design tab has a Suggestions block with a Suggest button. Nothing is requested until it is clicked: each click is one `POST /suggestions` with the current spec (one AI request). The backend returns up to three suggestions, each one edit action and a one-sentence reason. Each shows as a card with a readable label (for example "Hem: ruffle") and an Apply button. Apply sends the edit through the same `apply` action as the controls, so the flat redraws and it is one undo step. "Applied" is read from the spec, so Undo turns the card back into Apply. Loading a different design clears the cards. Files: `src/api/suggestions.ts`, `src/hooks/useSuggestions.ts`, `src/components/SuggestionsSection.tsx`.
 * **Export.** The Export button (enabled once a design is on the canvas, including the sample) downloads SVG or PNG. The file name comes from the project title, for example `untitled-garment.svg`. A short "Exported" message confirms it.
 * **Loading and errors.** While analyzing it says "Reading your sketch…" with a thin progress line. After about 4 seconds it softly rotates reassurance lines. Every failure has a clear title, a message, and "Try again". Two error boundaries (canvas, properties panel) turn an unexpected rendering error into a message instead of a white screen.
 
@@ -136,7 +137,7 @@ There is no automated test suite in the repo. Changes so far were checked with `
 * The 5 MB upload limit mirrors the backend default. If the backend limit changes, change `MAX_BYTES` in `src/hooks/useSketchUpload.ts`.
 * Dress only, front view only. Desktop first: it stacks the panels on small screens but is not tuned for phones.
 * The loading reassurance lines ("Finding the neckline…") are only reassurance, not real progress.
-* Not used yet: the backend's verify, command, suggestions and monitor summary routes.
+* Not used yet: the backend's verify, command and monitor summary routes.
   Saved designs are connected through useDesignFile; original sketch assets are not.
 
 Latest cross-team setup and gaps: [Current project status](../docs/WORKFLOW_STATUS.md).

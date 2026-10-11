@@ -514,6 +514,7 @@ export default function App() {
             onOpenLibrary={() => setLeftTab("library")}
             onMatchBodice={matchBodice}
             layers={layers}
+            designKey={design.meta}
           />
           )}
           </ErrorBoundary>
