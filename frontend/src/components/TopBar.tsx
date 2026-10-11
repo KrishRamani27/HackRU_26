@@ -35,13 +35,16 @@ interface Props {
 
 const MAX_NAME = 120; // the contract's limit
 
-/** The design's name, editable in place: Enter or leaving the box keeps it, Escape puts the old one back. */
+/**
+ * The design's name, on the line under the app name. Editable in place: Enter or leaving the box keeps it,
+ * Escape puts the old one back. Saving, Open and export file names all use it.
+ */
 function ProjectName({ name, editable, onRename }: { name: string; editable: boolean; onRename: (name: string) => void }) {
   const [draft, setDraft] = useState(name);
   const cancelled = useRef(false);
   useEffect(() => setDraft(name), [name]);
 
-  if (!editable) return <h1 className="topbar__project">{name}</h1>;
+  if (!editable) return <p className="topbar__project">{name}</p>;
 
   const finish = () => {
     if (cancelled.current) {
@@ -66,7 +69,7 @@ function ProjectName({ name, editable, onRename }: { name: string; editable: boo
   };
 
   return (
-    <h1 className="topbar__project topbar__project--edit">
+    <p className="topbar__project topbar__project--edit">
       <input
         className="topbar__name"
         type="text"
@@ -79,7 +82,7 @@ function ProjectName({ name, editable, onRename }: { name: string; editable: boo
         onBlur={finish}
         onKeyDown={onKeyDown}
       />
-    </h1>
+    </p>
   );
 }
 
@@ -91,7 +94,7 @@ export function TopBar({
   return (
     <header className="topbar">
       <div className="topbar__titles">
-        <span className="topbar__crumb">Atelier <span aria-hidden="true">/</span> Workbench</span>
+        <h1 className="topbar__brand">Atelier</h1>
         <div className="topbar__title-row">
           <ProjectName name={projectName} editable={designOpen} onRename={onRename} />
           {designOpen && <span className="chip">{saved ? "Saved design" : "Not saved yet"}</span>}

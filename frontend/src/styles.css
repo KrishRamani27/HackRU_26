@@ -186,22 +186,23 @@ img { display: block; max-width: 100%; }
   padding: 18px var(--gutter) 16px;
 }
 
-.topbar__titles { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.topbar__crumb {
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-.topbar__crumb span { margin: 0 4px; color: var(--line-strong); }
-.topbar__title-row { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.topbar__project {
+.topbar__titles { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+/* The app name, in the display serif. The design's name sits on a smaller line under it. */
+.topbar__brand {
   font-family: var(--font-display);
   font-size: 30px;
   font-weight: 500;
-  line-height: 1.15;
+  line-height: 1.1;
   letter-spacing: -0.015em;
+  color: var(--ink);
+}
+.topbar__title-row { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 26px; }
+.topbar__project {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--ink-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -807,14 +808,13 @@ img { display: block; max-width: 100%; }
   .workspace { grid-template-columns: 1fr; }
   .stage__canvas { min-height: 68vh; padding: 18px; }
   .placeholder-flat { max-height: 26vh; }
-  .topbar__project { font-size: 26px; }
+  .topbar__brand { font-size: 26px; }
 }
 
 @media (max-width: 560px) {
   :root { --gap: 16px; --gutter: 16px; }
   .topbar { padding-top: 14px; }
-  .topbar__crumb { display: none; }
-  .topbar__project { font-size: 22px; }
+  .topbar__brand { font-size: 22px; }
   .topbar__actions .btn { padding: 0 12px; }
   .topbar__actions .btn--ghost span { display: none; }
   .stage__toolbar .chip { max-width: 180px; }
