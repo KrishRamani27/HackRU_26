@@ -1,40 +1,81 @@
 # FlatSketch: pitch
 
 For HackRU judging. Gemini track. Written from the project's own documents on October 11, 2026.
-Everything in the spoken pitch is something the app does today. The last section lists what
-not to claim.
+The pitch itself is at the top. Everything after "Live demo" is backup: numbers, answers to
+likely questions, and what not to claim.
 
 ## One line
 
-Photograph a hand-drawn dress sketch, and get a clean, symmetric, editable technical drawing
-you can open in Illustrator.
+Take a photo of your sketch. Get a drawing a factory could use.
 
-## The pitch (about two minutes, spoken)
+## The 30-second version
 
-**The problem.** Every fashion student sketches on paper. To turn that sketch into a
-technical flat, the clean line drawing a pattern maker actually works from, they redraw the
-whole thing by hand in Illustrator. It takes hours, and it has nothing to do with design.
+> Fashion students spend hours redrawing their own sketches in Illustrator, line by line,
+> just to get a clean technical drawing. It's the most boring part of design.
+>
+> We killed it. Take a photo of your sketch, and FlatSketch gives you that drawing in
+> seconds. And it isn't a picture. Click the skirt, it changes. Click the collar, it changes.
+>
+> You sketch it. We draw it.
 
-**What we built.** FlatSketch does that step for them. You upload a photo of your sketch.
-Gemini reads it and tells us what the design *is*: the neckline, the sleeves, the waist, the
-skirt, the details. Then our own code draws it.
+## The full pitch (about 90 seconds)
 
-**The idea that makes it work.** Gemini decides *what* the dress is. Our code decides *how*
-to draw it. We never ask the AI for coordinates or drawings. It fills in a short form with
-fixed choices, and a drawing engine we wrote turns that form into the flat. That is why the
-result is always symmetric, always clean, and always editable: it is a set of choices, not a
-picture.
+Say it standing next to the screen. The lines marked **[do]** are things you do, not say.
 
-**What that gets you.** Because the design is a set of choices, every edit is instant. Click
-the skirt, make it flared, and the flat redraws. Change a neckline, add a collar, recolor one
-part, pick a fabric. Draw your own details on top with the pen. Then export a layered SVG,
-with one named layer per part of the garment.
+> Raise your hand if you've ever drawn something on paper and then had to redraw it on a
+> computer.
+>
+> That's every fashion student, every week. You sketch a dress in five minutes. Then you
+> spend three hours in Illustrator tracing your own idea, just so it's clean enough to hand
+> in. Nobody went to design school for that.
+>
+> So watch this.
+>
+> **[do: upload the sketch]**
+>
+> That's a photo of a pencil sketch. And that
+>
+> **[do: point at the flat]**
+>
+> is a technical flat. Symmetric. Clean lines. Ten seconds.
+>
+> Now here's the part that matters. This isn't an image. Watch.
+>
+> **[do: click the skirt, switch it to flared. Change the neckline. Add a collar.]**
+>
+> Every part of this dress is alive. That's because we don't let the AI draw. AI is bad at
+> drawing: it gives you six fingers and a crooked hem. So Gemini does the one thing it's
+> great at. It looks at your sketch and tells us what it sees: V-neck, puff sleeves, flared
+> skirt. Then our own engine draws it, perfectly, every time.
+>
+> The AI is the eyes. Our code is the hand.
+>
+> **[do: open Templates, flip the three tabs. Click Try it on.]**
+>
+> Start from eighty templates. See it on a body with your measurements. Draw your own
+> details on top. Then
+>
+> **[do: click Export]**
+>
+> one click, and it's a layered file ready for Illustrator.
+>
+> Five minutes to sketch it. Ten seconds to draw it. That's FlatSketch.
 
-**And more.** Start from one of 80 templates across dresses, tops and skirts. See it on a
-figure you can resize to your own measurements. Save designs and reusable parts to the cloud.
+## Lines worth memorising
 
-**Close.** Students keep the part that is theirs, the idea, and skip the part that is just
-redrawing.
+If you forget everything else, land these three.
+
+- "You sketch it. We draw it."
+- "The AI is the eyes. Our code is the hand."
+- "This isn't an image. Watch."
+
+## How to deliver it
+
+- **Open with the hand-raise.** It gets the judges moving in the first five seconds.
+- **Do the demo while you talk.** Never describe a click you could make.
+- **Pause after "Watch."** Let the redraw happen in silence. That's the moment.
+- **One person talks.** Someone else drives the laptop, so the speaker faces the judges.
+- **Stop at "That's FlatSketch."** Don't add anything. Take questions.
 
 ## Live demo (about ninety seconds)
 
