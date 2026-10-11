@@ -1,0 +1,76 @@
+{
+  "model": "gemini-3.6-flash",
+  "prompt_version": "v10-detailed",
+  "garment_type": "dress",
+  "neckline": {
+    "type": "sweetheart",
+    "depth": 0.3
+  },
+  "collar": {
+    "type": "none"
+  },
+  "sleeves": {
+    "type": "puff",
+    "length": "short",
+    "cuff": "none",
+    "shoulder": "off_shoulder"
+  },
+  "waist": {
+    "seam": true,
+    "style": "natural"
+  },
+  "skirt": {
+    "silhouette": "a_line",
+    "length": "knee",
+    "fullness": "pleated",
+    "hem": "plain",
+    "panels": "none"
+  },
+  "details": {
+    "pockets": "none",
+    "buttons": 4,
+    "placket": "full",
+    "darts": false,
+    "bow": "none",
+    "trim": "none"
+  },
+  "proportions": {
+    "shoulder_width": 0.5,
+    "waist_y": 0.5
+  },
+  "style": {
+    "collar_neckline": {
+      "fill": "#1a1a1a",
+      "pattern": "solid"
+    },
+    "bodice": {
+      "fill": "#e8ecef",
+      "pattern": "solid"
+    },
+    "left_sleeve": {
+      "fill": "#e8ecef",
+      "pattern": "solid"
+    },
+    "right_sleeve": {
+      "fill": "#e8ecef",
+      "pattern": "solid"
+    },
+    "waist_seam": {
+      "fill": "#e8ecef",
+      "pattern": "solid"
+    },
+    "skirt": {
+      "fill": "#e8ecef",
+      "pattern": "solid"
+    },
+    "pockets": {
+      "fill": "#e8ecef",
+      "pattern": "solid"
+    },
+    "buttons": {
+      "fill": "#000000",
+      "pattern": "solid"
+    }
+  },
+  "notes": "The outer dress features a sweetheart off-shoulder or low-cut neckline in light off-white/satin silver, worn over a contrasting black high-neck/turtleneck underlayer/yoke with a gold pendant. The skirt is softly pleated."
+}
