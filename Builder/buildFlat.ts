@@ -423,7 +423,8 @@ function customElement(el: CustomElement, index: number, defs: string[]): string
     ? paint(`fabric_${id}`, el.fill, el.pattern, defs)
     : "none";
   const stroke = typeof el.stroke === "string" && HEX_COLOR.test(el.stroke) ? el.stroke : "#222222";
-  const width = clamp(num(el.stroke_width, 2), 0.1, 100);
+  const rawWidth = num(el.stroke_width, 2);
+  const width = rawWidth > 0 ? Math.min(rawWidth, 100) : 2; // contract: above 0, at most 100
 
   // Contract order: scale, then rotate around the canvas origin, then move. Written as one
   // matrix, which is the same thing as translate(x y) rotate(r) scale(sx sy).
