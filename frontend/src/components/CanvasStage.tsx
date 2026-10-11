@@ -1,8 +1,13 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { createPortal } from "react-dom";
 import type { PartName } from "../../../Builder/types";
+import type { CustomElement } from "../../../Builder/buildFlat";
 import type { CanvasState } from "../types";
 import { PART_LABELS } from "../state/specSchema";
-import { AlertIcon, CheckIcon, EyeIcon, FitIcon, UploadIcon, ZoomInIcon, ZoomOutIcon } from "./Icons";
+import type { Point } from "../draw/strokes";
+import { expandGroups } from "../draw/groups";
+import { DrawLayer } from "./DrawLayer";
+import { AlertIcon, CheckIcon, CursorIcon, EyeIcon, FitIcon, PenIcon, UploadIcon, ZoomInIcon, ZoomOutIcon } from "./Icons";
 import { InlineFlat } from "./InlineFlat";
 import { LoadingNote } from "./LoadingNote";
 import { PlaceholderFlat } from "./PlaceholderFlat";
@@ -17,14 +22,29 @@ interface Props {
   /** The part picked on the canvas (a Builder group id), if any. */
   selectedPart: PartName | null;
   onSelectPart: (part: PartName | null) => void;
+  /** The hand drawn elements, the one selected (if any), and what to do when one is picked or dragged. */
+  elements: readonly CustomElement[];
+  selectedElements: readonly string[];
+  onSelectElements: (ids: string[]) => void;
+  onMoveElements: (moves: { id: string; x: number; y: number }[]) => void;
+  onMoveEnd: () => void;
+  /** The active tool. With the pen, dragging on the flat draws a freehand stroke. */
+  tool: CanvasTool;
+  onToolChange: (tool: CanvasTool) => void;
+  /** False once the design holds as many drawn elements as the contract allows. */
+  canDraw: boolean;
+  /** A finished stroke, in 400 by 600 canvas units. */
+  onStroke: (points: Point[]) => void;
 }
+
+export type CanvasTool = "select" | "pen";
 
 const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
 const FIT_INDEX = 2;
 const SAMPLE_LABEL = "Sample preview—not generated from a sketch";
 const MOCK_LABEL = "Demo result (mock AI)—not real sketch recognition";
 
-export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUpload, onRetry, selectedPart, onSelectPart }: Props) {
+export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUpload, onRetry, selectedPart, onSelectPart, elements, selectedElements, onSelectElements, onMoveElements, onMoveEnd, tool, onToolChange, canDraw, onStroke }: Props) {
   const [zoomIndex, setZoomIndex] = useState(FIT_INDEX);
   const sampling = state.status === "ready" && state.source === "sample";
   const hasArt = state.status === "ready";
@@ -32,17 +52,65 @@ export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUp
 
   useEffect(() => setZoomIndex(FIT_INDEX), [hasArt]);
 
-  // Escape deselects. Ignored while typing, so it can't interfere with the notes field.
+  // Escape leaves the pen tool first; with the select tool it deselects the part. Ignored while
+  // typing, so it can't interfere with the notes field.
   useEffect(() => {
-    if (!selectedPart) return;
+    if (tool !== "pen" && !selectedPart && selectedElements.length === 0) return;
     const onKey = (e: KeyboardEvent) => {
       // defaultPrevented: another control (e.g. the Export menu) already used this Escape.
       if (e.key !== "Escape" || e.defaultPrevented || e.target instanceof HTMLTextAreaElement) return;
-      onSelectPart(null);
+      if (tool === "pen") onToolChange("select");
+      else if (selectedPart) onSelectPart(null);
+      else onSelectElements([]);
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [selectedPart, onSelectPart]);
+  }, [tool, selectedPart, selectedElements, onSelectPart, onSelectElements, onToolChange]);
+
+  // Dragging a box on empty canvas selects every drawn element inside it (Shift adds to the selection).
+  // It only starts once the pointer has really moved, so a plain click still reaches the dress part or
+  // clears the selection as before.
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const boxDrag = useRef<{ pointerId: number; x0: number; y0: number; started: boolean } | null>(null);
+  const swallowClick = useRef(false);
+  const [box, setBox] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+
+  const onBoxDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (tool !== "select" || !hasArt || e.button !== 0) return;
+    if ((e.target as Element).closest("button, input, textarea, select, a")) return;
+    boxDrag.current = { pointerId: e.pointerId, x0: e.clientX, y0: e.clientY, started: false };
+  };
+  const onBoxMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = boxDrag.current;
+    if (!d || d.pointerId !== e.pointerId) return;
+    if (!d.started) {
+      if (Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 4) return;
+      d.started = true;
+      e.currentTarget.setPointerCapture(e.pointerId); // only now, so a plain click still reaches what is under it
+    }
+    setBox({ x0: d.x0, y0: d.y0, x1: e.clientX, y1: e.clientY });
+  };
+  const onBoxUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = boxDrag.current;
+    if (!d || d.pointerId !== e.pointerId) return;
+    boxDrag.current = null;
+    if (!d.started) return;
+    setBox(null);
+    swallowClick.current = true; // the click that ends a drag must not deselect what the box just selected
+    const left = Math.min(d.x0, e.clientX), right = Math.max(d.x0, e.clientX);
+    const top = Math.min(d.y0, e.clientY), bottom = Math.max(d.y0, e.clientY);
+    const inside: string[] = [];
+    canvasRef.current?.querySelectorAll<SVGGElement>(".flat-inline [data-element]").forEach((g) => {
+      const r = (g.querySelector("path:not([data-ui])") ?? g).getBoundingClientRect();
+      if (r.left >= left && r.right <= right && r.top >= top && r.bottom <= bottom) inside.push(g.getAttribute("data-element")!);
+    });
+    // A group counts as inside when any of its members is, and is then selected whole.
+    onSelectElements(expandGroups(e.shiftKey ? [...selectedElements, ...inside] : inside, elements));
+  };
+  const onBoxCancel = () => {
+    boxDrag.current = null;
+    setBox(null);
+  };
 
   const context = state.status === "ready"
     ? state.source === "sample"
@@ -72,6 +140,30 @@ export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUp
               Hide sample
             </button>
           )}
+          <div className="tools" role="group" aria-label="Tools">
+            <button
+              type="button"
+              className="icon-btn tool-btn"
+              aria-label="Select tool"
+              aria-pressed={tool === "select"}
+              title="Select: click a part of the dress"
+              disabled={!hasArt}
+              onClick={() => onToolChange("select")}
+            >
+              <CursorIcon />
+            </button>
+            <button
+              type="button"
+              className="icon-btn tool-btn"
+              aria-label="Pen tool"
+              aria-pressed={tool === "pen"}
+              title={canDraw ? "Pen: drag on the flat to draw (Esc to stop)" : "The drawing limit (200 strokes) is reached"}
+              disabled={!hasArt || !canDraw}
+              onClick={() => onToolChange("pen")}
+            >
+              <PenIcon />
+            </button>
+          </div>
           <div className="zoom" role="group" aria-label="Zoom">
             <button
               type="button"
@@ -106,10 +198,24 @@ export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUp
       </div>
 
       <div
+        ref={canvasRef}
         className={`stage__canvas${zoom > 1 ? " is-zoomed" : ""}`}
         aria-busy={state.status === "loading"}
+        onPointerDown={onBoxDown}
+        onPointerMove={onBoxMove}
+        onPointerUp={onBoxUp}
+        onPointerCancel={onBoxCancel}
+        onClickCapture={(e) => {
+          if (swallowClick.current) {
+            swallowClick.current = false;
+            e.stopPropagation();
+          }
+        }}
         // Parts stop propagation on their own click, so anything reaching here is empty canvas.
-        onClick={() => onSelectPart(null)}
+        onClick={() => {
+          onSelectPart(null);
+          onSelectElements([]);
+        }}
       >
         {hasArt && (
           <div className="sheet sheet--art" style={{ "--zoom": zoom } as CSSProperties}>
@@ -117,6 +223,7 @@ export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUp
             {state.source === "analysis" && state.aiMode === "mock" && (
               <span className="sheet__tag sheet__tag--sample">{MOCK_LABEL}</span>
             )}
+            <div className="flat-wrap">
             <InlineFlat
               markup={state.svgMarkup}
               label={
@@ -128,9 +235,26 @@ export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUp
               }
               selected={selectedPart}
               onSelect={onSelectPart}
+              elements={elements}
+              selectedElements={selectedElements}
+              onSelectElements={onSelectElements}
+              onMoveElements={onMoveElements}
+              onMoveEnd={onMoveEnd}
             />
-            {selectedPart && (
-              <span className="sheet__selected" role="status">Selected · {PART_LABELS[selectedPart]}</span>
+            {tool === "pen" && <DrawLayer onStroke={onStroke} />}
+            </div>
+            {tool === "pen" ? (
+              <span className="sheet__selected" role="status">Pen · drag to draw · Esc to stop</span>
+            ) : (
+              (selectedPart || selectedElements.length > 0) && (
+                <span className="sheet__selected" role="status">
+                  Selected · {selectedPart
+                    ? PART_LABELS[selectedPart]
+                    : selectedElements.length === 1
+                      ? elements.find((e) => e.id === selectedElements[0])?.name
+                      : `${selectedElements.length} drawings`}
+                </span>
+              )
             )}
           </div>
         )}
@@ -213,6 +337,15 @@ export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUp
           </div>
         )}
       </div>
+      {box &&
+        createPortal(
+          <div
+            className="selection-box"
+            aria-hidden="true"
+            style={{ left: Math.min(box.x0, box.x1), top: Math.min(box.y0, box.y1), width: Math.abs(box.x1 - box.x0), height: Math.abs(box.y1 - box.y0) }}
+          />,
+          document.body,
+        )}
     </main>
   );
 }

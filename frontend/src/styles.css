@@ -1027,3 +1027,50 @@ img { display: block; max-width: 100%; }
   /* No sliding: a still, softly filled line says "working" without motion. */
   .progress-line__bar { animation: none; width: 100%; opacity: 0.45; }
 }
+
+/* ---------- Pen and select tools; manual drawing ---------- */
+.flat-wrap { position: relative; width: 100%; height: 100%; min-width: 0; min-height: 0; }
+.draw-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  cursor: crosshair;
+  touch-action: none; /* a finger drag draws instead of scrolling the page */
+}
+/* Hand drawn strokes sit on top of the dress, but clicks pass through to the dress part underneath. */
+.flat-inline #manual_drawing { pointer-events: none; }
+
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+}
+.tool-btn[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-hover); }
+
+/* Hand drawn elements: same soft outline as dress parts on hover, stronger when selected. */
+.flat-inline [data-element] { cursor: pointer; outline: none; }
+.flat-inline [data-element][data-selected] { cursor: move; }
+.flat-inline [data-element]:hover {
+  filter: drop-shadow(0 0 1.5px rgb(156 65 39 / 0.8)) drop-shadow(0 0 5px rgb(156 65 39 / 0.35));
+}
+.flat-inline [data-element][data-selected],
+.flat-inline [data-element]:focus-visible {
+  filter: drop-shadow(0 0 1.5px var(--accent)) drop-shadow(0 0 1.5px var(--accent)) drop-shadow(0 0 6px rgb(156 65 39 / 0.5));
+}
+
+/* The rectangle shown while dragging a selection box over the canvas. */
+.selection-box {
+  position: fixed;
+  z-index: 40;
+  border: 1px solid var(--accent);
+  background: rgb(156 65 39 / 0.08);
+  pointer-events: none;
+}
+
+.button-row { display: flex; flex-wrap: wrap; gap: 8px; }
