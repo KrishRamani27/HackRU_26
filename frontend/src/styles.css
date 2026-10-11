@@ -663,18 +663,18 @@ img { display: block; max-width: 100%; }
 .empty__title { font-family: var(--font-display); font-size: 19px; font-weight: 500; }
 
 /* ---------- Property controls ---------- */
-.prop-section { display: flex; flex-direction: column; gap: 12px; scroll-margin-top: 6px; }
+.prop-section { display: flex; flex-direction: column; gap: 10px; scroll-margin-top: 6px; }
 /* Brief highlight when a part is picked on the canvas. Fades out when the class is removed. */
-.prop-section, .part { border-radius: var(--radius-sm); transition: background-color 0.7s ease-out, box-shadow 0.7s ease-out; }
-.prop-section.is-flash, .part.is-flash {
+.prop-section, .part, .acc { border-radius: var(--radius-sm); transition: background-color 0.7s ease-out, box-shadow 0.7s ease-out; }
+.prop-section.is-flash, .part.is-flash, .acc.is-flash {
   background-color: var(--accent-soft);
   box-shadow: 0 0 0 8px var(--accent-soft);
   transition-duration: 0.1s;
 }
 .prop-section + .prop-section { padding-top: 18px; border-top: 1px solid var(--line); }
-.prop-section__body { display: flex; flex-direction: column; gap: 16px; }
+.prop-section__body { display: flex; flex-direction: column; gap: 12px; }
 
-.field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .field__row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .field__label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
 .field__value {
@@ -689,16 +689,17 @@ img { display: block; max-width: 100%; }
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .chip-btn {
-  min-height: 32px;
-  padding: 0 12px;
+  min-height: 28px;
+  padding: 0 10px;
   border: 1px solid var(--line-strong);
   border-radius: 999px;
   background: var(--paper);
   color: var(--ink);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 550;
+  white-space: nowrap;
   cursor: pointer;
   transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
@@ -708,9 +709,10 @@ img { display: block; max-width: 100%; }
 .chips--small { gap: 4px; }
 .chips--small .chip-btn { min-height: 26px; padding: 0 9px; font-size: 12px; }
 
-.range { width: 100%; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.range { flex: 1; width: 100%; min-width: 0; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.range__line { display: flex; align-items: center; gap: 8px; }
+.range__end { flex: none; font-size: 11px; color: var(--ink-3); }
 .range:disabled { cursor: not-allowed; opacity: 0.45; }
-.range__ends { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--ink-3); }
 
 .parts { display: flex; flex-direction: column; gap: 14px; }
 .part { display: flex; flex-direction: column; gap: 8px; }
@@ -725,6 +727,47 @@ img { display: block; max-width: 100%; }
 }
 .swatch::-webkit-color-swatch-wrapper { padding: 2px; }
 .swatch::-webkit-color-swatch { border: 0; border-radius: 4px; }
+
+/* Fabric color: label, swatch and hex code on one line. */
+.field__inline { display: flex; align-items: center; gap: 10px; }
+.field__inline .field__label { min-width: 44px; }
+.field__code { font-size: 12px; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; color: var(--ink-3); }
+
+/* ---------- Properties tabs: accordion and context line ---------- */
+.panel__body--props { gap: 14px; }
+.props-context { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--ink-3); }
+
+.accordion { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.acc { border-bottom: 1px solid var(--line); }
+.acc__heading { margin: 0; }
+.acc__head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 42px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.acc__head:hover { background: var(--surface-sunk); }
+.acc__head:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+.acc__title { font-size: 13px; font-weight: 650; color: var(--ink); transition: color 0.15s; }
+.acc__summary { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 12.5px; color: var(--ink-3); }
+.acc__summary::before { content: "·"; color: var(--line-strong); }
+.acc__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acc__dot { flex: none; width: 12px; height: 12px; border: 1px solid var(--line-strong); border-radius: 50%; }
+.acc__chev { color: var(--ink-3); transform: rotate(-90deg); transition: transform 0.18s ease; }
+.acc.is-open .acc__chev { transform: none; }
+.acc.is-open .acc__title { color: var(--accent-hover); }
+.acc__body { display: flex; flex-direction: column; gap: 12px; padding: 4px 6px 16px; animation: acc-in 0.18s ease; }
+@keyframes acc-in { from { opacity: 0; transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .acc__body { animation: none; } }
 
 .textarea {
   width: 100%;
@@ -1174,3 +1217,38 @@ img { display: block; max-width: 100%; }
 .dlist__confirm { margin-top: 6px; padding: 10px 12px; border: 1px solid var(--accent-line); border-radius: var(--radius-sm); background: var(--accent-soft); font-size: 13px; }
 .dlist__confirm p { margin: 0 0 8px; }
 .modal--small { width: min(440px, 100%); }
+
+/* The title block gives way before the buttons do, so the top bar never grows wider than the window
+   (it used to push Export off the edge as soon as "Unsaved changes" appeared). */
+.topbar__titles { flex: 1 1 0; }
+.topbar__title-row > * { flex: none; }
+.topbar__title-row > .topbar__project { flex: 0 1 auto; min-width: 0; }
+.topbar__project--edit .topbar__name { min-width: 6ch; }
+.chip, .unsaved { white-space: nowrap; }
+.shell { grid-template-columns: minmax(0, 1fr); }
+.topbar { min-width: 0; }
+
+.samples__menu--left { left: 0; right: auto; }
+.samples__menu { min-width: 280px; }
+.samples-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; }
+
+/* Drawing tools: one segmented control; the shapes button has a small caret that opens its menu.
+   The active tool gets the accent fill and a thin accent ring, so it reads clearly at a glance. */
+.draw-tools { position: relative; display: flex; align-items: center; gap: 6px; }
+.tool-btn[aria-pressed="true"],
+.tool-split.is-active { box-shadow: inset 0 0 0 1px rgb(156 65 39 / 0.35); }
+.tool-split { display: inline-flex; align-items: center; border-radius: var(--radius-sm); }
+.tool-split.is-active { background: var(--accent-soft); }
+.tool-split .tool-btn { width: 28px; }
+.tool-split .tool-btn[aria-pressed="true"] { background: transparent; box-shadow: none; }
+.tool-caret { width: 16px; color: var(--ink-3); }
+.tool-split.is-active .tool-caret { color: var(--accent-hover); }
+.eraser-mode[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-hover); border-color: rgb(156 65 39 / 0.35); }
+.draw-tools__menu { left: 0; right: auto; min-width: 170px; }
+.draw-tools__item { flex-direction: row; align-items: center; gap: 10px; color: var(--ink-2); }
+.draw-tools__item[aria-checked="true"] .export__item-label { color: var(--accent-hover); }
+.draw-tools__check { margin-left: auto; color: var(--accent); }
+
+/* The eraser shows its own round cursor, the size of what it erases. */
+.draw-layer--eraser { cursor: none; }
+.draw-layer__eraser { fill: rgb(255 255 255 / 0.55); stroke: var(--ink-2); stroke-width: 0.8; pointer-events: none; }

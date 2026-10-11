@@ -49,6 +49,10 @@ export function useDesignFile(design: SpecState, dispatch: Dispatch<SpecAction>)
   const pendingOpen = useRef<{ id: string; version: number; name: string; skipped: number } | null>(null);
   const busy = useRef(false);
   const savedTimer = useRef(0);
+  // Counts the designs shown so far. A save or reload that finishes after a different design has appeared
+  // (a new sketch, the sample, New design, Open) belongs to the old one and must not touch the new one's
+  // identity, or the new design's first save would update the old design instead of creating its own.
+  const generation = useRef(0);
 
   const latest = useRef({ design, name, file });
   latest.current = { design, name, file };
@@ -57,6 +61,7 @@ export function useDesignFile(design: SpecState, dispatch: Dispatch<SpecAction>)
   useEffect(() => {
     const opened = pendingOpen.current;
     pendingOpen.current = null;
+    generation.current += 1;
     window.clearTimeout(savedTimer.current);
     setStatus({ kind: "idle" });
     if (!design.spec) {
@@ -94,11 +99,13 @@ export function useDesignFile(design: SpecState, dispatch: Dispatch<SpecAction>)
     busy.current = true;
     window.clearTimeout(savedTimer.current);
     setStatus({ kind: "saving" });
+    const gen = generation.current;
     const spec = d.spec;
     const elements = d.customElements;
     try {
       const input = { name: n, spec, custom_elements: elements };
       const saved = f ? await updateDesign(f.id, input, f.version) : await createDesign(input);
+      if (gen !== generation.current) return true; // saved, but it was the previous design: leave the new one alone
       setFile({ id: saved.id, version: saved.version });
       // The snapshot is what was sent, so anything edited while the save was in flight still counts as unsaved.
       setBase({ spec, elements, name: n, key: keyOf(spec, elements, n) });
@@ -106,6 +113,7 @@ export function useDesignFile(design: SpecState, dispatch: Dispatch<SpecAction>)
       savedTimer.current = window.setTimeout(() => setStatus({ kind: "idle" }), SAVED_MS);
       return true;
     } catch (err) {
+      if (gen !== generation.current) return false;
       setStatus(err instanceof ConflictError ? { kind: "conflict" } : { kind: "error", message: describeError(err, "Couldn’t save this design.") });
       return false;
     } finally {
@@ -130,9 +138,13 @@ export function useDesignFile(design: SpecState, dispatch: Dispatch<SpecAction>)
     const f = latest.current.file;
     if (!f) return;
     setStatus({ kind: "saving" });
+    const gen = generation.current;
     try {
-      openSaved(await getDesign(f.id));
+      const latestDesign = await getDesign(f.id);
+      if (gen !== generation.current) return; // a different design is on screen now
+      openSaved(latestDesign);
     } catch (err) {
+      if (gen !== generation.current) return;
       setStatus({ kind: "error", message: describeError(err, "Couldn’t reload this design.") });
     }
   }, [openSaved]);

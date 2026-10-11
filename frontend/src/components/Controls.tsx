@@ -1,15 +1,56 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { ChevronDownIcon } from "./Icons";
 
 /**
  * Small uppercase label that groups related controls. `name` is a stable key
  * the panel uses to scroll to and highlight a section.
  */
-export function Section({ name, title, children }: { name: string; title: string; children: ReactNode }) {
+export function Section({ name, title, children, hidden }: { name: string; title: string; children: ReactNode; hidden?: boolean }) {
   const id = useId();
+  if (hidden) return null;
   return (
     <section className="prop-section" data-section={name} aria-labelledby={id}>
       <h3 id={id} className="eyebrow">{title}</h3>
       <div className="prop-section__body">{children}</div>
+    </section>
+  );
+}
+
+interface AccordionRowProps {
+  /** data-section key, so a part picked on the canvas can find and highlight this row. */
+  name?: string;
+  /** data-part-row key, for a fabric row. */
+  partRow?: string;
+  title: string;
+  /** The current settings in a few words, e.g. "Scoop, medium". */
+  summary: string;
+  /** A color shown as a small dot before the summary (fabric rows). */
+  swatch?: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}
+
+/** One row of an accordion: the title and a summary of its settings; click to show the controls. */
+export function AccordionRow({ name, partRow, title, summary, swatch, open, onToggle, children }: AccordionRowProps) {
+  const id = useId();
+  return (
+    <section className={`acc${open ? " is-open" : ""}`} data-section={name} data-part-row={partRow} aria-labelledby={`${id}-head`}>
+      <h3 className="acc__heading">
+        <button type="button" id={`${id}-head`} className="acc__head" aria-expanded={open} aria-controls={`${id}-body`} title={`${title}: ${summary}`} onClick={onToggle}>
+          <span className="acc__title">{title}</span>
+          <span className="acc__summary">
+            {swatch && <span className="acc__dot" style={{ background: swatch }} aria-hidden="true" />}
+            <span className="acc__text">{summary}</span>
+          </span>
+          <ChevronDownIcon width={14} height={14} className="acc__chev" />
+        </button>
+      </h3>
+      {open && (
+        <div id={`${id}-body`} className="acc__body">
+          {children}
+        </div>
+      )}
     </section>
   );
 }
@@ -28,6 +69,8 @@ interface ChipGroupProps<T extends string | boolean> {
   onChange: (value: T) => void;
   disabled?: boolean;
   small?: boolean;
+  /** The builder doesn't draw this yet (see SHOWN_CONTROLS in specSchema.ts): render nothing. */
+  hidden?: boolean;
 }
 
 /** Segmented chips: one option selected at a time, selected shown in the accent color. */
@@ -38,7 +81,9 @@ export function ChipGroup<T extends string | boolean>({
   onChange,
   disabled,
   small,
+  hidden,
 }: ChipGroupProps<T>) {
+  if (hidden) return null;
   return (
     <div className={`field${small ? " field--compact" : ""}`}>
       <span className="field__label">{label}</span>
@@ -72,42 +117,42 @@ interface RangeFieldProps {
   /** The drag or key press ended, so the whole drag counts as one undo step. */
   onCommit?: () => void;
   disabled?: boolean;
-  /** Short captions under the two ends of the track. */
+  /** Short captions at the two ends of the track, on the same line as it. */
   ends?: [string, string];
   hint?: string;
+  hidden?: boolean;
 }
 
-/** Slider with its current value always visible. */
-export function RangeField({ label, min, max, step, value, display, onChange, onCommit, disabled, ends, hint }: RangeFieldProps) {
+/** Slider with its current value always visible; the end captions sit inline at either side of the track. */
+export function RangeField({ label, min, max, step, value, display, onChange, onCommit, disabled, ends, hint, hidden }: RangeFieldProps) {
   const id = useId();
+  if (hidden) return null;
   return (
     <div className="field">
       <div className="field__row">
         <label className="field__label" htmlFor={id}>{label}</label>
         <output className="field__value" htmlFor={id}>{display}</output>
       </div>
-      <input
-        id={id}
-        className="range"
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        disabled={disabled}
-        aria-valuetext={display}
-        onChange={(e) => onChange(Number(e.target.value))}
-        onPointerUp={onCommit}
-        onPointerCancel={onCommit}
-        onKeyUp={onCommit}
-        onBlur={onCommit}
-      />
-      {ends && (
-        <div className="range__ends" aria-hidden="true">
-          <span>{ends[0]}</span>
-          <span>{ends[1]}</span>
-        </div>
-      )}
+      <div className="range__line">
+        {ends && <span className="range__end" aria-hidden="true">{ends[0]}</span>}
+        <input
+          id={id}
+          className="range"
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          disabled={disabled}
+          aria-valuetext={display}
+          onChange={(e) => onChange(Number(e.target.value))}
+          onPointerUp={onCommit}
+          onPointerCancel={onCommit}
+          onKeyUp={onCommit}
+          onBlur={onCommit}
+        />
+        {ends && <span className="range__end" aria-hidden="true">{ends[1]}</span>}
+      </div>
       {hint && <p className="field__hint">{hint}</p>}
     </div>
   );

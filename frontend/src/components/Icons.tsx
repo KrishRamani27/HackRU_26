@@ -28,7 +28,31 @@ export const CursorIcon = (p: P) => (
 export const PenIcon = (p: P) => (
   <svg {...base} {...p}><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19l-4 1ZM14 7l3 3" /></svg>
 );
-export const TrashIcon = (p: P) => (
+export const LineIcon = (p: P) => (
+  <svg {...base} {...p}><path d="M5 19 19 5" /></svg>
+);
+export const ShapesIcon = (p: P) => (
+  <svg {...base} {...p}><rect x="3.5" y="3.5" width="9" height="9" rx="1" /><circle cx="15.5" cy="15.5" r="5" /></svg>
+);
+export const EraserIcon = (p: P) => (
+  <svg {...base} {...p}><path d="m8.5 19.5-4-4a1.5 1.5 0 0 1 0-2.1l9-9a1.5 1.5 0 0 1 2.1 0l4 4a1.5 1.5 0 0 1 0 2.1l-7.4 7.4M8.5 19.5h11M8.5 19.5l3.6-.1M7.5 10.5l6 6" /></svg>
+);
+export const RectangleIcon = (p: P) => (
+  <svg {...base} {...p}><rect x="4" y="6" width="16" height="12" rx="0.5" /></svg>
+);
+export const EllipseIcon = (p: P) => (
+  <svg {...base} {...p}><ellipse cx="12" cy="12" rx="8.5" ry="6.5" /></svg>
+);
+export const TriangleIcon = (p: P) => (
+  <svg {...base} {...p}><path d="M12 4.5 20.5 19h-17L12 4.5Z" /></svg>
+);
+export const StarIcon = (p: P) => (
+  <svg {...base} {...p}><path d="m12 3.5 2.6 5.6 6 .7-4.5 4.1 1.2 6-5.3-3-5.3 3 1.2-6-4.5-4.1 6-.7L12 3.5Z" /></svg>
+);
+export const HeartIcon = (p: P) => (
+  <svg {...base} {...p}><path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.4 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10Z" /></svg>
+);
+export const TrashIcon =(p: P) => (
   <svg {...base} {...p}><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a1.5 1.5 0 0 0 1.5 1.4h7A1.5 1.5 0 0 0 17 19l1-12M9 7V4.5h6V7" /></svg>
 );
 export const BookmarkIcon = (p: P) => (

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ChangeEvent } from "react";
 import type { DesignSpec, PartName } from "../../Builder/types";
 import { buildFlat } from "../../Builder/buildFlat";
-import { mockSpec } from "../../Builder/mockSpec";
 import { MAX_ELEMENTS, newElementId, type Point } from "./draw/strokes";
 import { exportFlat, type ExportFormat } from "./export/exportFlat";
 import { NavRail } from "./components/NavRail";
@@ -19,6 +18,7 @@ import { describeError } from "./api/parts";
 import { useDesignFile } from "./hooks/useDesignFile";
 import { OpenDialog } from "./components/OpenDialog";
 import { ReplaceDialog } from "./components/ReplaceDialog";
+import { type SampleDesign } from "./samples";
 import { buildSavedPart, editsFor, type SavedPart } from "./library/libraryModel";
 import { isTyping, useUndoShortcuts } from "./hooks/useUndoShortcuts";
 import { ElementPanel } from "./components/ElementPanel";
@@ -29,8 +29,9 @@ import { validElement, type ElementPatch } from "./state/specReducer";
 import type { CustomElement } from "../../Builder/buildFlat";
 import type { SavedDrawing } from "./api/customParts";
 import { cloneElements, instantiateDrawing } from "./draw/drawings";
+import type { EraserMode } from "./draw/eraser";
 import { initialSpecState, specReducer } from "./state/specReducer";
-import { FOLLOWER_PARTS, type EditAction } from "./state/specSchema";
+import { FOLLOWER_PARTS, garmentOf, type EditAction } from "./state/specSchema";
 import type { AiMode, AnalysisStatus, CanvasState } from "./types";
 import { TryOnControls, useTryOn } from "./tryon"; // TRY-ON (optional feature, see src/tryon/README.md)
 import { TemplatesButton } from "./templates"; // TEMPLATES (starter designs, see src/templates/README.md)
@@ -162,10 +163,20 @@ export default function App() {
     [design.spec, design.customElements, file.name],
   );
 
-  // The pen tool. Only usable while a flat is on the canvas; a new design starts back on Select.
+  // The drawing tools (pen, line, shapes, eraser). Only usable while a flat is on the canvas; a new
+  // design starts back on Select.
   const [tool, setTool] = useState<CanvasTool>("select");
   useEffect(() => setTool("select"), [canvas.status, design.meta]);
-  const drawStroke = useCallback((points: Point[]) => dispatch({ type: "draw", id: newElementId(), points }), []);
+  const drawElement = useCallback(
+    (points: Point[], closed: boolean, label: string) => dispatch({ type: "draw", id: newElementId(), points, closed, label }),
+    [],
+  );
+  // Each stretch of an eraser drag erases as it goes; the drag key makes the whole drag one undo step.
+  const eraseAlong = useCallback(
+    (path: Point[], mode: EraserMode, drag: string) =>
+      dispatch({ type: "erase", path, mode, newId: newElementId, coalesce: `erase:${drag}` }),
+    [],
+  );
 
   // Changing, moving and deleting hand drawn elements. A drag or a stretch of typing is one undo step.
   const updateElement = useCallback(
@@ -304,6 +315,7 @@ export default function App() {
     selectedElements,
     selectedPart: selection?.part ?? null,
     hiddenParts,
+    garment: garmentOf(design.spec),
     onSelectElements: selectElements,
     onSelectPart: selectPart,
     onSetVisible: setVisible,
@@ -320,8 +332,10 @@ export default function App() {
   const undo = useCallback(() => dispatch({ type: "undo" }), []);
   const redo = useCallback(() => dispatch({ type: "redo" }), []);
   useUndoShortcuts({ enabled: historyOn, onUndo: undo, onRedo: redo });
+  // A sample is a new, unsaved design with a fresh undo history, like an analysis result. The spec is copied so
+  // edits never change the preset.
   const showSample = useCallback(
-    () => dispatch({ type: "load", spec: mockSpec, meta: { source: "sample" } }),
+    (sample: SampleDesign) => dispatch({ type: "load", spec: structuredClone(sample.spec), meta: { source: "sample" } }),
     [],
   );
   const hideSample = useCallback(() => dispatch({ type: "clear", source: "sample" }), []);
@@ -339,6 +353,20 @@ export default function App() {
     confirmReplace("Uploading this sketch", () => {
       setLeftTab("sketch");
       void sketch.accept(picked);
+    });
+
+  // New design: an empty canvas, no sketch, no drawings, no undo history, the title back to "Untitled garment",
+  // and no saved design id, so the next save creates a new design. Asks first if there are unsaved changes.
+  const startNewDesign = () =>
+    confirmReplace("Starting a new design", () => {
+      sketch.clear();
+      dispatch({ type: "clear" });
+    });
+
+  const chooseSample = (sample: SampleDesign) =>
+    confirmReplace(`Opening “${sample.name}”`, () => {
+      setLeftTab("sketch");
+      showSample(sample);
     });
 
   const browse = () => inputRef.current?.click();
@@ -374,6 +402,7 @@ export default function App() {
           onReload={() => void file.reload()}
           onDismiss={file.dismiss}
           onOpenDesign={() => setOpeningDesign(true)}
+          onNewDesign={startNewDesign}
           onUpload={browse}
           exportEnabled={canvas.status === "ready"}
           onExport={exportCurrent}
@@ -400,6 +429,7 @@ export default function App() {
                 onBrowse={browse}
                 onFile={acceptSketch}
                 onClear={() => confirmReplace("Removing the sketch", sketch.clear)}
+                onChooseSample={chooseSample}
               />
             ) : (
               <LibraryPanel
@@ -408,6 +438,7 @@ export default function App() {
                 drawings={library.drawings}
                 onReloadDrawings={() => void library.loadDrawings()}
                 canApply={canvas.status === "ready"}
+                garment={garmentOf(design.spec)}
                 onApply={applyPart}
                 onApplyDrawing={applyDrawing}
                 onDelete={deleteSavedPart}
@@ -419,7 +450,7 @@ export default function App() {
           <CanvasStage
             state={canvas}
             hasSketch={sketch.state.status === "ready"}
-            onShowSample={() => confirmReplace("Opening the sample", showSample)}
+            onChooseSample={chooseSample}
             onHideSample={() => confirmReplace("Hiding the sample", hideSample)}
             onUpload={browse}
             onRetry={analysis.retry}
@@ -432,10 +463,12 @@ export default function App() {
             onMoveEnd={commitEdit}
             onTransformElements={transformElements}
             hiddenParts={hiddenParts}
+            garment={garmentOf(design.spec)}
             tool={canvas.status === "ready" ? tool : "select"}
             onToolChange={setTool}
             canDraw={design.customElements.length < MAX_ELEMENTS}
-            onStroke={drawStroke}
+            onDraw={drawElement}
+            onErase={eraseAlong}
             toolbarExtra={
               <>
                 {/* TEMPLATES */}
