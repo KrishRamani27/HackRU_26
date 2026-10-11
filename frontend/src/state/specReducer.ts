@@ -6,7 +6,7 @@ import type { AiMode } from "../types";
 import { FOLLOWER_PARTS, PART_NAMES, isValidEdit, normalizeStyles, sameStyle, type EditAction } from "./specSchema";
 
 /** Where the current spec came from. Drives the labels on the canvas. */
-export type SpecSource = { source: "analysis"; aiMode: AiMode } | { source: "sample" } | { source: "saved" };
+export type SpecSource = { source: "analysis"; aiMode: AiMode; sketchFile?: File } | { source: "sample" } | { source: "saved" };
 
 /** How many undo steps are kept. Older ones are dropped. */
 export const MAX_HISTORY = 50;

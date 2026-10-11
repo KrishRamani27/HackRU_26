@@ -30,6 +30,19 @@ Dev only: `?canvas=loading` and `?canvas=error` on the dev URL preview those can
 
 ## What it does
 
+### Original sketch storage
+
+Clicking Save on an analyzed sketch first uploads its original image with POST /assets,
+then saves sketch_asset_id with the design. With backend STORAGE_MODE=gcs, that image
+appears in the configured Google bucket and the design/settings remain in Tiger.
+Upload failure stops Save and shows an error. Repeated saves reuse the image ID;
+opening and resaving an existing design keeps its ID. Old designs without an attached
+image cannot restore the original file: select/analyze the original again and Save.
+Samples do not upload an image. Exported SVG/PNG files are still local downloads.
+The upload panel does not yet display a saved sketch after reopening a design.
+
+Check the upload helper without cloud calls: `node --test tests/assets.test.mjs`.
+
 * **Upload and analyze.** A PNG, JPG or WebP up to 5 MB (the backend's default limit) is checked in the browser, previewed, then sent once to `POST /analyze` as form data with the field `sketch`. The returned `DesignSpec` goes into the spec reducer. Too big or wrong type files are rejected before anything is sent.
 * **Mock or real AI.** The backend's `X-AI-Mode` response header decides the label. `mock` is shown as "Demo result (mock AI), not real sketch recognition". `gemini` is "AI result". Anything else is "AI mode unknown".
 * **Samples.** A "Samples" dropdown (empty canvas and the Sketch tab) loads one of four presets from `src/samples.ts` (Little black dress, Denim day dress, Garden party, Plaid midi) into the same editable spec, labeled as not generated from a sketch. They are defined in the frontend, use only settings the builder draws (the original four necklines, sleeves, waist seam, skirt silhouette and length, pockets, buttons, color and pattern per part) and are copied on load so edits never change a preset. A sample is a new unsaved design with a fresh undo history, and choosing one asks first if there are unsaved changes (`ReplaceDialog`). `Builder/mockSpec.ts` is no longer used by the app. It needs no backend. Hide sample returns to the empty canvas. The plaid midi keeps its own collar and waistband color because a trim part whose style differs from the bodice is detached at load.
@@ -128,7 +141,7 @@ There is no automated test suite in the repo. Changes so far were checked with `
 ## Known limits
 
 * Gemini mode has not been tested from the frontend. Everything was tested against the backend in mock mode, which returns the same fixed dress for any sketch.
-* Saved designs are shared (no accounts), only the 50 most recently updated are listed, and there is no delete, duplicate or version history browser for designs yet. A design that has never been saved is lost on refresh (the browser asks first when closing the tab with unsaved changes). Saving does not send the uploaded sketch image, so an opened design has no sketch in the Sketch tab.
+* Saved designs are shared (no accounts), only the 50 most recently updated are listed, and there is no delete, duplicate or version history browser for designs yet. A design that has never been saved is lost on refresh (the browser asks first when closing the tab with unsaved changes). Save now uploads and links the original analyzed sketch, but showing that saved sketch in the Sketch tab after reopening is not yet implemented.
 * Saved drawings are shared (no accounts) and only the 100 newest are listed.
 * Drawing: no parent attachment or click-the-corners shape tool yet. Drawing and moving need a pointer (mouse, touch, stylus); strokes can be selected with Tab and Enter but not drawn or moved by keyboard. On a touch screen, dragging a stroke may scroll the page.
 * The SVG export has been checked as valid XML and rendered in a browser, but has not been opened in Adobe Illustrator itself.
@@ -138,7 +151,7 @@ There is no automated test suite in the repo. Changes so far were checked with `
 * Dress only, front view only. Desktop first: it stacks the panels on small screens but is not tuned for phones.
 * The loading reassurance lines ("Finding the neckline…") are only reassurance, not real progress.
 * Not used yet: the backend's verify, command and monitor summary routes.
-  Saved designs are connected through useDesignFile; original sketch assets are not.
+  Saved designs and original sketch uploads are connected through useDesignFile.
 
 Latest cross-team setup and gaps: [Current project status](../docs/WORKFLOW_STATUS.md).
 frontend/.env.example contains only the public backend address.

@@ -1,5 +1,20 @@
 # FlatSketch — team notes and agent instructions
 
+## Sketch storage connection — October 11, 2026
+
+- Aryan requested connecting frontend Save to cloud sketch storage. Save now uploads
+  the original analyzed File via POST /assets, then sends sketch_asset_id with the
+  design to Tiger. Storage still follows backend STORAGE_MODE (gcs or local).
+- Upload failures stop Save with a visible error. Successful uploads are cached per
+  File for retry/repeated Save; opening and resaving a design preserves its image ID.
+- Sample/manual-only designs do not invent an image. Old designs without an image ID
+  cannot recover the original sketch automatically. SVG/PNG exports remain downloads,
+  not cloud uploads. Saved sketch preview after reopening is still not wired to the UI.
+- No cloud writes, keys, AI prompts or database schema changes are part of this patch.
+- Frontend upload-helper checks: node --test tests/assets.test.mjs from frontend/.
+- Verification: frontend build and all 4 upload-helper checks passed; 119 backend
+  tests passed using SQLite/fakes. Live GCS image round-trip remains unverified.
+
 ## Latest audit — October 10, 2026
 
 - Current setup and integration gaps are in docs/WORKFLOW_STATUS.md; README.md

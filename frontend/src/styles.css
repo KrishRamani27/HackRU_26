@@ -451,8 +451,19 @@ img { display: block; max-width: 100%; }
 .stage__toolbar { flex-wrap: wrap; row-gap: 8px; }
 .stage__toolbar .panel__heading { flex: 1 1 auto; min-width: 0; }
 .stage__toolbar .chip { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.stage__tools { display: flex; flex: 0 0 auto; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-left: auto; }
+/* May shrink, so on a narrow canvas the buttons wrap onto a second line instead of running off the edge. */
+.stage__tools { display: flex; flex: 1 1 auto; min-width: 0; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-left: auto; }
 .stage__hide { flex: none; }
+/* The drawing tools and zoom get a row of their own under the title, so neither row is crowded. */
+.stage__toolrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px 6px 14px;
+  border-bottom: 1px solid var(--line);
+}
 
 .stage__canvas {
   /* One grid cell; sheets size against it so nothing scrolls until zoomed in. */
