@@ -1,6 +1,7 @@
 import type { DesignSpec, PartName } from "../../../Builder/types";
 import type { CustomElement } from "../../../Builder/buildFlat";
 import { COORD_LIMIT, MAX_ELEMENTS, MAX_POINTS, STROKE_COLOR, STROKE_WIDTH, type Point } from "../draw/strokes";
+import { erase, type EraserMode } from "../draw/eraser";
 import type { AiMode } from "../types";
 import { FOLLOWER_PARTS, PART_NAMES, isValidEdit, normalizeStyles, sameStyle, type EditAction } from "./specSchema";
 
@@ -63,8 +64,16 @@ export type SpecAction =
   | { type: "commit" }
   | { type: "undo" }
   | { type: "redo" }
-  /** Adds a freehand stroke (already simplified points in 400 by 600 canvas units). One undo step. */
-  | { type: "draw"; id: string; points: Point[] }
+  /**
+   * Adds a drawn element: a freehand stroke, a line or a shape (points in 400 by 600 canvas units).
+   * `closed` makes it a closed shape; `label` names it ("Line 2", "Star 1"; default "Stroke"). One undo step.
+   */
+  | { type: "draw"; id: string; points: Point[]; closed?: boolean; label?: string }
+  /**
+   * One stretch of an eraser drag over the drawn elements (never the dress). `coalesce` (one key per
+   * drag) makes the whole drag a single undo step until `commit`. `newId` names the pieces a split leaves.
+   */
+  | { type: "erase"; path: Point[]; mode: EraserMode; newId: () => string; coalesce: string }
   /**
    * Changes a drawn element (name, colors, width, closed, fill, pattern, or its move). Checked against
    * the contract; an invalid change is ignored. `coalesce` merges a stream of changes (a slider or a
@@ -116,17 +125,18 @@ function validPoints(points: Point[]): Point[] | null {
   return ok ? points.map((p): Point => [p[0], p[1]]) : null;
 }
 
-/** A new stroke with the contract's defaults: named "Stroke N", on top of the others. */
-function newStroke(existing: CustomElement[], id: string, points: Point[]): CustomElement {
-  const numbers = existing.map((e) => /^Stroke (\d+)$/.exec(e.name)).map((m) => (m ? Number(m[1]) : 0));
+/** A new element with the contract's defaults: named "<label> N" (e.g. "Stroke 3"), on top of the others, no fill. */
+function newStroke(existing: CustomElement[], id: string, points: Point[], closed = false, label = "Stroke"): CustomElement {
+  const pattern = new RegExp(`^${label} (\\d+)$`);
+  const numbers = existing.map((e) => pattern.exec(e.name)).map((m) => (m ? Number(m[1]) : 0));
   const topLayer = existing.reduce((max, e) => Math.max(max, e.layer_order), 0);
   return {
     id,
-    name: `Stroke ${Math.max(0, ...numbers) + 1}`,
+    name: `${label} ${Math.max(0, ...numbers) + 1}`,
     type: "stroke",
     parent_part: null,
     points,
-    closed: false,
+    closed,
     group_id: null,
     stroke: STROKE_COLOR,
     stroke_width: STROKE_WIDTH,
@@ -273,9 +283,12 @@ export function specReducer(state: SpecState, action: SpecAction): SpecState {
       if (!state.spec || state.customElements.length >= MAX_ELEMENTS) return state;
       const points = validPoints(action.points);
       if (!points || state.customElements.some((e) => e.id === action.id)) return state;
+      const label = action.label && /^[A-Za-z]{1,40}$/.test(action.label) ? action.label : "Stroke";
+      const element = newStroke(state.customElements, action.id, points, action.closed === true, label);
+      if (!validElement(element)) return state; // e.g. a closed shape with fewer than three points
       return {
         ...state,
-        customElements: [...state.customElements, newStroke(state.customElements, action.id, points)],
+        customElements: [...state.customElements, element],
         past: [...state.past, snapshotOf(state)].slice(-MAX_HISTORY),
         future: [],
         openKey: null,
@@ -359,6 +372,20 @@ export function specReducer(state: SpecState, action: SpecAction): SpecState {
       }
       if (state.customElements.length + action.elements.length > MAX_ELEMENTS) return state;
       return commitElements(state, [...state.customElements, ...action.elements], null);
+    }
+
+    case "erase": {
+      if (!state.spec) return state;
+      const next = erase(state.customElements, action.path, action.mode, action.newId);
+      if (next === state.customElements) return state;
+      // A split can only add elements; all or nothing, like every other drawing change.
+      const ids = new Set<string>();
+      for (const e of next) {
+        if (!validElement(e) || ids.has(e.id)) return state;
+        ids.add(e.id);
+      }
+      if (next.length > MAX_ELEMENTS && next.length > state.customElements.length) return state;
+      return commitElements(state, next, action.coalesce);
     }
 
     case "commit":

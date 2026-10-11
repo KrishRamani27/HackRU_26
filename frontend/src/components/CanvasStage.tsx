@@ -7,7 +7,11 @@ import { partLabel, type GarmentKind } from "../state/specSchema";
 import type { Point } from "../draw/strokes";
 import { expandGroups } from "../draw/groups";
 import { DrawLayer } from "./DrawLayer";
-import { AlertIcon, CheckIcon, CursorIcon, FitIcon, PenIcon, UploadIcon, ZoomInIcon, ZoomOutIcon } from "./Icons";
+import { DrawTools } from "./DrawTools";
+import { shapeLabel, type ShapeKind } from "../draw/shapes";
+import type { EraserMode } from "../draw/eraser";
+import { isTyping } from "../hooks/useUndoShortcuts";
+import { AlertIcon, CheckIcon, FitIcon, UploadIcon, ZoomInIcon, ZoomOutIcon } from "./Icons";
 import { InlineFlat } from "./InlineFlat";
 import { SelectionBox } from "./SelectionBox";
 import { SamplesMenu } from "./SamplesMenu";
@@ -38,46 +42,76 @@ interface Props {
   hiddenParts: readonly PartName[];
   /** The (locked) garment type, for part names. */
   garment: GarmentKind;
-  /** The active tool. With the pen, dragging on the flat draws a freehand stroke. */
+  /** The active tool. With pen, line or shapes, dragging on the flat draws; with the eraser it erases drawings. */
   tool: CanvasTool;
   onToolChange: (tool: CanvasTool) => void;
   /** False once the design holds as many drawn elements as the contract allows. */
   canDraw: boolean;
-  /** A finished stroke, in 400 by 600 canvas units. */
-  onStroke: (points: Point[]) => void;
+  /** A finished stroke, line or shape, in 400 by 600 canvas units. */
+  onDraw: (points: Point[], closed: boolean, label: string) => void;
+  /** One stretch of an eraser drag (canvas units); `drag` is the same for the whole drag. */
+  onErase: (path: Point[], mode: EraserMode, drag: string) => void;
   /** Extra controls shown at the start of the toolbar (used by the optional try-on pill). */
   toolbarExtra?: ReactNode;
 }
 
-export type CanvasTool = "select" | "pen";
+export type CanvasTool = "select" | "pen" | "line" | "shapes" | "eraser";
+
+/** Single key shortcuts for the tools. */
+const TOOL_KEYS: Record<string, CanvasTool> = { v: "select", p: "pen", l: "line", s: "shapes", e: "eraser" };
+
+const TOOL_STATUS: Record<Exclude<CanvasTool, "select">, (shape: ShapeKind, eraser: EraserMode) => string> = {
+  pen: () => "Pen · drag to draw · Esc to stop",
+  line: () => "Line · drag to draw · Shift snaps to 45° · Esc to stop",
+  shapes: (shape) => `${shapeLabel(shape)} · drag to draw · Shift keeps proportions · Esc to stop`,
+  eraser: (_, mode) => `Eraser (${mode === "partial" ? "partial" : "whole drawings"}) · drag over drawings · Esc to stop`,
+};
 
 const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
 const FIT_INDEX = 2;
 const SAMPLE_LABEL = "Sample preview—not generated from a sketch";
 const MOCK_LABEL = "Demo result (mock AI)—not real sketch recognition";
 
-export function CanvasStage({ state, hasSketch, onChooseSample, onHideSample, onUpload, onRetry, selectedPart, onSelectPart, elements, selectedElements, onSelectElements, onMoveElements, onMoveEnd, onTransformElements, hiddenParts, garment, tool, onToolChange, canDraw, onStroke, toolbarExtra }: Props) {
+export function CanvasStage({ state, hasSketch, onChooseSample, onHideSample, onUpload, onRetry, selectedPart, onSelectPart, elements, selectedElements, onSelectElements, onMoveElements, onMoveEnd, onTransformElements, hiddenParts, garment, tool, onToolChange, canDraw, onDraw, onErase, toolbarExtra }: Props) {
   const [zoomIndex, setZoomIndex] = useState(FIT_INDEX);
+  // Which shape the shapes tool draws, and how the eraser works. Kept between uses of the tools.
+  const [shape, setShape] = useState<ShapeKind>("rectangle");
+  const [eraserMode, setEraserMode] = useState<EraserMode>("whole");
   const sampling = state.status === "ready" && state.source === "sample";
   const hasArt = state.status === "ready";
   const zoom = hasArt ? ZOOM_STEPS[zoomIndex] : 1;
 
   useEffect(() => setZoomIndex(FIT_INDEX), [hasArt]);
 
-  // Escape leaves the pen tool first; with the select tool it deselects the part. Ignored while
-  // typing, so it can't interfere with the notes field.
+  // Escape leaves a drawing tool first (back to select); with the select tool it deselects the part.
+  // Ignored while typing, so it can't interfere with the notes field.
   useEffect(() => {
-    if (tool !== "pen" && !selectedPart && selectedElements.length === 0) return;
+    if (tool === "select" && !selectedPart && selectedElements.length === 0) return;
     const onKey = (e: KeyboardEvent) => {
       // defaultPrevented: another control (e.g. the Export menu) already used this Escape.
       if (e.key !== "Escape" || e.defaultPrevented || e.target instanceof HTMLTextAreaElement) return;
-      if (tool === "pen") onToolChange("select");
+      if (tool !== "select") onToolChange("select");
       else if (selectedPart) onSelectPart(null);
       else onSelectElements([]);
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [tool, selectedPart, selectedElements, onSelectPart, onSelectElements, onToolChange]);
+
+  // V select, P pen, L line, S shapes, E eraser. Never while typing, and never with Ctrl, Cmd or Alt
+  // (so Ctrl+V and friends keep working).
+  useEffect(() => {
+    if (!hasArt) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented || isTyping(e.target)) return;
+      const next = TOOL_KEYS[e.key.toLowerCase()];
+      if (!next || (!canDraw && next !== "select" && next !== "eraser")) return;
+      e.preventDefault();
+      onToolChange(next);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [hasArt, canDraw, onToolChange]);
 
   // Dragging a box on empty canvas selects every drawn element inside it (Shift adds to the selection).
   // It only starts once the pointer has really moved, so a plain click still reaches the dress part or
@@ -155,30 +189,16 @@ export function CanvasStage({ state, hasSketch, onChooseSample, onHideSample, on
               Hide sample
             </button>
           )}
-          <div className="tools" role="group" aria-label="Tools">
-            <button
-              type="button"
-              className="icon-btn tool-btn"
-              aria-label="Select tool"
-              aria-pressed={tool === "select"}
-              title="Select: click a part of the dress"
-              disabled={!hasArt}
-              onClick={() => onToolChange("select")}
-            >
-              <CursorIcon />
-            </button>
-            <button
-              type="button"
-              className="icon-btn tool-btn"
-              aria-label="Pen tool"
-              aria-pressed={tool === "pen"}
-              title={canDraw ? "Pen: drag on the flat to draw (Esc to stop)" : "The drawing limit (200 strokes) is reached"}
-              disabled={!hasArt || !canDraw}
-              onClick={() => onToolChange("pen")}
-            >
-              <PenIcon />
-            </button>
-          </div>
+          <DrawTools
+            tool={tool}
+            onToolChange={onToolChange}
+            shape={shape}
+            onShapeChange={setShape}
+            eraserMode={eraserMode}
+            onEraserModeChange={setEraserMode}
+            enabled={hasArt}
+            canDraw={canDraw}
+          />
           <div className="zoom" role="group" aria-label="Zoom">
             <button
               type="button"
@@ -268,10 +288,18 @@ export function CanvasStage({ state, hasSketch, onChooseSample, onHideSample, on
                 onTransformEnd={onMoveEnd}
               />
             )}
-            {tool === "pen" && <DrawLayer onStroke={onStroke} />}
+            {tool !== "select" && (
+              <DrawLayer
+                mode={tool}
+                shape={shape}
+                onDraw={onDraw}
+                onErase={(path, drag) => onErase(path, eraserMode, drag)}
+                onEraseEnd={onMoveEnd}
+              />
+            )}
             </div>
-            {tool === "pen" ? (
-              <span className="sheet__selected" role="status">Pen · drag to draw · Esc to stop</span>
+            {tool !== "select" ? (
+              <span className="sheet__selected" role="status">{TOOL_STATUS[tool](shape, eraserMode)}</span>
             ) : (
               (selectedPart || selectedElements.length > 0) && (
                 <span className="sheet__selected" role="status">

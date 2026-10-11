@@ -29,6 +29,7 @@ import { validElement, type ElementPatch } from "./state/specReducer";
 import type { CustomElement } from "../../Builder/buildFlat";
 import type { SavedDrawing } from "./api/customParts";
 import { cloneElements, instantiateDrawing } from "./draw/drawings";
+import type { EraserMode } from "./draw/eraser";
 import { initialSpecState, specReducer } from "./state/specReducer";
 import { FOLLOWER_PARTS, garmentOf, type EditAction } from "./state/specSchema";
 import type { AiMode, AnalysisStatus, CanvasState } from "./types";
@@ -162,10 +163,20 @@ export default function App() {
     [design.spec, design.customElements, file.name],
   );
 
-  // The pen tool. Only usable while a flat is on the canvas; a new design starts back on Select.
+  // The drawing tools (pen, line, shapes, eraser). Only usable while a flat is on the canvas; a new
+  // design starts back on Select.
   const [tool, setTool] = useState<CanvasTool>("select");
   useEffect(() => setTool("select"), [canvas.status, design.meta]);
-  const drawStroke = useCallback((points: Point[]) => dispatch({ type: "draw", id: newElementId(), points }), []);
+  const drawElement = useCallback(
+    (points: Point[], closed: boolean, label: string) => dispatch({ type: "draw", id: newElementId(), points, closed, label }),
+    [],
+  );
+  // Each stretch of an eraser drag erases as it goes; the drag key makes the whole drag one undo step.
+  const eraseAlong = useCallback(
+    (path: Point[], mode: EraserMode, drag: string) =>
+      dispatch({ type: "erase", path, mode, newId: newElementId, coalesce: `erase:${drag}` }),
+    [],
+  );
 
   // Changing, moving and deleting hand drawn elements. A drag or a stretch of typing is one undo step.
   const updateElement = useCallback(
@@ -456,7 +467,8 @@ export default function App() {
             tool={canvas.status === "ready" ? tool : "select"}
             onToolChange={setTool}
             canDraw={design.customElements.length < MAX_ELEMENTS}
-            onStroke={drawStroke}
+            onDraw={drawElement}
+            onErase={eraseAlong}
             toolbarExtra={
               <>
                 {/* TEMPLATES */}
