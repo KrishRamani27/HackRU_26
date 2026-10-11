@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ChangeEvent } from "react";
-import type { PartName } from "../../Builder/types";
+import type { DesignSpec, PartName } from "../../Builder/types";
 import { buildFlat } from "../../Builder/buildFlat";
 import { mockSpec } from "../../Builder/mockSpec";
 import { MAX_ELEMENTS, newElementId, type Point } from "./draw/strokes";
@@ -33,6 +33,7 @@ import { initialSpecState, specReducer } from "./state/specReducer";
 import { FOLLOWER_PARTS, type EditAction } from "./state/specSchema";
 import type { AiMode, AnalysisStatus, CanvasState } from "./types";
 import { TryOnControls, useTryOn } from "./tryon"; // TRY-ON (optional feature, see src/tryon/README.md)
+import { TemplatesButton } from "./templates"; // TEMPLATES (starter designs, see src/templates/README.md)
 
 /**
  * Dev-only: preview canvas states with ?canvas=loading or ?canvas=error.
@@ -324,6 +325,8 @@ export default function App() {
     [],
   );
   const hideSample = useCallback(() => dispatch({ type: "clear", source: "sample" }), []);
+  // TEMPLATES: a starter design opens the same way the sample does.
+  const openTemplate = useCallback((spec: DesignSpec) => dispatch({ type: "load", spec, meta: { source: "sample" } }), []);
 
   // Anything that would replace the design on the canvas (a new sketch, the sample, removing the sketch) asks
   // first when there are unsaved changes, the same as Open does. "Keep editing" changes nothing.
@@ -433,7 +436,14 @@ export default function App() {
             onToolChange={setTool}
             canDraw={design.customElements.length < MAX_ELEMENTS}
             onStroke={drawStroke}
-            toolbarExtra={<TryOnControls tryOn={tryOn} shoulderWidth={design.spec?.proportions.shoulder_width} disabled={canvas.status !== "ready"} />} // TRY-ON
+            toolbarExtra={
+              <>
+                {/* TEMPLATES */}
+                <TemplatesButton onPick={(spec) => confirmReplace("Opening a template", () => openTemplate(spec))} />
+                {/* TRY-ON */}
+                <TryOnControls tryOn={tryOn} shoulderWidth={design.spec?.proportions.shoulder_width} disabled={canvas.status !== "ready"} />
+              </>
+            }
           />
           </ErrorBoundary>
           <ErrorBoundary resetKey={design.spec} fallback={(reset, error) => <PanelCrash error={error} onRetry={reset} />}>
