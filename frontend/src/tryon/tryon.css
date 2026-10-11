@@ -1,0 +1,58 @@
+/* Try it on: the toolbar pill, and the figure inside the canvas. Uses the app's own tokens. */
+
+.tryon-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 12px 0 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+.tryon-pill:hover:not(:disabled) {
+  border-color: var(--accent-line);
+  background: #fff;
+  box-shadow: 0 4px 14px -8px rgb(34 29 25 / 0.45);
+  transform: translateY(-1px);
+}
+.tryon-pill:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
+.tryon-pill:focus-visible { outline: none; box-shadow: var(--focus); }
+.tryon-pill:disabled { color: var(--ink-3, #9a9085); border-style: dashed; cursor: not-allowed; }
+
+.tryon-pill__icon { flex: none; color: var(--accent); transition: color 160ms ease; }
+.tryon-pill:disabled .tryon-pill__icon { color: currentColor; }
+
+/* The dot is the on/off light: hollow when off, filled when the figure is showing. */
+.tryon-pill__dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-left: 1px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 50%;
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.tryon-pill[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.tryon-pill[aria-pressed="true"]:hover:not(:disabled) { border-color: var(--accent-hover); background: var(--accent-hover); }
+.tryon-pill[aria-pressed="true"] .tryon-pill__icon { color: #fff; }
+.tryon-pill[aria-pressed="true"] .tryon-pill__dot {
+  border-color: #fff;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgb(255 255 255 / 0.25);
+}
+
+/* The figure is scenery: clicks go through it to the canvas, never to a dress part. */
+.flat-inline #mannequin { pointer-events: none; }

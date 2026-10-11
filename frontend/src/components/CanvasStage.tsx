@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { PartName } from "../../../Builder/types";
 import type { CustomElement } from "../../../Builder/buildFlat";
@@ -35,6 +35,8 @@ interface Props {
   canDraw: boolean;
   /** A finished stroke, in 400 by 600 canvas units. */
   onStroke: (points: Point[]) => void;
+  /** Extra controls shown at the start of the toolbar (used by the optional try-on pill). */
+  toolbarExtra?: ReactNode;
 }
 
 export type CanvasTool = "select" | "pen";
@@ -44,7 +46,7 @@ const FIT_INDEX = 2;
 const SAMPLE_LABEL = "Sample preview—not generated from a sketch";
 const MOCK_LABEL = "Demo result (mock AI)—not real sketch recognition";
 
-export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUpload, onRetry, selectedPart, onSelectPart, elements, selectedElements, onSelectElements, onMoveElements, onMoveEnd, tool, onToolChange, canDraw, onStroke }: Props) {
+export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUpload, onRetry, selectedPart, onSelectPart, elements, selectedElements, onSelectElements, onMoveElements, onMoveEnd, tool, onToolChange, canDraw, onStroke, toolbarExtra }: Props) {
   const [zoomIndex, setZoomIndex] = useState(FIT_INDEX);
   const sampling = state.status === "ready" && state.source === "sample";
   const hasArt = state.status === "ready";
@@ -135,6 +137,7 @@ export function CanvasStage({ state, hasSketch, onShowSample, onHideSample, onUp
           <span className={`chip chip--${context.tone}`}>{context.label}</span>
         </div>
         <div className="stage__tools">
+          {toolbarExtra}
           {sampling && (
             <button type="button" className="btn btn--ghost btn--sm stage__hide" onClick={onHideSample}>
               Hide sample
