@@ -169,7 +169,7 @@ function skirtShape(spec: DesignSpec, g: Layout) {
       ? pt(CX + hemHalf, g.waistY + 40) // bulges to hip width fast, then straight down
       : sil === "a_line"
         ? pt(CX + (g.waistHalf + hemHalf) / 2 + 4, g.waistY + len / 2) // nearly straight diagonal
-        : pt(CX + g.waistHalf + 10, g.waistY + 0.55 * len); // stays narrow, then flares out
+        : pt(CX + g.waistHalf + 0.62 * (hemHalf - g.waistHalf), g.waistY + 0.3 * len); // bell: full from the waist down
 
   const hemDip = sil === "straight" ? 0 : sil === "a_line" ? 8 : 18; // curved hem for wider skirts
   return { hemR, sideCtrlR, hemDip, hemHalf, len };
@@ -189,7 +189,7 @@ function skirt(spec: DesignSpec, g: Layout, fill: string) {
   // Flared skirts get fold lines so the volume reads on a flat drawing.
   if (spec.skirt.silhouette === "flared") {
     for (const f of [0.25, 0.6]) {
-      const top = pt(CX + g.waistHalf * f, g.waistY + 0.35 * len);
+      const top = pt(CX + g.waistHalf * f, g.waistY + 0.14 * len); // folds start near the waist, like gathers
       const bottom = pt(CX + hemHalf * f, g.hemY + (hemDip * (1 - f * f)) / 2); // lands exactly on the curved hem
       parts.push(`<path d="M ${s(top)} L ${s(bottom)}" ${DETAIL}/>`);
       parts.push(`<path d="M ${s(mirror(top))} L ${s(mirror(bottom))}" ${DETAIL}/>`);
