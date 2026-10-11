@@ -1,0 +1,76 @@
+{
+  "model": "gemini-3.8-flash",
+  "prompt_version": "v10-detailed",
+  "garment_type": "dress",
+  "neckline": {
+    "type": "crew",
+    "depth": 0.05
+  },
+  "collar": {
+    "type": "shirt"
+  },
+  "sleeves": {
+    "type": "fitted",
+    "length": "long",
+    "cuff": "band",
+    "shoulder": "puff_top"
+  },
+  "waist": {
+    "seam": true,
+    "style": "natural"
+  },
+  "skirt": {
+    "silhouette": "a_line",
+    "length": "midi",
+    "fullness": "plain",
+    "hem": "plain",
+    "panels": "front_seam"
+  },
+  "details": {
+    "pockets": "none",
+    "buttons": 8,
+    "placket": "bodice",
+    "darts": false,
+    "bow": "none",
+    "trim": "none"
+  },
+  "proportions": {
+    "shoulder_width": 0.5,
+    "waist_y": 0.5
+  },
+  "style": {
+    "collar_neckline": {
+      "fill": "#5c3c26",
+      "pattern": "solid"
+    },
+    "bodice": {
+      "fill": "#5c3c26",
+      "pattern": "solid"
+    },
+    "left_sleeve": {
+      "fill": "#5c3c26",
+      "pattern": "solid"
+    },
+    "right_sleeve": {
+      "fill": "#5c3c26",
+      "pattern": "solid"
+    },
+    "waist_seam": {
+      "fill": "#5c3c26",
+      "pattern": "solid"
+    },
+    "skirt": {
+      "fill": "#5c3c26",
+      "pattern": "solid"
+    },
+    "pockets": {
+      "fill": "#5c3c26",
+      "pattern": "solid"
+    },
+    "buttons": {
+      "fill": "#5c3c26",
+      "pattern": "solid"
+    }
+  },
+  "notes": "Solid chocolate brown shirt dress with stud embellishments on the collar tips and wide cuffs, puff sleeve tops, front bodice button placket, and a center front skirt seam."
+}
