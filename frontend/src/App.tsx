@@ -17,7 +17,9 @@ import { useAnalysis } from "./hooks/useAnalysis";
 import { useLibrary } from "./hooks/useLibrary";
 import { describeError } from "./api/parts";
 import { buildSavedPart, editsFor, type SavedPart } from "./library/libraryModel";
-import { useUndoShortcuts } from "./hooks/useUndoShortcuts";
+import { isTyping, useUndoShortcuts } from "./hooks/useUndoShortcuts";
+import { ElementPanel } from "./components/ElementPanel";
+import type { ElementPatch } from "./state/specReducer";
 import { initialSpecState, specReducer } from "./state/specReducer";
 import { FOLLOWER_PARTS, type EditAction } from "./state/specSchema";
 import type { AiMode, AnalysisStatus, CanvasState } from "./types";
@@ -97,11 +99,25 @@ export default function App() {
   // The nonce changes on every click so re-clicking a part re-highlights its section.
   const [selection, setSelection] = useState<{ part: PartName; nonce: number } | null>(null);
   const nonce = useRef(0);
+  // A hand drawn element can be selected instead of a dress part, never both at once.
+  const [selectedElement, setSelectedElement] = useState<string | null>(null);
   const selectPart = useCallback((part: PartName | null) => {
     setSelection(part ? { part, nonce: ++nonce.current } : null);
+    if (part) setSelectedElement(null);
+  }, []);
+  const selectElement = useCallback((id: string | null) => {
+    setSelectedElement(id);
+    if (id) setSelection(null);
   }, []);
   // A different design (new analysis, sample opened or closed) starts with nothing selected.
-  useEffect(() => setSelection(null), [design.meta]);
+  useEffect(() => {
+    setSelection(null);
+    setSelectedElement(null);
+  }, [design.meta]);
+  // The selected drawing is gone (deleted, or its stroke was undone): nothing is selected any more.
+  useEffect(() => {
+    if (selectedElement && !design.customElements.some((e) => e.id === selectedElement)) setSelectedElement(null);
+  }, [design.customElements, selectedElement]);
 
   // Export uses a fresh buildFlat string for the current spec, never the on-screen SVG,
   // so selection and hover styling cannot get into the file.
@@ -117,6 +133,30 @@ export default function App() {
   const [tool, setTool] = useState<CanvasTool>("select");
   useEffect(() => setTool("select"), [canvas.status, design.meta]);
   const drawStroke = useCallback((points: Point[]) => dispatch({ type: "draw", id: newElementId(), points }), []);
+
+  // Changing, moving and deleting hand drawn elements. A drag or a stretch of typing is one undo step.
+  const updateElement = useCallback(
+    (id: string, patch: ElementPatch, coalesce?: string) => dispatch({ type: "update", id, patch, coalesce }),
+    [],
+  );
+  const moveElement = useCallback(
+    (id: string, x: number, y: number) =>
+      dispatch({ type: "update", id, patch: { transform: { x, y } }, coalesce: `element:${id}:move` }),
+    [],
+  );
+  const deleteElement = useCallback((id: string) => dispatch({ type: "delete", id }), []);
+
+  // Delete or Backspace removes the selected drawing, but never while typing in a text box.
+  useEffect(() => {
+    if (!selectedElement || canvas.status !== "ready") return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.key !== "Delete" && e.key !== "Backspace") || e.ctrlKey || e.metaKey || e.altKey || isTyping(e.target)) return;
+      e.preventDefault();
+      dispatch({ type: "delete", id: selectedElement });
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [selectedElement, canvas.status]);
 
   const applyEdit = useCallback(
     (action: EditAction, coalesce?: string) => dispatch({ type: "apply", actions: [action], coalesce }),
@@ -147,6 +187,7 @@ export default function App() {
     [library.remove],
   );
 
+  const selectedElementData = selectedElement ? design.customElements.find((e) => e.id === selectedElement) ?? null : null;
   const matchBodice = useCallback((part: PartName) => dispatch({ type: "follow", part }), []);
   const commitEdit = useCallback(() => dispatch({ type: "commit" }), []);
 
@@ -229,6 +270,11 @@ export default function App() {
             onRetry={analysis.retry}
             selectedPart={canvas.status === "ready" ? (selection?.part ?? null) : null}
             onSelectPart={selectPart}
+            elements={design.customElements}
+            selectedElement={canvas.status === "ready" ? selectedElement : null}
+            onSelectElement={selectElement}
+            onMoveElement={moveElement}
+            onMoveEnd={commitEdit}
             tool={canvas.status === "ready" ? tool : "select"}
             onToolChange={setTool}
             canDraw={design.customElements.length < MAX_ELEMENTS}
@@ -236,6 +282,14 @@ export default function App() {
           />
           </ErrorBoundary>
           <ErrorBoundary resetKey={design.spec} fallback={(reset, error) => <PanelCrash error={error} onRetry={reset} />}>
+          {canvas.status === "ready" && selectedElementData ? (
+            <ElementPanel
+              element={selectedElementData}
+              onUpdate={(patch, coalesce) => updateElement(selectedElementData.id, patch, coalesce)}
+              onCommit={commitEdit}
+              onDelete={() => deleteElement(selectedElementData.id)}
+            />
+          ) : (
           <PropertiesPanel
             spec={canvas.status === "ready" ? design.spec : null}
             canvasStatus={canvas.status}
@@ -247,6 +301,7 @@ export default function App() {
             onOpenLibrary={() => setLeftTab("library")}
             onMatchBodice={matchBodice}
           />
+          )}
           </ErrorBoundary>
         </div>
       </div>

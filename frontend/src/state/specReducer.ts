@@ -45,6 +45,11 @@ export interface SpecState {
   openKey: string | null;
 }
 
+/** What can change on a drawn element. The id, type, points and layer order are not editable here. */
+export type ElementPatch = Partial<Pick<CustomElement, "name" | "stroke" | "stroke_width" | "closed" | "fill" | "pattern">> & {
+  transform?: Partial<CustomElement["transform"]>;
+};
+
 export type SpecAction =
   /** Replace the whole spec (new /analyze result, or the sample). Starts a fresh history. */
   | { type: "load"; spec: DesignSpec; meta: SpecSource }
@@ -60,6 +65,14 @@ export type SpecAction =
   | { type: "redo" }
   /** Adds a freehand stroke (already simplified points in 400 by 600 canvas units). One undo step. */
   | { type: "draw"; id: string; points: Point[] }
+  /**
+   * Changes a drawn element (name, colors, width, closed, fill, pattern, or its move). Checked against
+   * the contract; an invalid change is ignored. `coalesce` merges a stream of changes (a slider or a
+   * drag) into one undo step until `commit`.
+   */
+  | { type: "update"; id: string; patch: ElementPatch; coalesce?: string }
+  /** Removes a drawn element. One undo step. */
+  | { type: "delete"; id: string }
   /** Makes a collar or waistband that has its own style follow the bodice again. One undo step. */
   | { type: "follow"; part: PartName }
   /** Drop the spec and its history. With `source`, only if it came from that source. */
@@ -153,6 +166,39 @@ function followBodice(spec: DesignSpec, detached: PartName[]): DesignSpec {
   return changed ? { ...spec, style } : spec;
 }
 
+const EDITABLE = ["name", "stroke", "stroke_width", "closed", "fill", "pattern"] as const;
+const HEX = /^#[0-9a-fA-F]{6}$/;
+const FABRICS = ["solid", "denim", "plaid", "floral"];
+const within = (n: unknown, lo: number, hi: number) => typeof n === "number" && Number.isFinite(n) && n >= lo && n <= hi;
+
+/** The contract's rules for one element (backend/app/custom_schemas.py). */
+function validElement(el: CustomElement): boolean {
+  const t = el.transform;
+  return (
+    typeof el.name === "string" && el.name.trim().length >= 1 && el.name.length <= 120 &&
+    HEX.test(el.stroke) &&
+    within(el.stroke_width, 0, 100) && el.stroke_width > 0 &&
+    (!el.closed || el.points.length >= 3) && // a closed shape needs at least three points
+    (el.fill === null || (el.closed && HEX.test(el.fill))) && // only closed shapes can be filled
+    FABRICS.includes(el.pattern) && (el.pattern === "solid" || el.fill !== null) && // a pattern needs a fill
+    within(t.x, -COORD_LIMIT, COORD_LIMIT) && within(t.y, -COORD_LIMIT, COORD_LIMIT) &&
+    within(t.scale_x, 0, 100) && t.scale_x > 0 && within(t.scale_y, 0, 100) && t.scale_y > 0 &&
+    within(t.rotation, -360, 360)
+  );
+}
+
+/** Applies a patch, or returns null if the result would break the contract. */
+function patchElement(el: CustomElement, patch: ElementPatch): CustomElement | null {
+  // Only these fields can change. The id, type, points and layer order stay as they are, even if a
+  // caller passes them, so an element's identity can never be rewritten by an edit.
+  const next: CustomElement = { ...el, transform: { ...el.transform, ...patch.transform } };
+  for (const field of EDITABLE) if (patch[field] !== undefined) (next as unknown as Record<string, unknown>)[field] = patch[field];
+  // An open line can't hold a fill; removing a fill leaves nothing for a pattern to sit on.
+  if (patch.closed === false) { next.fill = null; next.pattern = "solid"; }
+  if (patch.fill === null) next.pattern = "solid";
+  return validElement(next) ? next : null;
+}
+
 export function specReducer(state: SpecState, action: SpecAction): SpecState {
   switch (action.type) {
     case "load": {
@@ -192,6 +238,41 @@ export function specReducer(state: SpecState, action: SpecAction): SpecState {
       return {
         ...state,
         customElements: [...state.customElements, newStroke(state.customElements, action.id, points)],
+        past: [...state.past, snapshotOf(state)].slice(-MAX_HISTORY),
+        future: [],
+        openKey: null,
+      };
+    }
+
+    case "update": {
+      if (!state.spec) return state;
+      const index = state.customElements.findIndex((e) => e.id === action.id);
+      if (index < 0) return state;
+      const before = state.customElements[index];
+      const after = patchElement(before, action.patch);
+      if (!after) {
+        console.warn("Ignored invalid change to a drawn element", action.patch);
+        return state;
+      }
+      if (JSON.stringify(after) === JSON.stringify(before)) return state;
+      const customElements = state.customElements.map((e, i) => (i === index ? after : e));
+      const key = action.coalesce ?? null;
+      // Same drag or typing still going: keep the undo step that was already started.
+      if (key !== null && key === state.openKey) return { ...state, customElements };
+      return {
+        ...state,
+        customElements,
+        past: [...state.past, snapshotOf(state)].slice(-MAX_HISTORY),
+        future: [],
+        openKey: key,
+      };
+    }
+
+    case "delete": {
+      if (!state.spec || !state.customElements.some((e) => e.id === action.id)) return state;
+      return {
+        ...state,
+        customElements: state.customElements.filter((e) => e.id !== action.id),
         past: [...state.past, snapshotOf(state)].slice(-MAX_HISTORY),
         future: [],
         openKey: null,

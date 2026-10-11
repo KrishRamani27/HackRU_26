@@ -1052,3 +1052,14 @@ img { display: block; max-width: 100%; }
   background: var(--paper);
 }
 .tool-btn[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-hover); }
+
+/* Hand drawn elements: same soft outline as dress parts on hover, stronger when selected. */
+.flat-inline [data-element] { cursor: pointer; outline: none; }
+.flat-inline [data-element][data-selected] { cursor: move; }
+.flat-inline [data-element]:hover {
+  filter: drop-shadow(0 0 1.5px rgb(156 65 39 / 0.8)) drop-shadow(0 0 5px rgb(156 65 39 / 0.35));
+}
+.flat-inline [data-element][data-selected],
+.flat-inline [data-element]:focus-visible {
+  filter: drop-shadow(0 0 1.5px var(--accent)) drop-shadow(0 0 1.5px var(--accent)) drop-shadow(0 0 6px rgb(156 65 39 / 0.5));
+}

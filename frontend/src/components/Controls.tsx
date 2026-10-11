@@ -17,6 +17,8 @@ export function Section({ name, title, children }: { name: string; title: string
 interface ChipOption<T> {
   value: T;
   label: string;
+  /** Disables just this chip (the whole group can also be disabled). */
+  disabled?: boolean;
 }
 
 interface ChipGroupProps<T extends string | boolean> {
@@ -47,7 +49,7 @@ export function ChipGroup<T extends string | boolean>({
             type="button"
             className="chip-btn"
             aria-pressed={o.value === value}
-            disabled={disabled}
+            disabled={disabled || o.disabled}
             onClick={() => onChange(o.value)}
           >
             {o.label}
