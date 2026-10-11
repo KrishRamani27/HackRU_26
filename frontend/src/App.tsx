@@ -18,6 +18,7 @@ import { useLibrary } from "./hooks/useLibrary";
 import { describeError } from "./api/parts";
 import { useDesignFile } from "./hooks/useDesignFile";
 import { OpenDialog } from "./components/OpenDialog";
+import { ReplaceDialog } from "./components/ReplaceDialog";
 import { buildSavedPart, editsFor, type SavedPart } from "./library/libraryModel";
 import { isTyping, useUndoShortcuts } from "./hooks/useUndoShortcuts";
 import { ElementPanel } from "./components/ElementPanel";
@@ -319,13 +320,23 @@ export default function App() {
   );
   const hideSample = useCallback(() => dispatch({ type: "clear", source: "sample" }), []);
 
+  // Anything that would replace the design on the canvas (a new sketch, the sample, removing the sketch) asks
+  // first when there are unsaved changes, the same as Open does. "Keep editing" changes nothing.
+  const [replacing, setReplacing] = useState<{ what: string; run: () => void } | null>(null);
+  const confirmReplace = (what: string, run: () => void) => {
+    if (canvas.status === "ready" && file.dirty) setReplacing({ what, run });
+    else run();
+  };
+  const acceptSketch = (picked: File) =>
+    confirmReplace("Uploading this sketch", () => {
+      setLeftTab("sketch");
+      void sketch.accept(picked);
+    });
+
   const browse = () => inputRef.current?.click();
   const onInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setLeftTab("sketch");
-      void sketch.accept(file);
-    }
+    const picked = e.target.files?.[0];
+    if (picked) acceptSketch(picked);
     e.target.value = "";
   };
 
@@ -379,8 +390,8 @@ export default function App() {
               <UploadPanel
                 state={sketch.state}
                 onBrowse={browse}
-                onFile={(f) => void sketch.accept(f)}
-                onClear={sketch.clear}
+                onFile={acceptSketch}
+                onClear={() => confirmReplace("Removing the sketch", sketch.clear)}
               />
             ) : (
               <LibraryPanel
@@ -400,8 +411,8 @@ export default function App() {
           <CanvasStage
             state={canvas}
             hasSketch={sketch.state.status === "ready"}
-            onShowSample={showSample}
-            onHideSample={hideSample}
+            onShowSample={() => confirmReplace("Opening the sample", showSample)}
+            onHideSample={() => confirmReplace("Hiding the sample", hideSample)}
             onUpload={browse}
             onRetry={analysis.retry}
             selectedPart={canvas.status === "ready" ? (selection?.part ?? null) : null}
@@ -459,6 +470,17 @@ export default function App() {
           </ErrorBoundary>
         </div>
       </div>
+      {replacing && (
+        <ReplaceDialog
+          what={replacing.what}
+          onKeep={() => setReplacing(null)}
+          onReplace={() => {
+            const { run } = replacing;
+            setReplacing(null);
+            run();
+          }}
+        />
+      )}
       {openingDesign && (
         <OpenDialog dirty={file.dirty} onClose={() => setOpeningDesign(false)} onOpen={file.openSaved} />
       )}
