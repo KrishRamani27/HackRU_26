@@ -1,0 +1,76 @@
+{
+  "model": "gemini-3.6-flash",
+  "prompt_version": "v10-detailed",
+  "garment_type": "dress",
+  "neckline": {
+    "type": "sweetheart",
+    "depth": 0.3
+  },
+  "collar": {
+    "type": "none"
+  },
+  "sleeves": {
+    "type": "puff",
+    "length": "short",
+    "cuff": "band",
+    "shoulder": "off_shoulder"
+  },
+  "waist": {
+    "seam": true,
+    "style": "natural"
+  },
+  "skirt": {
+    "silhouette": "a_line",
+    "length": "knee",
+    "fullness": "pleated",
+    "hem": "plain",
+    "panels": "none"
+  },
+  "details": {
+    "pockets": "none",
+    "buttons": 4,
+    "placket": "full",
+    "darts": false,
+    "bow": "none",
+    "trim": "none"
+  },
+  "proportions": {
+    "shoulder_width": 0.5,
+    "waist_y": 0.5
+  },
+  "style": {
+    "collar_neckline": {
+      "fill": "#111115",
+      "pattern": "solid"
+    },
+    "bodice": {
+      "fill": "#eef1f2",
+      "pattern": "solid"
+    },
+    "left_sleeve": {
+      "fill": "#eef1f2",
+      "pattern": "solid"
+    },
+    "right_sleeve": {
+      "fill": "#eef1f2",
+      "pattern": "solid"
+    },
+    "waist_seam": {
+      "fill": "#eef1f2",
+      "pattern": "solid"
+    },
+    "skirt": {
+      "fill": "#eef1f2",
+      "pattern": "solid"
+    },
+    "pockets": {
+      "fill": "#eef1f2",
+      "pattern": "solid"
+    },
+    "buttons": {
+      "fill": "#111115",
+      "pattern": "solid"
+    }
+  },
+  "notes": "The dress features a white/light grey pleated main body with puff off-shoulder sleeves and a black high-neck collar/yoke layer underneath."
+}

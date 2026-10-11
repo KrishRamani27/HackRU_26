@@ -1,0 +1,76 @@
+{
+  "model": "gemini-3.6-flash",
+  "prompt_version": "v10-detailed",
+  "garment_type": "dress",
+  "neckline": {
+    "type": "sweetheart",
+    "depth": 0.4
+  },
+  "collar": {
+    "type": "none"
+  },
+  "sleeves": {
+    "type": "none",
+    "length": "short",
+    "cuff": "none",
+    "shoulder": "set_in"
+  },
+  "waist": {
+    "seam": true,
+    "style": "natural"
+  },
+  "skirt": {
+    "silhouette": "a_line",
+    "length": "floor",
+    "fullness": "plain",
+    "hem": "slit",
+    "panels": "none"
+  },
+  "details": {
+    "pockets": "none",
+    "buttons": 0,
+    "placket": "none",
+    "darts": false,
+    "bow": "none",
+    "trim": "none"
+  },
+  "proportions": {
+    "shoulder_width": 0.5,
+    "waist_y": 0.5
+  },
+  "style": {
+    "collar_neckline": {
+      "fill": "#1a1a1a",
+      "pattern": "solid"
+    },
+    "bodice": {
+      "fill": "#1a1a1a",
+      "pattern": "solid"
+    },
+    "left_sleeve": {
+      "fill": "#1a1a1a",
+      "pattern": "solid"
+    },
+    "right_sleeve": {
+      "fill": "#1a1a1a",
+      "pattern": "solid"
+    },
+    "waist_seam": {
+      "fill": "#1a1a1a",
+      "pattern": "solid"
+    },
+    "skirt": {
+      "fill": "#1a1a1a",
+      "pattern": "solid"
+    },
+    "pockets": {
+      "fill": "#1a1a1a",
+      "pattern": "solid"
+    },
+    "buttons": {
+      "fill": "#1a1a1a",
+      "pattern": "solid"
+    }
+  },
+  "notes": "Strapless floor-length dress or jumpsuit overlay featuring a sweetheart neckline with a central V notch, fitted bodice, waist seam, and dramatic high front slits revealing inner pants or high-slit skirt layer. Interpreted as an A-line floor-length dress with a deep slit feature to fit dress schema."
+}

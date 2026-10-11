@@ -1,0 +1,76 @@
+{
+  "model": "gemini-3.8-flash",
+  "prompt_version": "v10-detailed",
+  "garment_type": "dress",
+  "neckline": {
+    "type": "crew",
+    "depth": 0.05
+  },
+  "collar": {
+    "type": "shirt"
+  },
+  "sleeves": {
+    "type": "puff",
+    "length": "long",
+    "cuff": "band",
+    "shoulder": "puff_top"
+  },
+  "waist": {
+    "seam": false,
+    "style": "natural"
+  },
+  "skirt": {
+    "silhouette": "a_line",
+    "length": "midi",
+    "fullness": "plain",
+    "hem": "plain",
+    "panels": "front_seam"
+  },
+  "details": {
+    "pockets": "none",
+    "buttons": 7,
+    "placket": "full",
+    "darts": true,
+    "bow": "none",
+    "trim": "none"
+  },
+  "proportions": {
+    "shoulder_width": 0.5,
+    "waist_y": 0.5
+  },
+  "style": {
+    "collar_neckline": {
+      "fill": "#573822",
+      "pattern": "solid"
+    },
+    "bodice": {
+      "fill": "#573822",
+      "pattern": "solid"
+    },
+    "left_sleeve": {
+      "fill": "#573822",
+      "pattern": "solid"
+    },
+    "right_sleeve": {
+      "fill": "#573822",
+      "pattern": "solid"
+    },
+    "waist_seam": {
+      "fill": "#573822",
+      "pattern": "solid"
+    },
+    "skirt": {
+      "fill": "#573822",
+      "pattern": "solid"
+    },
+    "pockets": {
+      "fill": "#573822",
+      "pattern": "solid"
+    },
+    "buttons": {
+      "fill": "#573822",
+      "pattern": "solid"
+    }
+  },
+  "notes": "Brown shirt-style dress with pointed collar and long cuffs adorned with small studs or embellishments. Seven visible small buttons down the bodice placket, with a continuous center-front seam extending down the skirt."
+}

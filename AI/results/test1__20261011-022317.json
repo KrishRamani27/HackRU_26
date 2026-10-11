@@ -1,0 +1,76 @@
+{
+  "model": "gemini-3.8-flash",
+  "prompt_version": "v10-detailed",
+  "garment_type": "dress",
+  "neckline": {
+    "type": "scoop",
+    "depth": 0.28
+  },
+  "collar": {
+    "type": "none"
+  },
+  "sleeves": {
+    "type": "puff",
+    "length": "long",
+    "cuff": "band",
+    "shoulder": "set_in"
+  },
+  "waist": {
+    "seam": true,
+    "style": "natural"
+  },
+  "skirt": {
+    "silhouette": "flared",
+    "length": "floor",
+    "fullness": "gathered",
+    "hem": "ruffle",
+    "panels": "none"
+  },
+  "details": {
+    "pockets": "none",
+    "buttons": 0,
+    "placket": "none",
+    "darts": false,
+    "bow": "none",
+    "trim": "piping"
+  },
+  "proportions": {
+    "shoulder_width": 0.5,
+    "waist_y": 0.52
+  },
+  "style": {
+    "collar_neckline": {
+      "fill": "#d7a36c",
+      "pattern": "floral"
+    },
+    "bodice": {
+      "fill": "#d7a36c",
+      "pattern": "floral"
+    },
+    "left_sleeve": {
+      "fill": "#d7a36c",
+      "pattern": "floral"
+    },
+    "right_sleeve": {
+      "fill": "#d7a36c",
+      "pattern": "floral"
+    },
+    "waist_seam": {
+      "fill": "#d7a36c",
+      "pattern": "floral"
+    },
+    "skirt": {
+      "fill": "#d7a36c",
+      "pattern": "floral"
+    },
+    "pockets": {
+      "fill": "#d7a36c",
+      "pattern": "floral"
+    },
+    "buttons": {
+      "fill": "#d7a36c",
+      "pattern": "floral"
+    }
+  },
+  "notes": "Historical day dress features a gathered/shirred bodice tapering into a pointed waistband, bishop/pagoda sleeves fitted at the cap with tucks and frill details before puffing into fitted cuffs, and a wide gathered skirt with a flounce/ruffle tier at the hem."
+}

@@ -1,0 +1,76 @@
+{
+  "model": "gemini-3.6-flash",
+  "prompt_version": "v10-detailed",
+  "garment_type": "dress",
+  "neckline": {
+    "type": "scoop",
+    "depth": 0.3
+  },
+  "collar": {
+    "type": "none"
+  },
+  "sleeves": {
+    "type": "puff",
+    "length": "long",
+    "cuff": "band",
+    "shoulder": "set_in"
+  },
+  "waist": {
+    "seam": true,
+    "style": "natural"
+  },
+  "skirt": {
+    "silhouette": "flared",
+    "length": "floor",
+    "fullness": "gathered",
+    "hem": "ruffle",
+    "panels": "none"
+  },
+  "details": {
+    "pockets": "none",
+    "buttons": 0,
+    "placket": "none",
+    "darts": true,
+    "bow": "none",
+    "trim": "none"
+  },
+  "proportions": {
+    "shoulder_width": 0.5,
+    "waist_y": 0.5
+  },
+  "style": {
+    "collar_neckline": {
+      "fill": "#cfa46b",
+      "pattern": "floral"
+    },
+    "bodice": {
+      "fill": "#cfa46b",
+      "pattern": "floral"
+    },
+    "left_sleeve": {
+      "fill": "#cfa46b",
+      "pattern": "floral"
+    },
+    "right_sleeve": {
+      "fill": "#cfa46b",
+      "pattern": "floral"
+    },
+    "waist_seam": {
+      "fill": "#cfa46b",
+      "pattern": "floral"
+    },
+    "skirt": {
+      "fill": "#cfa46b",
+      "pattern": "floral"
+    },
+    "pockets": {
+      "fill": "#cfa46b",
+      "pattern": "floral"
+    },
+    "buttons": {
+      "fill": "#cfa46b",
+      "pattern": "floral"
+    }
+  },
+  "notes": "Vintage full-length printed floral dress featuring a wide scooped neckline, fitted waist with boning/dart detail lines, long bishop/puff sleeves with pleated/tucked upper section and cuff band, gathered full skirt, and a wide gathered ruffle hem."
+}

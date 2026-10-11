@@ -1,0 +1,76 @@
+{
+  "model": "gemini-3.6-flash",
+  "prompt_version": "v10-detailed",
+  "garment_type": "dress",
+  "neckline": {
+    "type": "square",
+    "depth": 0.35
+  },
+  "collar": {
+    "type": "none"
+  },
+  "sleeves": {
+    "type": "none",
+    "length": "short",
+    "cuff": "none",
+    "shoulder": "set_in"
+  },
+  "waist": {
+    "seam": true,
+    "style": "natural"
+  },
+  "skirt": {
+    "silhouette": "flared",
+    "length": "midi",
+    "fullness": "pleated",
+    "hem": "plain",
+    "panels": "none"
+  },
+  "details": {
+    "pockets": "none",
+    "buttons": 0,
+    "placket": "none",
+    "darts": true,
+    "bow": "none",
+    "trim": "none"
+  },
+  "proportions": {
+    "shoulder_width": 0.3,
+    "waist_y": 0.5
+  },
+  "style": {
+    "collar_neckline": {
+      "fill": "#6b1426",
+      "pattern": "floral"
+    },
+    "bodice": {
+      "fill": "#6b1426",
+      "pattern": "floral"
+    },
+    "left_sleeve": {
+      "fill": "#6b1426",
+      "pattern": "floral"
+    },
+    "right_sleeve": {
+      "fill": "#6b1426",
+      "pattern": "floral"
+    },
+    "waist_seam": {
+      "fill": "#6b1426",
+      "pattern": "floral"
+    },
+    "skirt": {
+      "fill": "#6b1426",
+      "pattern": "floral"
+    },
+    "pockets": {
+      "fill": "#6b1426",
+      "pattern": "floral"
+    },
+    "buttons": {
+      "fill": "#6b1426",
+      "pattern": "floral"
+    }
+  },
+  "notes": "Deep burgundy/maroon dress with embroidered red floral/carnation pattern throughout. Square neckline with shoulder straps, fitted bodice with darts, and a full pleated flared midi skirt."
+}

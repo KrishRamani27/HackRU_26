@@ -1,0 +1,76 @@
+{
+  "model": "gemini-3.6-flash",
+  "prompt_version": "v10-detailed",
+  "garment_type": "dress",
+  "neckline": {
+    "type": "scoop",
+    "depth": 0.3
+  },
+  "collar": {
+    "type": "none"
+  },
+  "sleeves": {
+    "type": "puff",
+    "length": "long",
+    "cuff": "band",
+    "shoulder": "set_in"
+  },
+  "waist": {
+    "seam": true,
+    "style": "natural"
+  },
+  "skirt": {
+    "silhouette": "flared",
+    "length": "floor",
+    "fullness": "gathered",
+    "hem": "ruffle",
+    "panels": "none"
+  },
+  "details": {
+    "pockets": "none",
+    "buttons": 0,
+    "placket": "none",
+    "darts": true,
+    "bow": "none",
+    "trim": "none"
+  },
+  "proportions": {
+    "shoulder_width": 0.5,
+    "waist_y": 0.5
+  },
+  "style": {
+    "collar_neckline": {
+      "fill": "#d39e6a",
+      "pattern": "floral"
+    },
+    "bodice": {
+      "fill": "#d39e6a",
+      "pattern": "floral"
+    },
+    "left_sleeve": {
+      "fill": "#d39e6a",
+      "pattern": "floral"
+    },
+    "right_sleeve": {
+      "fill": "#d39e6a",
+      "pattern": "floral"
+    },
+    "waist_seam": {
+      "fill": "#d39e6a",
+      "pattern": "floral"
+    },
+    "skirt": {
+      "fill": "#d39e6a",
+      "pattern": "floral"
+    },
+    "pockets": {
+      "fill": "#d39e6a",
+      "pattern": "floral"
+    },
+    "buttons": {
+      "fill": "#d39e6a",
+      "pattern": "floral"
+    }
+  },
+  "notes": "Vintage/historical day dress with a wide gathered scoop neckline, fitted midsection with boning/stitching details, gathered bishop-style long sleeves with upper section detailing and fitted cuffs, and a full gathered floor-length skirt with a ruffled hem."
+}

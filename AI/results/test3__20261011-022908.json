@@ -1,0 +1,76 @@
+{
+  "model": "gemini-3.6-flash",
+  "prompt_version": "v10-detailed",
+  "garment_type": "dress",
+  "neckline": {
+    "type": "off_shoulder",
+    "depth": 0.3
+  },
+  "collar": {
+    "type": "none"
+  },
+  "sleeves": {
+    "type": "puff",
+    "length": "short",
+    "cuff": "none",
+    "shoulder": "off_shoulder"
+  },
+  "waist": {
+    "seam": true,
+    "style": "natural"
+  },
+  "skirt": {
+    "silhouette": "a_line",
+    "length": "knee",
+    "fullness": "pleated",
+    "hem": "plain",
+    "panels": "front_seam"
+  },
+  "details": {
+    "pockets": "none",
+    "buttons": 4,
+    "placket": "full",
+    "darts": false,
+    "bow": "none",
+    "trim": "none"
+  },
+  "proportions": {
+    "shoulder_width": 0.5,
+    "waist_y": 0.5
+  },
+  "style": {
+    "collar_neckline": {
+      "fill": "#1a1a1a",
+      "pattern": "solid"
+    },
+    "bodice": {
+      "fill": "#f2f4f5",
+      "pattern": "solid"
+    },
+    "left_sleeve": {
+      "fill": "#f2f4f5",
+      "pattern": "solid"
+    },
+    "right_sleeve": {
+      "fill": "#f2f4f5",
+      "pattern": "solid"
+    },
+    "waist_seam": {
+      "fill": "#f2f4f5",
+      "pattern": "solid"
+    },
+    "skirt": {
+      "fill": "#f2f4f5",
+      "pattern": "solid"
+    },
+    "pockets": {
+      "fill": "#f2f4f5",
+      "pattern": "solid"
+    },
+    "buttons": {
+      "fill": "#1a1a1a",
+      "pattern": "solid"
+    }
+  },
+  "notes": "The outer dress features an off-shoulder neckline with short puff sleeves and front button closures over a pleated skirt. A black high-necked yoke or underlayer is worn underneath the off-shoulder neckline."
+}
