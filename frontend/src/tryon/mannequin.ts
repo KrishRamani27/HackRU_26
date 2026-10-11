@@ -272,6 +272,21 @@ function details(b: Body, edge: string, lips: string, hair: string): string {
   );
 }
 
+// Under a top or a skirt the figure wears a plain bodysuit, from the bust to the hips, so
+// the part of the body the garment leaves bare is still dressed.
+function bodysuit(b: Body): string {
+  const y = b.yTorso;
+  const hipY = y(HIP_LINE);
+  const outline = smooth(
+    bothSides([
+      [CX, y(118)], [CX + b.bust * 0.55, y(112)], [CX + b.bust + 2, y(120)], [CX + b.bust, y(138)], [CX + b.ribs + 5, y(160)],
+      [CX + b.ribs, y(176)], [CX + b.waist, y(212)], [CX + b.lowHip, y(250)], [CX + b.hip, hipY],
+      [CX + b.hip - 3, hipY + 12], [CX + b.hip * 0.45, hipY + 22], [CX, hipY + 24],
+    ]),
+  );
+  return `<path d="${outline}" fill="#ece7df" stroke="#b9ad9d" stroke-width="0.9" stroke-linejoin="round"/>`;
+}
+
 function shadow(): string {
   const [cy, rx, ry] = [FLOOR + 1, 58, 4.5];
   return (
@@ -303,7 +318,7 @@ function dressMatrix(b: Body): Matrix {
   return multiply(heightMatrix(b), fit);
 }
 
-function figureParts(shoulderWidth: number, options?: Partial<FigureOptions>) {
+function figureParts(shoulderWidth: number, options?: Partial<FigureOptions>, garment = "dress") {
   const o = cleanFigure(options);
   const b = build(shoulderWidth, o);
   const edge = mix(o.skin, "#3a1f12", 0.3);
@@ -318,14 +333,14 @@ function figureParts(shoulderWidth: number, options?: Partial<FigureOptions>) {
     body: b,
     under:
       `<g id="mannequin"${stand}>${shadow()}${hairBack(o.hair, o.hairColor)}${outlines}${fills}` +
-      `${details(b, edge, lips, mix(o.hairColor, "#1a1410", 0.35))}${hairFront(o.hair, o.hairColor)}</g>`,
+      `${details(b, edge, lips, mix(o.hairColor, "#1a1410", 0.35))}${garment === "dress" ? "" : bodysuit(b)}${hairFront(o.hair, o.hairColor)}</g>`,
     over: over ? `<g id="mannequin_over"${stand}>${over}</g>` : "",
   };
 }
 
 /** The figure on its own, as SVG groups, for a dress of the given shoulder width. */
-export function mannequinMarkup(shoulderWidth = 0.5, options?: Partial<FigureOptions>): string {
-  const { under, over } = figureParts(shoulderWidth, options);
+export function mannequinMarkup(shoulderWidth = 0.5, options?: Partial<FigureOptions>, garment = "dress"): string {
+  const { under, over } = figureParts(shoulderWidth, options, garment);
   return under + over;
 }
 
@@ -338,13 +353,14 @@ const DRESS_GROUP =
  * Takes the builder's SVG text and returns it with the figure wearing the dress.
  * Pass the spec's proportions.shoulder_width so the figure fits the dress, and the figure
  * settings if the user has changed any. The dress groups keep their ids and stay clickable.
+ * `garment` is the spec's garment_type: under a top or a skirt the figure wears a bodysuit.
  */
-export function wearOnMannequin(flatSvg: string, shoulderWidth = 0.5, options?: Partial<FigureOptions>): string {
+export function wearOnMannequin(flatSvg: string, shoulderWidth = 0.5, options?: Partial<FigureOptions>, garment = "dress"): string {
   const start = flatSvg.indexOf("</defs>");
   const end = flatSvg.lastIndexOf("</svg>");
   if (start === -1 || end === -1) return flatSvg; // not builder output; leave it alone
   const cut = start + "</defs>".length;
-  const { body, under, over } = figureParts(shoulderWidth, options);
+  const { body, under, over } = figureParts(shoulderWidth, options, garment);
 
   let dress = flatSvg.slice(cut, end);
   const fit = dressMatrix(body);

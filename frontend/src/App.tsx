@@ -83,7 +83,7 @@ export default function App() {
     try {
       // Hand drawn elements are drawn on top of the dress. They are not part of the spec.
       const svg = buildFlat(design.spec, design.customElements);
-      return { svg: tryOn.wear(svg, design.spec.proportions.shoulder_width) }; // TRY-ON
+      return { svg: tryOn.wear(svg, design.spec.proportions.shoulder_width, design.spec.garment_type) }; // TRY-ON
     } catch {
       return { svg: null };
     }

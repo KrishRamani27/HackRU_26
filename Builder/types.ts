@@ -38,8 +38,12 @@ export interface PartStyle {
   pattern: Pattern;
 }
 
+// A top is the dress drawn down to a hem at the hip. A skirt is the dress without its bodice.
+// Both use the same fields as a dress; see TOP_HEM in buildFlat.ts for what skirt.length means on a top.
+export type GarmentType = "dress" | "top" | "skirt";
+
 export interface DesignSpec {
-  garment_type: "dress";
+  garment_type: GarmentType;
   neckline: { type: NecklineType; depth: number }; // depth 0-1
   collar?: { type: CollarType };
   sleeves: { type: SleeveType; length: SleeveLength; cuff?: CuffType; shoulder?: ShoulderType };

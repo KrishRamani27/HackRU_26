@@ -28,6 +28,8 @@ const H = 600;
 const CX = W / 2;
 const NECK_Y = 70;
 const HEM_Y = { mini: 300, knee: 380, midi: 460, floor: 560 } as const;
+// On a top, skirt.length says where the top ends: cropped at the waist, at the hip, or as a tunic.
+const TOP_HEM = { mini: 0, knee: 285, midi: 320, floor: 352 } as const;
 const SLEEVE_LEN = { short: 50, elbow: 120, long: 195 } as const;
 const ARM_ANGLE = (20 * Math.PI) / 180; // sleeves hang 20° out from vertical
 const SHOULDER_SLOPE = 0.28; // shoulder seam drop per px of width (~16°)
@@ -69,7 +71,8 @@ function layout(spec: DesignSpec) {
   const bustHalf = shoulderHalf - 6;
   const waistHalf = bustHalf - 16;
   const armY = NECK_Y + 80;
-  const hemY = pick(HEM_Y, spec.skirt.length, "knee");
+  // Anything that is not a top or a skirt is drawn as a dress.
+  const garment = spec.garment_type === "top" || spec.garment_type === "skirt" ? spec.garment_type : "dress";
 
   // Neck opening: how wide it is at the top, how deep, and where its top edge sits.
   let neckHalf = pick({ crew: 26, v: 28, scoop: 36, square: 30, sweetheart: 34, off_shoulder: 0, halter: 13, high: 17 }, nType, "crew");
@@ -99,8 +102,11 @@ function layout(spec: DesignSpec) {
   const empireY = armY + 25; // highest waist the bodice can take
   const dropY = HEM_Y.mini - 50; // lowest waist that still leaves a mini skirt
   const waistY = empireY + clamp(spec.proportions.waist_y, 0, 1) * (dropY - empireY);
+  // A top always ends at least a little below its waist, however high the hem option is.
+  const hemY = garment === "top" ? Math.max(waistY + 12, pick(TOP_HEM, spec.skirt.length, "knee")) : pick(HEM_Y, spec.skirt.length, "knee");
 
   return {
+    garment,
     hemY,
     waistY,
     armY,
@@ -117,7 +123,7 @@ function layout(spec: DesignSpec) {
     waistR: pt(CX + waistHalf, waistY),
     // The waistband is taller when the dress is belted.
     bandHeight: spec.waist.style === "belted" ? 11 : WAIST_BAND,
-    hasBand: spec.waist.seam === true || spec.waist.style === "belted",
+    hasBand: garment === "skirt" || spec.waist.seam === true || spec.waist.style === "belted", // a skirt always has a waistband
   };
 }
 type Layout = ReturnType<typeof layout>;
@@ -295,20 +301,24 @@ function collarNeckline(spec: DesignSpec, g: Layout, fill: string) {
 function skirtShape(spec: DesignSpec, g: Layout) {
   const len = g.hemY - g.waistY;
   const sil = spec.skirt.silhouette;
+  // The lower part of a top is short, so it widens more gently than a skirt: straight sits on
+  // the hip, a-line swings out a little, flared is a peplum.
   const wanted =
-    sil === "straight" ? g.waistHalf + 16 : sil === "a_line" ? g.waistHalf + 0.38 * len : g.waistHalf + 0.65 * len;
+    g.garment === "top"
+      ? g.waistHalf + (sil === "straight" ? Math.min(12, len * 0.18) : sil === "a_line" ? len * 0.3 : len * 0.7)
+      : sil === "straight" ? g.waistHalf + 16 : sil === "a_line" ? g.waistHalf + 0.38 * len : g.waistHalf + 0.65 * len;
   const hemHalf = Math.min(wanted, CX - 20); // long flared skirts would run off the canvas
   const hemR = pt(CX + hemHalf, g.hemY);
 
   // One quadratic per side; the control point sets the silhouette's character.
   const sideCtrlR =
     sil === "straight"
-      ? pt(CX + hemHalf, g.waistY + 40) // bulges to hip width fast, then straight down
+      ? pt(CX + hemHalf, g.waistY + Math.min(40, len * 0.6)) // bulges to hip width fast, then straight down
       : sil === "a_line"
         ? pt(CX + (g.waistHalf + hemHalf) / 2 + 4, g.waistY + len / 2) // nearly straight diagonal
         : pt(CX + g.waistHalf + 0.62 * (hemHalf - g.waistHalf), g.waistY + 0.3 * len); // bell: full from the waist down
 
-  const hemDip = sil === "straight" ? 0 : sil === "a_line" ? 8 : 18; // curved hem for wider skirts
+  const hemDip = (sil === "straight" ? 0 : sil === "a_line" ? 8 : 18) * Math.min(1, len / 90); // curved hem for wider skirts
   // How far out the side seam is at height y, and how low the curved hem is at a fraction f across.
   const halfAt = (y: number) => quadAtY(g.waistR, sideCtrlR, hemR, clamp(y, g.waistY, g.hemY)).x - CX;
   const hemAt = (f: number) => g.hemY + (hemDip * (1 - f * f)) / 2;
@@ -339,7 +349,9 @@ function skirt(spec: DesignSpec, g: Layout, fill: string) {
     `M ${s(g.waistR)} Q ${s(sideCtrlR)} ${s(hemR)} ` +
     `Q ${s(pt(CX, g.hemY + hemDip))} ${s(hemL)} Q ${s(sideCtrlL)} ${s(waistL)}`;
 
-  const parts = [`<path d="${outline} Z" fill="${fill}" stroke="none"/>`, `<path d="${outline}" ${OUTLINE}/>`];
+  // The fill reaches 1.5px up under the bodice, so no hairline shows between the two when there is no waist seam.
+  const tuck = `L ${s(pt(waistL.x, g.waistY - 1.5))} L ${s(pt(g.waistR.x, g.waistY - 1.5))}`;
+  const parts = [`<path d="${outline} ${g.garment === "skirt" ? "" : tuck} Z" fill="${fill}" stroke="none"/>`, `<path d="${outline}" ${OUTLINE}/>`];
   const line = (a: Pt, b: Pt) => `M ${s(a)} L ${s(b)}`;
   const both = (a: Pt, b: Pt) => `${line(a, b)} ${line(mirror(a), mirror(b))}`;
   // A seam running across the skirt at height y, following the hem's curve.
@@ -549,8 +561,10 @@ function buttons(spec: DesignSpec, g: Layout, fill: string) {
   const placket = spec.details.placket ?? (wanted > 0 ? "bodice" : "none");
   const collar = neckOffset(spec.neckline.type, g, COLLAR_BAND);
   const underBow = spec.details.bow === "neckline" ? 16 : 0;
-  const top = neckBottom(g) + collar.drop + 3 + underBow; // just below the neck band
-  const bottom = placket === "full" ? skirtShape(spec, g).hemAt(0) - 8 : g.waistY - 6;
+  // A skirt has no bodice: its buttons start under the waistband and always run to the hem.
+  const onSkirt = g.garment === "skirt";
+  const top = onSkirt ? g.waistY + g.bandHeight + 5 : neckBottom(g) + collar.drop + 3 + underBow; // just below the neck band
+  const bottom = placket === "full" || onSkirt ? skirtShape(spec, g).hemAt(0) - 8 : g.waistY - 6;
   // A deep neckline over a high waist leaves little room: draw only as many buttons as fit (8px each).
   const fits = Math.max(0, Math.floor((bottom - top) / 8));
   const count = Math.min(wanted, fits);
@@ -570,8 +584,8 @@ function buttons(spec: DesignSpec, g: Layout, fill: string) {
 
 function pockets(spec: DesignSpec, g: Layout, fill: string, leftFill: string) {
   const type = spec.details.pockets;
-  if (type === "none") return group("pockets", []);
   const len = g.hemY - g.waistY;
+  if (type === "none" || len < 46) return group("pockets", []); // a cropped top has no room for pockets
   let draw: (f: string) => string[]; // one pocket; called once per side with that side's fill
 
   if (type === "patch") {
@@ -726,17 +740,19 @@ function group(name: PartName, children: string[], extra = "") {
 export function buildFlat(spec: DesignSpec, customElements: readonly CustomElement[] = []): string {
   const g = layout(spec);
   const defs: string[] = [];
-  const rightSleeve = rightSleevePaths(spec, g, fillFor("right_sleeve", spec, defs));
-  const leftSleeve = rightSleevePaths(spec, g, fillFor("left_sleeve", spec, defs, true)); // same definition...
+  const upper = g.garment !== "skirt"; // a skirt has no bodice, sleeves or neckline
+  const rightSleeve = upper ? rightSleevePaths(spec, g, fillFor("right_sleeve", spec, defs)) : [];
+  const leftSleeve = upper ? rightSleevePaths(spec, g, fillFor("left_sleeve", spec, defs, true)) : []; // same definition...
 
   // Draw order = stacking order: sleeves behind the bodice so the armhole seam shows.
+  // Every group is always present, even when empty, so layer names stay the same for every garment.
   const groups = [
     group("left_sleeve", leftSleeve, MIRROR_TRANSFORM), // ...flipped around the center line
     group("right_sleeve", rightSleeve),
     skirt(spec, g, fillFor("skirt", spec, defs)),
-    bodice(spec, g, fillFor("bodice", spec, defs)),
+    upper ? bodice(spec, g, fillFor("bodice", spec, defs)) : group("bodice", []),
     waistSeam(spec, g, fillFor("waist_seam", spec, defs)),
-    collarNeckline(spec, g, fillFor("collar_neckline", spec, defs)),
+    upper ? collarNeckline(spec, g, fillFor("collar_neckline", spec, defs)) : group("collar_neckline", []),
     pockets(spec, g, fillFor("pockets", spec, defs), fillFor("pockets", spec, defs, true)),
     buttons(spec, g, fillFor("buttons", spec, defs)),
   ];
