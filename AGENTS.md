@@ -77,6 +77,12 @@
   `/analyze` results in `AI/results/` now record the `model` that answered and the
   `prompt_version`. `AI/evaluate.py` groups accuracy by prompt version and reports
   core and detail fields separately.
+- `/suggestions` (prompt version `s1`, `SUGGEST_PROMPT` in `ai.py`): input is the current
+  spec only. Gemini is asked for 5 candidates; `pick_suggestions` checks each against
+  the strict contract and returns the first 3 that are valid, change the spec and use
+  different fields. Each suggestion is one edit action plus a one-sentence design
+  reason. Mock mode returns 3 samples labelled `MOCK`. One live call on October 11
+  returned 3 valid suggestions. Not called by the frontend yet.
 - `/analyze` uses the full field-by-field prompt `ANALYZE_PROMPT` in `ai.py`.
 - Spec detail fields added on the backend (prompt version `v10-detailed`):
   `collar.type`, `sleeves.cuff`, `sleeves.shoulder`, `waist.style`, `skirt.fullness`,

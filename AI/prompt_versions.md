@@ -318,3 +318,49 @@ These routes return edit actions (`set` a path to a value) instead of a full spe
   Gemini which values belong to which path. Nothing in the old prompt listed them.
 - **Results:** not tested yet. The quota was still exhausted at 6:47 PM on October 10.
 - **To test `/verify` fairly:** use a real flat from the builder, not a blank image.
+
+# Suggestion prompt versions (/suggestions)
+
+`/suggestions` has its own prompt, `SUGGEST_PROMPT` in `backend/app/ai.py`, and its own
+version constant, `SUGGEST_PROMPT_VERSION`. **Bump it and add an entry here whenever
+`SUGGEST_PROMPT` changes.** It is separate from `PROMPT_VERSION`, which covers `/analyze`.
+
+## s1: design suggestions from the spec alone (current)
+
+- **Where:** `SUGGEST_PROMPT`, `pick_suggestions` and `AIService.suggestions` in
+  `backend/app/ai.py`; `GeminiSuggestion` in `backend/app/ai_schemas.py`.
+- **Replaces:** the starter line "Suggest improvements. Goal: <goal>" plus `EDIT_GUIDE`.
+- **What it asks for:** given only the current spec JSON (no image), 5 candidate
+  suggestions, best first. Each is one path, one allowed value and a one-sentence
+  reason. The backend returns the first 3 that pass its checks.
+- **Prompt rules:**
+  - Use only the listed paths and values. The list is `EDIT_PATHS`, the same text the
+    edit prompts use, without `notes`.
+  - Each suggestion changes a different field; no duplicates.
+  - The value must differ from the current one.
+  - Keep the designer's idea and refine it; never change `garment_type`.
+  - Reasons are about proportion, balance and cohesion, never popularity or trends.
+  - Only suggest changes that would be visible on the flat.
+- **Checks in code (`pick_suggestions`):** a candidate is dropped if its path or value
+  fails the strict `EditAction` contract, if it sets `notes`, if it repeats a field, if
+  it equals the current value, or if it has no reason. Dropped candidates are logged.
+- **Why:** the old prompt did not say how many suggestions to return, allowed many
+  actions per suggestion, pasted the caller's free-text goal into the prompt, and one
+  invalid value failed the whole call with a 502.
+- **Why 5 candidates for 3 results:** dropping invalid candidates can leave fewer than
+  3. Asking for 5 in the same call makes 3 survivors likely without a second call. The
+  response can still hold fewer than 3.
+- **Results:** one live call on October 11 with the saved `test4` spec (square neck,
+  sleeveless, flared pleated midi, shoulder width 0.3, neckline depth 0.35). It returned
+  3 suggestions, all valid, on three different fields, each changing the current value:
+  - `proportions.shoulder_width` 0.3 to 0.45: wider straps balance the volume of the
+    pleated, flared midi skirt.
+  - `waist.style` natural to `belted`: a belt anchors the join between the fitted,
+    darted bodice and the heavy pleated skirt.
+  - `neckline.depth` 0.35 to 0.45: a slightly deeper square neckline lengthens the torso
+    above the full skirt.
+  Every reason is about proportion or balance and names the parts involved. The server
+  log was not checked for how many of the 5 candidates were dropped. One call on one
+  spec is a smoke test only.
+- **What to check:** reasons talk about proportion or balance and name the parts; no
+  suggestion changes something invisible; the server log shows how many were dropped.
