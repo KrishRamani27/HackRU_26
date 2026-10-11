@@ -192,8 +192,11 @@ def test_live_analyze_results_are_saved_for_evaluation(client, monkeypatch, tmp_
     response = client.post("/analyze", files={"sketch": ("../my sketch.png", png())})
     saved = list(results.iterdir())
     assert len(saved) == 1 and saved[0].name.startswith("my_sketch__")
+    from app.ai import PROMPT_VERSION
+
     model = client.app.state.ai.settings.gemini_model
-    assert json.loads(saved[0].read_text()) == {"model": model, **response.json()}
+    expected = {"model": model, "prompt_version": PROMPT_VERSION, **response.json()}
+    assert json.loads(saved[0].read_text()) == expected
 
 
 def test_large_images_are_downscaled_for_gemini():
