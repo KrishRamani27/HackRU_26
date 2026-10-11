@@ -30,7 +30,7 @@ import type { CustomElement } from "../../Builder/buildFlat";
 import type { SavedDrawing } from "./api/customParts";
 import { cloneElements, instantiateDrawing } from "./draw/drawings";
 import { initialSpecState, specReducer } from "./state/specReducer";
-import { FOLLOWER_PARTS, type EditAction } from "./state/specSchema";
+import { FOLLOWER_PARTS, garmentOf, type EditAction } from "./state/specSchema";
 import type { AiMode, AnalysisStatus, CanvasState } from "./types";
 import { TryOnControls, useTryOn } from "./tryon"; // TRY-ON (optional feature, see src/tryon/README.md)
 import { TemplatesButton } from "./templates"; // TEMPLATES (starter designs, see src/templates/README.md)
@@ -304,6 +304,7 @@ export default function App() {
     selectedElements,
     selectedPart: selection?.part ?? null,
     hiddenParts,
+    garment: garmentOf(design.spec),
     onSelectElements: selectElements,
     onSelectPart: selectPart,
     onSetVisible: setVisible,
@@ -426,6 +427,7 @@ export default function App() {
                 drawings={library.drawings}
                 onReloadDrawings={() => void library.loadDrawings()}
                 canApply={canvas.status === "ready"}
+                garment={garmentOf(design.spec)}
                 onApply={applyPart}
                 onApplyDrawing={applyDrawing}
                 onDelete={deleteSavedPart}
@@ -450,6 +452,7 @@ export default function App() {
             onMoveEnd={commitEdit}
             onTransformElements={transformElements}
             hiddenParts={hiddenParts}
+            garment={garmentOf(design.spec)}
             tool={canvas.status === "ready" ? tool : "select"}
             onToolChange={setTool}
             canDraw={design.customElements.length < MAX_ELEMENTS}

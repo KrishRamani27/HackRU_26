@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 import type { PartName } from "../../../Builder/types";
 import type { CustomElement } from "../../../Builder/buildFlat";
-import { PART_LABELS, PART_NAMES } from "../state/specSchema";
+import { PARTS_FOR, partLabel, type GarmentKind } from "../state/specSchema";
 import { ArrowDownIcon, ArrowUpIcon, ChevronDownIcon, EyeIcon, EyeOffIcon } from "./Icons";
 
 export interface LayersProps {
@@ -10,6 +10,8 @@ export interface LayersProps {
   selectedPart: PartName | null;
   /** Dress parts hidden on the canvas (not in the export). */
   hiddenParts: readonly PartName[];
+  /** Which dress parts exist depends on the garment: a skirt has no collar, bodice or sleeves. */
+  garment: GarmentKind;
   onSelectElements: (ids: string[]) => void;
   onSelectPart: (part: PartName) => void;
   onSetVisible: (ids: string[], visible: boolean) => void;
@@ -94,7 +96,7 @@ export function LayersSection(p: LayersProps) {
         <button type="button" className="layers__toggle" aria-expanded={open} aria-controls={`${headingId}-body`} onClick={toggleOpen}>
           <ChevronDownIcon width={14} height={14} className={open ? "" : "is-closed"} />
           <span>Layers</span>
-          <span className="layers__count">{p.elements.length + PART_NAMES.length}</span>
+          <span className="layers__count">{p.elements.length + PARTS_FOR[p.garment].length}</span>
         </button>
       </h3>
       {open && (
@@ -169,18 +171,18 @@ export function LayersSection(p: LayersProps) {
 
           <p className="layers__sub">Dress parts</p>
           <ul className="layers__list" aria-label="Dress parts">
-            {PART_NAMES.map((part) => {
+            {PARTS_FOR[p.garment].map((part) => {
               const hidden = p.hiddenParts.includes(part);
               return (
                 <li key={part} className={`layer${p.selectedPart === part ? " is-selected" : ""}${hidden ? " is-hidden" : ""}`} data-layer={part}>
                   <span className="layer__fold" aria-hidden="true" />
                   <button type="button" className="layer__name" aria-pressed={p.selectedPart === part} onClick={() => p.onSelectPart(part)}>
-                    {PART_LABELS[part]}
+                    {partLabel(part, p.garment)}
                   </button>
                   <button
                     type="button"
                     className="icon-btn"
-                    aria-label={`${hidden ? "Show" : "Hide"} ${PART_LABELS[part]} on the canvas`}
+                    aria-label={`${hidden ? "Show" : "Hide"} ${partLabel(part, p.garment)} on the canvas`}
                     aria-pressed={hidden}
                     title={hidden ? "Hidden on the canvas only; it is still in the export" : "Hide on the canvas only; it stays in the export"}
                     onClick={() => p.onTogglePart(part)}

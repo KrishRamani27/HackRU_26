@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import type { PartName } from "../../../Builder/types";
 import type { CustomElement } from "../../../Builder/buildFlat";
 import type { CanvasState } from "../types";
-import { PART_LABELS } from "../state/specSchema";
+import { partLabel, type GarmentKind } from "../state/specSchema";
 import type { Point } from "../draw/strokes";
 import { expandGroups } from "../draw/groups";
 import { DrawLayer } from "./DrawLayer";
@@ -36,6 +36,8 @@ interface Props {
   onTransformElements: (changes: Map<string, TransformPatch>) => void;
   /** Dress parts hidden on the canvas only. */
   hiddenParts: readonly PartName[];
+  /** The (locked) garment type, for part names. */
+  garment: GarmentKind;
   /** The active tool. With the pen, dragging on the flat draws a freehand stroke. */
   tool: CanvasTool;
   onToolChange: (tool: CanvasTool) => void;
@@ -54,7 +56,7 @@ const FIT_INDEX = 2;
 const SAMPLE_LABEL = "Sample preview—not generated from a sketch";
 const MOCK_LABEL = "Demo result (mock AI)—not real sketch recognition";
 
-export function CanvasStage({ state, hasSketch, onChooseSample, onHideSample, onUpload, onRetry, selectedPart, onSelectPart, elements, selectedElements, onSelectElements, onMoveElements, onMoveEnd, onTransformElements, hiddenParts, tool, onToolChange, canDraw, onStroke, toolbarExtra }: Props) {
+export function CanvasStage({ state, hasSketch, onChooseSample, onHideSample, onUpload, onRetry, selectedPart, onSelectPart, elements, selectedElements, onSelectElements, onMoveElements, onMoveEnd, onTransformElements, hiddenParts, garment, tool, onToolChange, canDraw, onStroke, toolbarExtra }: Props) {
   const [zoomIndex, setZoomIndex] = useState(FIT_INDEX);
   const sampling = state.status === "ready" && state.source === "sample";
   const hasArt = state.status === "ready";
@@ -274,7 +276,7 @@ export function CanvasStage({ state, hasSketch, onChooseSample, onHideSample, on
               (selectedPart || selectedElements.length > 0) && (
                 <span className="sheet__selected" role="status">
                   Selected · {selectedPart
-                    ? PART_LABELS[selectedPart]
+                    ? partLabel(selectedPart, garment)
                     : selectedElements.length === 1
                       ? elements.find((e) => e.id === selectedElements[0])?.name
                       : `${selectedElements.length} drawings`}

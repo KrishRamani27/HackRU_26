@@ -42,7 +42,9 @@ const SOURCE: Record<PartName, { type: LibraryPartType; keys: readonly string[] 
   waist_seam: { type: "waist", keys: ["seam", "style"] },
   skirt: { type: "skirt", keys: ["silhouette", "length", "fullness", "hem", "panels"] },
   pockets: { type: "details", keys: ["pockets"] },
-  buttons: { type: "details", keys: ["buttons"] },
+  // The details part types are reached through these two canvas parts. The backend's details model also holds the
+  // front placket, darts, bow and trim, so they travel with the buttons (there is no canvas part of their own).
+  buttons: { type: "details", keys: ["buttons", "placket", "darts", "bow", "trim"] },
 };
 
 /** Which canvas parts a saved part's style is applied to. */
@@ -116,7 +118,7 @@ export function previewSrc(saved: SavedPartInput): string | null {
 
 /** "puff · elbow", "a line · knee": a short readable summary of the saved settings. */
 export function settingsSummary(saved: SavedPartInput): string {
-  return Object.values(saved.spec_settings)
-    .map((v) => (typeof v === "boolean" ? (v ? "seam" : "no seam") : String(v).replace(/_/g, " ")))
+  return Object.entries(saved.spec_settings)
+    .map(([k, v]) => (typeof v === "boolean" ? (v ? k : `no ${k}`) : String(v).replace(/_/g, " ")))
     .join(" · ");
 }

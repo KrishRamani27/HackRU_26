@@ -32,15 +32,16 @@ design different. Colors go through `all(fill, pattern)`, with single parts over
 
 `garment_type` is `"dress"`, `"top"` or `"skirt"`. The builder draws a top as the dress down
 to a hem at the hip, and a skirt as the dress without its bodice. They use the same spec
-fields as a dress, so the properties panel still shows every control: on a top the "Skirt"
-controls shape its lower part, and on a skirt the neckline and sleeve controls do nothing.
+fields as a dress. The properties panel shows only the controls that apply (see `garmentOf`,
+`NOT_FOR_GARMENT` and `PARTS_FOR` in `src/state/specSchema.ts`): on a top the "Skirt" controls shape its
+lower part and the section is called "Lower part", and on a skirt there are no neckline, collar or sleeve
+controls and no collar, bodice or sleeve rows. The garment type itself is locked.
 
 Sketch analysis still only returns dresses. Tops and skirts come from templates.
 
 ## Limits
 
 - A template opens marked as a sample, like "View sample", because it did not come from a sketch.
-- The properties panel does not yet hide the controls that do not apply to a top or a skirt.
 
 ## How it is wired into the app
 

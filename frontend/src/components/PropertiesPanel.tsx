@@ -18,11 +18,12 @@ import {
   FOLLOWER_PARTS,
   MAX_NOTES_LENGTH,
   NECKLINE_TYPES,
-  PART_NAMES,
-  anyShown,
-  isShown,
-  shownOptions,
-  PART_LABELS,
+  PARTS_FOR,
+  anyControlShown,
+  controlShown,
+  garmentOf,
+  optionsFor,
+  partLabel,
   PATTERNS,
   POCKET_TYPES,
   SILHOUETTES,
@@ -134,6 +135,9 @@ const round2 = (v: number) => Math.round(v * 100) / 100;
 export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommit, onSavePart, onOpenLibrary, following, onMatchBodice, layers }: Props) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const flashTimer = useRef<number>(0);
+  // The garment type is locked (it comes from the spec). It decides which controls and parts apply.
+  const garment = garmentOf(spec);
+  const shown = (path: string) => controlShown(path, garment);
 
   // Selecting a part scrolls to its section and briefly highlights it and its fabric row.
   useEffect(() => {
@@ -172,23 +176,23 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
         {spec ? (
           <>
             <LayersSection {...layers} />
-            {selection && <SavePartBar key={selection.part} label={PART_LABELS[selection.part]} onSave={(name) => onSavePart(selection.part, name)} onOpenLibrary={onOpenLibrary} />}
-            <Section name="neckline" title="Neckline" hidden={!anyShown("neckline.", "collar.")}>
+            {selection && <SavePartBar key={selection.part} label={partLabel(selection.part, garment)} onSave={(name) => onSavePart(selection.part, name)} onOpenLibrary={onOpenLibrary} />}
+            <Section name="neckline" title="Neckline" hidden={!anyControlShown(garment, "neckline.", "collar.")}>
               <ChipGroup
                 label="Type"
-                options={shownOptions("neckline.type", toOptions(NECKLINE_TYPES, NECKLINE_LABELS))}
-                hidden={!isShown("neckline.type")}
+                options={optionsFor("neckline.type", garment, toOptions(NECKLINE_TYPES, NECKLINE_LABELS))}
+                hidden={!shown("neckline.type")}
                 value={spec.neckline.type}
                 onChange={(v) => set("neckline.type", v)}
               />
-              {isShown("neckline.type") && !shownOptions("neckline.type", toOptions(NECKLINE_TYPES, NECKLINE_LABELS)).some((o) => o.value === spec.neckline.type) && (
+              {shown("neckline.type") && !optionsFor("neckline.type", garment, toOptions(NECKLINE_TYPES, NECKLINE_LABELS)).some((o) => o.value === spec.neckline.type) && (
                 <p className="field__hint">
                   This design has a {NECKLINE_LABELS[spec.neckline.type as keyof typeof NECKLINE_LABELS] ?? spec.neckline.type} neckline, which the builder doesn’t draw yet, so the flat shows it as a scoop. The setting is kept.
                 </p>
               )}
               <ChipGroup
                 label="Collar"
-                hidden={!isShown("collar.type")}
+                hidden={!shown("collar.type")}
                 options={toOptions(COLLAR_TYPES, COLLAR_LABELS)}
                 value={specValue<(typeof COLLAR_TYPES)[number]>(spec, "collar.type")}
                 onChange={(v) => set("collar.type", v)}
@@ -196,7 +200,7 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
               <RangeField
                 onCommit={onCommit}
                 label="Depth"
-                hidden={!isShown("neckline.depth")}
+                hidden={!shown("neckline.depth")}
                 min={0} max={1} step={0.05}
                 value={spec.neckline.depth}
                 display={unitDisplay(spec.neckline.depth)}
@@ -205,11 +209,11 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
               />
             </Section>
 
-            <Section name="sleeves" title="Sleeves" hidden={!anyShown("sleeves.")}>
+            <Section name="sleeves" title="Sleeves" hidden={!anyControlShown(garment, "sleeves.")}>
               <ChipGroup
                 label="Type"
                 options={toOptions(SLEEVE_TYPES, SLEEVE_TYPE_LABELS)}
-                hidden={!isShown("sleeves.type")}
+                hidden={!shown("sleeves.type")}
                 value={spec.sleeves.type}
                 onChange={(v) => set("sleeves.type", v)}
               />
@@ -219,7 +223,7 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
                 min={0} max={SLEEVE_LENGTHS.length - 1} step={1}
                 value={SLEEVE_LENGTHS.indexOf(spec.sleeves.length)}
                 display={SLEEVE_LENGTH_LABELS[spec.sleeves.length]}
-                hidden={!isShown("sleeves.length")}
+                hidden={!shown("sleeves.length")}
                 ends={["Short", "Long"]}
                 disabled={spec.sleeves.type === "none"}
                 hint={spec.sleeves.type === "none" ? "Sleeve length applies when sleeves are present." : undefined}
@@ -227,41 +231,46 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
               />
               <ChipGroup
                 label="Cuff"
-                hidden={!isShown("sleeves.cuff")}
+                hidden={!shown("sleeves.cuff")}
                 options={toOptions(CUFF_TYPES, CUFF_LABELS)}
                 value={specValue<(typeof CUFF_TYPES)[number]>(spec, "sleeves.cuff")}
                 onChange={(v) => set("sleeves.cuff", v)}
               />
               <ChipGroup
                 label="Shoulder"
-                hidden={!isShown("sleeves.shoulder")}
+                hidden={!shown("sleeves.shoulder")}
                 options={toOptions(SHOULDER_TYPES, SHOULDER_LABELS)}
                 value={specValue<(typeof SHOULDER_TYPES)[number]>(spec, "sleeves.shoulder")}
                 onChange={(v) => set("sleeves.shoulder", v)}
               />
             </Section>
 
-            <Section name="waist" title="Waist" hidden={!anyShown("waist.")}>
+            <Section name="waist" title="Waist" hidden={!anyControlShown(garment, "waist.")}>
               <ChipGroup
                 label="Waist seam"
-                hidden={!isShown("waist.seam")}
+                hidden={!shown("waist.seam")}
                 options={[{ value: true, label: "Seam" }, { value: false, label: "No seam" }]}
                 value={spec.waist.seam}
                 onChange={(v) => set("waist.seam", v)}
               />
               <ChipGroup
                 label="Waist style"
-                hidden={!isShown("waist.style")}
-                options={toOptions(WAIST_STYLES, WAIST_STYLE_LABELS)}
+                hidden={!shown("waist.style")}
+                options={optionsFor("waist.style", garment, toOptions(WAIST_STYLES, WAIST_STYLE_LABELS))}
                 value={specValue<(typeof WAIST_STYLES)[number]>(spec, "waist.style")}
                 onChange={(v) => set("waist.style", v)}
               />
+              {shown("waist.style") && !optionsFor("waist.style", garment, toOptions(WAIST_STYLES, WAIST_STYLE_LABELS)).some((o) => o.value === specValue(spec, "waist.style")) && (
+                <p className="field__hint">
+                  This design has a {WAIST_STYLE_LABELS[specValue<(typeof WAIST_STYLES)[number]>(spec, "waist.style")]} waist style, which the builder draws the same as Natural (use Waist height to move the waist). The setting is kept.
+                </p>
+              )}
             </Section>
 
-            <Section name="skirt" title="Skirt" hidden={!anyShown("skirt.")}>
+            <Section name="skirt" title={garment === "top" ? "Lower part" : "Skirt"} hidden={!anyControlShown(garment, "skirt.")}>
               <ChipGroup
                 label="Silhouette"
-                hidden={!isShown("skirt.silhouette")}
+                hidden={!shown("skirt.silhouette")}
                 options={toOptions(SILHOUETTES, SILHOUETTE_LABELS)}
                 value={spec.skirt.silhouette}
                 onChange={(v) => set("skirt.silhouette", v)}
@@ -272,37 +281,37 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
                 min={0} max={SKIRT_LENGTHS.length - 1} step={1}
                 value={SKIRT_LENGTHS.indexOf(spec.skirt.length)}
                 display={SKIRT_LENGTH_LABELS[spec.skirt.length]}
-                hidden={!isShown("skirt.length")}
+                hidden={!shown("skirt.length")}
                 ends={["Mini", "Floor"]}
                 onChange={(i) => set("skirt.length", SKIRT_LENGTHS[i], true)}
               />
               <ChipGroup
                 label="Fullness"
-                hidden={!isShown("skirt.fullness")}
+                hidden={!shown("skirt.fullness")}
                 options={toOptions(FULLNESS_TYPES, FULLNESS_LABELS)}
                 value={specValue<(typeof FULLNESS_TYPES)[number]>(spec, "skirt.fullness")}
                 onChange={(v) => set("skirt.fullness", v)}
               />
               <ChipGroup
                 label="Hem"
-                hidden={!isShown("skirt.hem")}
+                hidden={!shown("skirt.hem")}
                 options={toOptions(HEM_TYPES, HEM_LABELS)}
                 value={specValue<(typeof HEM_TYPES)[number]>(spec, "skirt.hem")}
                 onChange={(v) => set("skirt.hem", v)}
               />
               <ChipGroup
                 label="Panels"
-                hidden={!isShown("skirt.panels")}
+                hidden={!shown("skirt.panels")}
                 options={toOptions(PANEL_TYPES, PANEL_LABELS)}
                 value={specValue<(typeof PANEL_TYPES)[number]>(spec, "skirt.panels")}
                 onChange={(v) => set("skirt.panels", v)}
               />
             </Section>
 
-            <Section name="details" title="Details" hidden={!anyShown("details.")}>
+            <Section name="details" title="Details" hidden={!anyControlShown(garment, "details.")}>
               <ChipGroup
                 label="Pockets"
-                hidden={!isShown("details.pockets")}
+                hidden={!shown("details.pockets")}
                 options={toOptions(POCKET_TYPES, POCKET_LABELS)}
                 value={spec.details.pockets}
                 onChange={(v) => set("details.pockets", v)}
@@ -310,7 +319,7 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
               <RangeField
                 onCommit={onCommit}
                 label="Buttons"
-                hidden={!isShown("details.buttons")}
+                hidden={!shown("details.buttons")}
                 min={0} max={8} step={1}
                 value={spec.details.buttons}
                 display={String(spec.details.buttons)}
@@ -318,39 +327,39 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
               />
               <ChipGroup
                 label="Placket"
-                hidden={!isShown("details.placket")}
+                hidden={!shown("details.placket")}
                 options={toOptions(PLACKET_TYPES, PLACKET_LABELS)}
                 value={specValue<(typeof PLACKET_TYPES)[number]>(spec, "details.placket")}
                 onChange={(v) => set("details.placket", v)}
               />
               <ChipGroup
                 label="Darts"
-                hidden={!isShown("details.darts")}
+                hidden={!shown("details.darts")}
                 options={[{ value: true, label: "Darts" }, { value: false, label: "No darts" }]}
                 value={specValue<boolean>(spec, "details.darts")}
                 onChange={(v) => set("details.darts", v)}
               />
               <ChipGroup
                 label="Bow"
-                hidden={!isShown("details.bow")}
-                options={toOptions(BOW_TYPES, BOW_LABELS)}
+                hidden={!shown("details.bow")}
+                options={optionsFor("details.bow", garment, toOptions(BOW_TYPES, BOW_LABELS))}
                 value={specValue<(typeof BOW_TYPES)[number]>(spec, "details.bow")}
                 onChange={(v) => set("details.bow", v)}
               />
               <ChipGroup
                 label="Trim"
-                hidden={!isShown("details.trim")}
+                hidden={!shown("details.trim")}
                 options={toOptions(TRIM_TYPES, TRIM_LABELS)}
                 value={specValue<(typeof TRIM_TYPES)[number]>(spec, "details.trim")}
                 onChange={(v) => set("details.trim", v)}
               />
             </Section>
 
-            <Section name="proportions" title="Proportions" hidden={!anyShown("proportions.")}>
+            <Section name="proportions" title="Proportions" hidden={!anyControlShown(garment, "proportions.")}>
               <RangeField
                 onCommit={onCommit}
                 label="Shoulder width"
-                hidden={!isShown("proportions.shoulder_width")}
+                hidden={!shown("proportions.shoulder_width")}
                 min={0} max={1} step={0.05}
                 value={spec.proportions.shoulder_width}
                 display={unitDisplay(spec.proportions.shoulder_width)}
@@ -359,7 +368,7 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
               <RangeField
                 onCommit={onCommit}
                 label="Waist height"
-                hidden={!isShown("proportions.waist_y")}
+                hidden={!shown("proportions.waist_y")}
                 min={0} max={1} step={0.05}
                 value={spec.proportions.waist_y}
                 display={unitDisplay(spec.proportions.waist_y)}
@@ -370,45 +379,45 @@ export function PropertiesPanel({ spec, canvasStatus, selection, onEdit, onCommi
 
             <Section name="fabric" title="Fabric & color">
               <div className="parts">
-                {PART_NAMES.map((part) => {
+                {PARTS_FOR[garment].map((part) => {
                   const style = { ...DEFAULT_STYLE, ...spec.style[part] };
                   const filled = FILLED_PARTS.includes(part);
                   return (
                     <div className="part" key={part} data-part-row={part}>
                       <div className="field__row">
-                        <label className="field__label" htmlFor={`fill-${part}`}>{PART_LABELS[part]}</label>
+                        <label className="field__label" htmlFor={`fill-${part}`}>{partLabel(part, garment)}</label>
                         <ColorSwatch
                           id={`fill-${part}`}
                           value={String(style.fill).toLowerCase()}
                           disabled={!filled}
-                          label={`${PART_LABELS[part]} color`}
+                          label={`${partLabel(part, garment)} color`}
                           onChange={(hex) => set(stylePath(part, "fill"), hex, true)}
                           onCommit={onCommit}
                         />
                       </div>
                       <ChipGroup
                         small
-                        label={`${PART_LABELS[part]} pattern`}
+                        label={`${partLabel(part, garment)} pattern`}
                         options={toOptions(PATTERNS, PATTERN_LABELS)}
                         value={style.pattern}
                         disabled={!filled}
                         onChange={(v) => set(stylePath(part, "pattern"), v)}
                       />
                       {!filled && <p className="field__hint">The builder doesn’t fill this part yet.</p>}
-                      {FOLLOWER_PARTS.includes(part) && !following.includes(part) && (
+                      {garment !== "skirt" && FOLLOWER_PARTS.includes(part) && !following.includes(part) && (
                         <button
                           type="button"
                           className="btn btn--ghost btn--sm match-btn"
-                          aria-label={`Make ${PART_LABELS[part]} follow the bodice again`}
+                          aria-label={`Make ${partLabel(part, garment)} follow the bodice again`}
                           onClick={() => onMatchBodice(part)}
                         >
                           Match bodice
                         </button>
                       )}
-                      {following.includes(part) && (
+                      {garment !== "skirt" && following.includes(part) && (
                         <p className="field__hint">Follows the bodice until you set a color or pattern here.</p>
                       )}
-                      {part === "waist_seam" && !spec.waist.seam && (
+                      {part === "waist_seam" && garment !== "skirt" && !spec.waist.seam && (
                         <p className="field__hint">The waistband only shows when the waist seam is on.</p>
                       )}
                     </div>

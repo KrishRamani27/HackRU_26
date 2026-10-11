@@ -47,33 +47,34 @@ export const TRIM_TYPES = ["none", "piping", "lace"] as const;
  * four extra necklines, adding them to the list).
  */
 export const SHOWN_CONTROLS: Record<string, true | readonly string[]> = {
-  // Neckline: the builder draws crew, v, scoop and square. Sweetheart, off shoulder, halter and high are drawn
-  // like a scoop for now.
-  "neckline.type": ["crew", "v", "scoop", "square"], // all eight: true
+  // Neckline, collar, sleeves: all drawn (checked option by option against Builder/buildFlat.ts).
+  "neckline.type": true,
   "neckline.depth": true,
-  // "collar.type": true,
+  "collar.type": true,
   "sleeves.type": true,
   "sleeves.length": true,
-  // "sleeves.cuff": true,
-  // "sleeves.shoulder": true,
+  "sleeves.cuff": true,
+  "sleeves.shoulder": true,
   "waist.seam": true,
-  // "waist.style": true,
+  // The builder only draws "belted" (a taller band). Empire and dropped look the same as natural, because the
+  // waist height slider already moves the waist, so they have no chip. All four: true.
+  "waist.style": ["natural", "belted"],
   "skirt.silhouette": true,
   "skirt.length": true,
-  // "skirt.fullness": true,
-  // "skirt.hem": true,
-  // "skirt.panels": true,
+  "skirt.fullness": true,
+  "skirt.hem": true,
+  "skirt.panels": true,
   "details.pockets": true,
   "details.buttons": true,
-  // "details.placket": true,
-  // "details.darts": true,
-  // "details.bow": true,
-  // "details.trim": true,
+  "details.placket": true,
+  "details.darts": true,
+  "details.bow": true,
+  "details.trim": true,
   "proportions.shoulder_width": true,
   "proportions.waist_y": true,
 };
 
-/** Does the panel show a control for this spec path? */
+/** Does the panel show a control for this spec path (for some kind of garment)? */
 export const isShown = (path: string): boolean => path in SHOWN_CONTROLS;
 
 /** Does the panel show any control whose path starts with one of these prefixes (a whole section)? */
@@ -263,3 +264,56 @@ export function normalizeStyles(spec: DesignSpec): DesignSpec {
   }
   return { ...spec, style };
 }
+
+// ---------- Garment types ----------
+// `garment_type` is "dress", "top" or "skirt" (Builder/types.ts) and is locked: it comes from the spec and there is
+// no control to change it. A top is the dress cut off at the hip; a skirt is the dress without its bodice.
+// Which controls and parts apply to each was measured against Builder/buildFlat.ts (an option counts if it
+// changes the drawing). Same fallback as the builder: anything else is a dress.
+
+export type GarmentKind = "dress" | "top" | "skirt";
+export const garmentOf = (spec: DesignSpec | null | undefined): GarmentKind =>
+  spec?.garment_type === "top" || spec?.garment_type === "skirt" ? spec.garment_type : "dress";
+
+/** The drawing's parts that can exist for each garment. A skirt has no collar, bodice or sleeves. */
+export const PARTS_FOR: Record<GarmentKind, readonly PartName[]> = {
+  dress: PART_NAMES,
+  top: PART_NAMES,
+  skirt: ["waist_seam", "skirt", "pockets", "buttons"],
+};
+
+/**
+ * Controls that do nothing for a garment, as spec path prefixes. On a top the "skirt" controls do apply: they shape
+ * its lower part (its length is where the top ends). On a skirt, everything above the waist does nothing.
+ */
+export const NOT_FOR_GARMENT: Record<GarmentKind, readonly string[]> = {
+  dress: [],
+  top: [],
+  skirt: ["neckline.", "collar.", "sleeves.", "waist.seam", "details.darts"],
+};
+
+/** Single options that do nothing for a garment (a bow at the neckline needs a neckline). */
+export const OPTIONS_NOT_FOR_GARMENT: Partial<Record<GarmentKind, Record<string, readonly string[]>>> = {
+  skirt: { "details.bow": ["neckline"] },
+};
+
+/** Does the panel show a control for this path on this garment? */
+export const controlShown = (path: string, garment: GarmentKind): boolean =>
+  isShown(path) && !NOT_FOR_GARMENT[garment].some((p) => path.startsWith(p));
+
+/** Does a whole section (any path under these prefixes) have a control for this garment? */
+export const anyControlShown = (garment: GarmentKind, ...prefixes: string[]): boolean =>
+  Object.keys(SHOWN_CONTROLS).some((path) => prefixes.some((p) => path.startsWith(p)) && controlShown(path, garment));
+
+/** The options of a control to show: the list in SHOWN_CONTROLS, minus any that do nothing on this garment. */
+export function optionsFor<T extends string>(path: string, garment: GarmentKind, options: readonly { value: T; label: string }[]) {
+  const excluded = OPTIONS_NOT_FOR_GARMENT[garment]?.[path] ?? [];
+  return shownOptions(path, options).filter((o) => !excluded.includes(o.value));
+}
+
+/** What a part is called on this garment: on a top the "skirt" group is the lower part of the top. */
+export const partLabel = (part: PartName, garment: GarmentKind): string =>
+  garment === "top" && part === "skirt" ? "Lower part" : PART_LABELS[part];
+
+/** Library part types that mean nothing on this garment (a skirt has no neckline or sleeves). */
+export const PART_TYPES_NOT_FOR_GARMENT: Record<GarmentKind, readonly string[]> = { dress: [], top: [], skirt: ["neckline", "sleeves"] };
